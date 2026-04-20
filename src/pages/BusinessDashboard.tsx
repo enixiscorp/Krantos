@@ -1,0 +1,386 @@
+// ============================================================
+// Krantos Platform — /business-dashboard (Premium Dark Overhaul)
+// Requirements: 11.1, 11.2, 4.1 (Commissions tab)
+// ============================================================
+
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import {
+  LayoutDashboard,
+  Package,
+  Users,
+  PlusCircle,
+  LogOut,
+  TrendingUp,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Zap,
+  Loader2,
+  ArrowRight,
+  DollarSign,
+  Briefcase,
+  ChevronRight,
+  Calendar,
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import type { Product, Lead, LeadStatus } from '../lib/supabase';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface VendorInfo {
+  id: string;
+  name: string;
+  email: string | null;
+  subscription_type: string;
+  status: string;
+  commission_rate: number;
+}
+
+interface LeadMetrics {
+  new: number;
+  contacted: number;
+  converted: number;
+  lost: number;
+}
+
+interface CommissionRecord {
+  id: string;
+  amount: number;
+  commission_rate_applied: number;
+  status: string;
+  type: string;
+  created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const LEAD_STATUS_CONFIG: Record<
+  LeadStatus,
+  { label: string; color: string; bg: string; icon: React.ReactNode }
+> = {
+  new: {
+    label: 'Nouveaux',
+    color: 'text-blue-400',
+    bg: 'bg-blue-400/10 border-blue-400/20',
+    icon: <Clock className="w-5 h-5" />,
+  },
+  contacted: {
+    label: 'Contactés',
+    color: 'text-yellow-400',
+    bg: 'bg-yellow-400/10 border-yellow-400/20',
+    icon: <TrendingUp className="w-5 h-5" />,
+  },
+  converted: {
+    label: 'Convertis',
+    color: 'text-green-400',
+    bg: 'bg-green-400/10 border-green-400/20',
+    icon: <CheckCircle className="w-5 h-5" />,
+  },
+  lost: {
+    label: 'Perdus',
+    color: 'text-red-400',
+    bg: 'bg-red-400/10 border-red-400/20',
+    icon: <XCircle className="w-5 h-5" />,
+  },
+};
+
+const COMMISSION_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  pending_verification: { label: 'Attente', color: 'text-yellow-400', bg: 'bg-yellow-400/10' },
+  confirmed: { label: 'Confirmé', color: 'text-green-400', bg: 'bg-green-400/10' },
+  rejected: { label: 'Rejeté', color: 'text-red-400', bg: 'bg-red-400/10' },
+  rate_change: { label: 'Taux MAJ', color: 'text-blue-400', bg: 'bg-blue-400/10' },
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+const BusinessDashboard = () => {
+  const navigate = useNavigate();
+
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'commissions'>('overview');
+  
+  const [vendor, setVendor] = useState<VendorInfo | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
+  const [metrics, setMetrics] = useState<LeadMetrics>({ new: 0, contacted: 0, converted: 0, lost: 0 });
+
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        navigate('/business-login', { replace: true });
+        return;
+      }
+
+      const userId = sessionData.session.user.id;
+
+      // Vendor Info
+      const { data: vendorData, error: vError } = await supabase
+        .from('vendors')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (vError || !vendorData || vendorData.status !== 'active') {
+        await supabase.auth.signOut();
+        navigate('/business-login', { replace: true });
+        return;
+      }
+
+      if (!mounted) return;
+      setVendor(vendorData as VendorInfo);
+
+      // Concurrent fetches
+      const [pRes, lRes, cRes] = await Promise.all([
+        supabase.from('products').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
+        supabase.from('leads').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
+        supabase.from('commission_records').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
+      ]);
+
+      if (mounted) {
+        setProducts(pRes.data ?? []);
+        const fetchedLeads: Lead[] = lRes.data ?? [];
+        setLeads(fetchedLeads);
+        setCommissions(cRes.data ?? []);
+
+        const m: LeadMetrics = { new: 0, contacted: 0, converted: 0, lost: 0 };
+        for (const lead of fetchedLeads) {
+          if (lead.status in m) m[lead.status as LeadStatus]++;
+        }
+        setMetrics(m);
+        setLoading(false);
+      }
+    };
+
+    init();
+    return () => { mounted = false; };
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success('Déconnecté.');
+    navigate('/business-login');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-yellow-500 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-12">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center">
+               <Briefcase className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h1 className="text-4xl font-black text-white">Bonjour, {vendor?.name.split(' ')[0]} 👋</h1>
+          </div>
+          <p className="text-gray-500 text-lg uppercase tracking-widest text-xs font-black">
+             Partenaire {vendor?.subscription_type} · Lomé, Togo
+          </p>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 transition-all text-sm font-bold"
+        >
+          <LogOut className="w-4 h-4" />
+          Déconnexion
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl w-fit mb-12">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-yellow-400 text-gray-900 shadow-lg' : 'text-gray-400 hover:text-white'}`}
+        >
+          Tableau de bord
+        </button>
+        <button
+          onClick={() => setActiveTab('commissions')}
+          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'commissions' ? 'bg-yellow-400 text-gray-900 shadow-lg' : 'text-gray-400 hover:text-white'}`}
+        >
+          Commissions
+        </button>
+        <Link to="/leads" className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
+          Leads
+        </Link>
+        <Link to="/add-product" className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
+          Produits
+        </Link>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'overview' ? (
+          <motion.div
+            key="overview"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-12"
+          >
+            {/* Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              {(Object.keys(LEAD_STATUS_CONFIG) as LeadStatus[]).map((status) => {
+                const cfg = LEAD_STATUS_CONFIG[status];
+                return (
+                  <div key={status} className="glass-card p-6 rounded-3xl border-white/5 flex items-center gap-5">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${cfg.bg}`}>
+                      {cfg.icon}
+                    </div>
+                    <div>
+                      <p className={`text-2xl font-black ${cfg.color}`}>{metrics[status]}</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{cfg.label}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions & Recent */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center justify-between px-2">
+                   <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">Leads récents</h2>
+                   <Link to="/leads" className="text-xs font-bold text-yellow-400 hover:underline flex items-center gap-1">
+                      Voir tout <ChevronRight className="w-3 h-3" />
+                   </Link>
+                </div>
+                <div className="space-y-4">
+                  {leads.slice(0, 4).map((lead, i) => (
+                    <div key={lead.id} className="glass-card p-5 rounded-3xl border-white/5 flex items-center justify-between hover:border-white/10 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-sm text-gray-500">
+                           {lead.user_name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-white text-sm">{lead.user_name}</p>
+                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                         <p className="text-sm font-black text-white">{lead.total_power_needed.toFixed(1)} kVA</p>
+                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.bg} ${LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.color}`}>
+                            {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label}
+                         </span>
+                      </div>
+                    </div>
+                  ))}
+                  {leads.length === 0 && <p className="text-center py-10 text-gray-600 italic">Aucun lead pour le moment.</p>}
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em] px-2">Mon Profil</h2>
+                <div className="glass-card p-8 rounded-[2.5rem] border-white/5">
+                   <div className="flex items-center gap-4 mb-8">
+                      <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center font-black text-gray-900 text-xl">
+                         {vendor?.name.charAt(0)}
+                      </div>
+                      <div>
+                         <p className="font-black text-white tracking-tight">{vendor?.name}</p>
+                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Commission : {vendor?.commission_rate}%</p>
+                      </div>
+                   </div>
+                   <div className="space-y-4 pt-6 border-t border-white/5">
+                      <Link to="/add-product" className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/10 transition-all">
+                        <PlusCircle className="w-4 h-4" />
+                        Ajouter un produit
+                      </Link>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="commissions"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Commission Summary */}
+                <div className="glass-card p-10 rounded-[2.5rem] border-yellow-400/20 bg-yellow-400/[0.02] accent-glow">
+                   <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-4 block">Solde à facturer</span>
+                   <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-5xl font-black text-yellow-400">
+                         {commissions.filter(c => c.status === 'confirmed').reduce((acc, c) => acc + Number(c.amount), 0).toLocaleString('fr-FR')}
+                      </span>
+                      <span className="text-xl font-bold text-yellow-400/60">FCFA</span>
+                   </div>
+                   <p className="text-xs text-gray-500 font-medium tracking-wide">Calculé sur les ventes confirmées</p>
+                </div>
+
+                <div className="glass-card p-10 rounded-[2.5rem] border-white/5">
+                   <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 block">Taux appliqué</span>
+                   <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-5xl font-black text-white">{vendor?.commission_rate}</span>
+                      <span className="text-xl font-bold text-gray-500">%</span>
+                   </div>
+                   <p className="text-xs text-gray-500 font-medium tracking-wide">Garanti par votre contrat Krantos</p>
+                </div>
+             </div>
+
+             <div className="space-y-6">
+                <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em] px-2">Historique des commissions</h2>
+                <div className="space-y-3">
+                   {commissions.map((c, i) => {
+                      const cfg = COMMISSION_STATUS_CONFIG[c.status] || { label: c.status, color: 'text-gray-400', bg: 'bg-white/5' };
+                      return (
+                        <div key={c.id} className="glass-card p-5 rounded-2xl border-white/5 flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cfg.bg}`}>
+                                 <DollarSign className={`w-5 h-5 ${cfg.color}`} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-bold text-white uppercase tracking-tight">
+                                    {c.type === 'conversion' ? 'Vente confirmée' : 'Modification Taux'}
+                                 </p>
+                                 <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                                 </p>
+                              </div>
+                           </div>
+                           <div className="text-right">
+                              <p className="text-sm font-black text-white">
+                                 {c.type === 'conversion' ? `${Number(c.amount).toLocaleString('fr-FR')} FCFA` : '—'}
+                              </p>
+                              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
+                                 {cfg.label}
+                              </span>
+                           </div>
+                        </div>
+                      );
+                   })}
+                   {commissions.length === 0 && <p className="text-center py-20 text-gray-600">Aucune commission enregistrée.</p>}
+                </div>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default BusinessDashboard;

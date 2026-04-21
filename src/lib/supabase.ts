@@ -31,7 +31,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 /** Enum types */
 export type SubscriptionType = 'free' | 'basic' | 'premium';
-export type VendorStatus = 'pending' | 'active' | 'suspended';
+export type VendorStatus = 'pending' | 'active' | 'suspended' | 'expired' | 'terminated';
 export type LeadStatus = 'new' | 'contacted' | 'converted' | 'lost';
 export type PowerUnit = 'W' | 'A' | 'V';
 
@@ -74,6 +74,7 @@ export interface Vendor {
   email: string | null;
   subscription_type: SubscriptionType;
   status: VendorStatus;
+  contract_end_date: string | null;
   created_at: string;
 }
 

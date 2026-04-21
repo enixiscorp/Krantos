@@ -50,6 +50,7 @@ const vendorArbitrary = fc.record({
   email: fc.option(fc.emailAddress(), { nil: null }),
   subscription_type: fc.constantFrom('free' as const, 'basic' as const, 'premium' as const),
   status: fc.constant('active' as const),
+  contract_end_date: fc.option(fc.date().map((d) => d.toISOString()), { nil: null }),
   created_at: fc.constant(new Date().toISOString()),
 });
 
@@ -149,7 +150,9 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
           order: vi.fn().mockReturnThis(),
           limit: mockLimit,
         };
-        vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockChain as unknown as ReturnType<typeof supabase.from>
+        );
 
         // Call the engine
         const result = await getRecommendation(totalKVA);
@@ -186,7 +189,9 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
     expect(result.product).toBeNull();
@@ -206,7 +211,9 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     // Very high totalKVA — no product in a typical catalog would match
     const result = await getRecommendation(99999);
@@ -227,6 +234,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
       email: 'contact@energietogo.tg',
       subscription_type: 'premium',
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     };
 
@@ -252,7 +260,9 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
 
@@ -391,6 +401,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
       email: null,
       subscription_type: sub,
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     });
 
@@ -464,6 +475,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
       email: null,
       subscription_type: 'basic',
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     });
 
@@ -554,7 +566,9 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
           order: vi.fn().mockReturnThis(),
           limit: mockLimit,
         };
-        vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockChain as unknown as ReturnType<typeof supabase.from>
+        );
 
         const result = await getRecommendation(totalKVA);
 
@@ -597,6 +611,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
       email: null,
       subscription_type: sub,
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     });
 
@@ -655,7 +670,9 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(totalKVA);
 
@@ -690,6 +707,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
       email: null,
       subscription_type: 'basic',
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     });
 
@@ -725,7 +743,9 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
 
@@ -921,6 +941,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       email: null,
       subscription_type: 'premium',
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     };
 
@@ -933,7 +954,9 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
 
@@ -960,7 +983,9 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
 
@@ -987,6 +1012,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       email: 'actif@example.com',
       subscription_type: 'basic',
       status: 'active',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     };
 
@@ -998,6 +1024,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       email: 'suspendu@example.com',
       subscription_type: 'premium',
       status: 'suspended',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     };
 
@@ -1009,6 +1036,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       email: 'pending@example.com',
       subscription_type: 'premium',
       status: 'pending',
+      contract_end_date: null,
       created_at: new Date().toISOString(),
     };
 
@@ -1037,7 +1065,9 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     const result = await getRecommendation(5);
 
@@ -1072,7 +1102,9 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       order: vi.fn().mockReturnThis(),
       limit: mockLimit,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     await getRecommendation(5);
 
@@ -1106,6 +1138,7 @@ function makeVendorUnit(
     email: null,
     subscription_type: sub,
     status: 'active',
+    contract_end_date: null,
     created_at: new Date().toISOString(),
   };
 }

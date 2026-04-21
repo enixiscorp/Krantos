@@ -57,7 +57,9 @@ function mockSupabaseProduct(product: Product | null, error: { message: string }
     eq: vi.fn().mockReturnThis(),
     single: mockSingle,
   };
-  vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+  vi.mocked(supabase.from).mockReturnValue(
+    mockChain as unknown as ReturnType<typeof supabase.from>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -266,7 +268,9 @@ describe('ChatbotEngine — processMessage', () => {
       eq: vi.fn().mockReturnThis(),
       single: mockSingle,
     };
-    vi.mocked(supabase.from).mockReturnValue(mockChain as ReturnType<typeof supabase.from>);
+    vi.mocked(supabase.from).mockReturnValue(
+      mockChain as unknown as ReturnType<typeof supabase.from>
+    );
 
     await expect(processMessage('prix', 'product-1')).rejects.toThrow(
       '[ChatbotEngine]'
@@ -349,7 +353,7 @@ describe('ChatbotEngine — Propriété 9 : Réponse non vide pour tout message 
           single: mockSingle,
         };
         vi.mocked(supabase.from).mockReturnValue(
-          mockChain as ReturnType<typeof supabase.from>
+          mockChain as unknown as ReturnType<typeof supabase.from>
         );
 
         const response = await processMessage(message, product.id);

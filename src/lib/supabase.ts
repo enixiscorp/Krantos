@@ -34,6 +34,7 @@ export type SubscriptionType = 'free' | 'basic' | 'premium';
 export type VendorStatus = 'pending' | 'active' | 'suspended' | 'expired' | 'terminated';
 export type LeadStatus = 'new' | 'contacted' | 'converted' | 'lost';
 export type PowerUnit = 'W' | 'A' | 'V';
+export type AppRole = 'super_admin' | 'admin' | 'vendor' | 'user';
 
 // ---------------------------------------------------------------------------
 // Domain types (used by PowerCalculator, RecommendationEngine, etc.)
@@ -75,6 +76,15 @@ export interface Vendor {
   subscription_type: SubscriptionType;
   status: VendorStatus;
   contract_end_date: string | null;
+  created_at: string;
+}
+
+export interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  role: AppRole;
   created_at: string;
 }
 

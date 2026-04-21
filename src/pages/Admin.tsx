@@ -23,7 +23,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { VendorStatus, LeadStatus } from '../lib/supabase';
+import type { VendorStatus, LeadStatus, AppRole } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -58,6 +58,27 @@ const Admin = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         navigate('/business-login', { replace: true });
+        return;
+      }
+      const currentUserId = sessionData.session.user.id;
+
+      // Access rule for /admin: only admin + super_admin.
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentUserId)
+        .single();
+
+      if (profileError || !profile) {
+        toast.error('Profil introuvable.');
+        navigate('/', { replace: true });
+        return;
+      }
+
+      const role = profile.role as AppRole;
+      if (role !== 'admin' && role !== 'super_admin') {
+        toast.error('Accès non autorisé.');
+        navigate('/', { replace: true });
         return;
       }
 

@@ -43,7 +43,7 @@ const Admin = () => {
 
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<AdminStats>({
-    vendors: { pending: 0, active: 0, suspended: 0 },
+    vendors: { pending: 0, active: 0, suspended: 0, expired: 0, terminated: 0 },
     leads: { new: 0, contacted: 0, converted: 0, lost: 0 },
   });
 
@@ -79,6 +79,8 @@ const Admin = () => {
           pending: 0,
           active: 0,
           suspended: 0,
+          expired: 0,
+          terminated: 0,
         };
         for (const v of vendorsData ?? []) {
           if (v.status in vendorCounts) vendorCounts[v.status as VendorStatus]++;

@@ -348,7 +348,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
           limit: mockLimit,
         };
         vi.mocked(supabase.from).mockReturnValue(
-          mockChain as ReturnType<typeof supabase.from>
+          mockChain as unknown as ReturnType<typeof supabase.from>
         );
 
         const result = await getRecommendation(0);
@@ -447,7 +447,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
       limit: mockLimit,
     };
     vi.mocked(supabase.from).mockReturnValue(
-      mockChain as ReturnType<typeof supabase.from>
+      mockChain as unknown as ReturnType<typeof supabase.from>
     );
 
     const result = await getRecommendation(5);
@@ -518,7 +518,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
       limit: mockLimit,
     };
     vi.mocked(supabase.from).mockReturnValue(
-      mockChain as ReturnType<typeof supabase.from>
+      mockChain as unknown as ReturnType<typeof supabase.from>
     );
 
     const result = await getRecommendation(5);
@@ -886,7 +886,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
           limit: mockLimit,
         };
         vi.mocked(supabase.from).mockReturnValue(
-          mockChain as ReturnType<typeof supabase.from>
+          mockChain as unknown as ReturnType<typeof supabase.from>
         );
 
         const result = await getRecommendation(totalKVA);
@@ -1175,7 +1175,7 @@ function mockSupabaseWith(rows: Array<Product & { vendors: Vendor }>) {
     limit: mockLimit,
   };
   vi.mocked(supabase.from).mockReturnValue(
-    mockChain as ReturnType<typeof supabase.from>
+    mockChain as unknown as ReturnType<typeof supabase.from>
   );
   return { mockChain, mockLimit };
 }

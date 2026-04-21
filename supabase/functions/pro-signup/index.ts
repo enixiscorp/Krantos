@@ -1,21 +1,43 @@
 import { adminClient, corsHeaders, jsonResponse } from "../_shared/auth.ts";
+import { enforceRateLimit, parseOrBadRequest, z } from "../_shared/security.ts";
+
+const proSignupSchema = z.object({
+  company_name: z.string().min(2).max(120),
+  category: z.string().min(2).max(80),
+  phone: z.string().min(6).max(30),
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  first_name: z.string().min(1).max(80).optional().nullable(),
+  last_name: z.string().min(1).max(80).optional().nullable(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse(405, { error: "Method not allowed" });
 
-  const body = await req.json();
-  const company_name = body.company_name as string;
-  const category = body.category as string;
-  const phone = body.phone as string;
-  const email = body.email as string;
-  const password = body.password as string;
-  const first_name = (body.first_name as string) ?? null;
-  const last_name = (body.last_name as string) ?? null;
-
-  if (!company_name || !category || !phone || !email || !password) {
-    return jsonResponse(400, { error: "Missing required fields" });
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rate = await enforceRateLimit({
+    key: `pro-signup:${ip}`,
+    maxHits: 8,
+    windowSeconds: 60,
+  });
+  if (!rate.allowed) {
+    return jsonResponse(429, { error: "Too many signup attempts", retry_at: rate.resetAt });
   }
+
+  const payload = await req.json();
+  const parsed = parseOrBadRequest(proSignupSchema, payload);
+  if (!parsed.ok) return parsed.response;
+
+  const {
+    company_name,
+    category,
+    phone,
+    email,
+    password,
+    first_name = null,
+    last_name = null,
+  } = parsed.data;
 
   const { data: authUser, error: createError } = await adminClient.auth.admin.createUser({
     email,

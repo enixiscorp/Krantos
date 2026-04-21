@@ -10,16 +10,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import {
-  Zap,
-  Package,
-  Store,
   MessageCircle,
   FileDown,
-  X,
   Send,
   Bot,
-  User,
-  ExternalLink,
   ChevronRight,
   AlertCircle,
   Sparkles,
@@ -31,7 +25,7 @@ import {
   sendWhatsAppMessage,
   updateLeadStatus,
 } from '../services/whatsappService';
-import { processMessage } from '../services/chatbotEngine';
+import { sendChatbotMessage } from '../services/chatbotApi';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -53,6 +47,7 @@ interface ResultsState {
 interface ChatMessage {
   role: 'user' | 'bot';
   text: string;
+  cta?: 'whatsapp' | 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +77,7 @@ const Results = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const quickPrompts = ['Quel est le prix ?', 'Quelle est la durée de vie ?', 'Est-ce fiable ?', 'Je veux commander'];
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -127,8 +123,8 @@ const Results = () => {
     setChatLoading(true);
 
     try {
-      const response = await processMessage(msg, product.id);
-      setChatMessages(prev => [...prev, { role: 'bot', text: response }]);
+      const api = await sendChatbotMessage(msg, product.id);
+      setChatMessages(prev => [...prev, { role: 'bot', text: api.response, cta: api.cta }]);
     } catch {
       setChatMessages(prev => [...prev, { role: 'bot', text: "Erreur lors de la réponse. Réessayez." }]);
     } finally {
@@ -263,52 +259,104 @@ const Results = () => {
         </Link>
       </div>
 
-      {/* Personalized Advice (Chatbot) */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="glass-card p-8 rounded-[2.5rem] mb-16"
+      {/* Floating chatbot button */}
+      <button
+        onClick={() => setShowChatbot(true)}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-yellow-400 text-gray-900 shadow-2xl shadow-yellow-400/30 flex items-center justify-center hover:scale-105 transition-transform"
+        aria-label="Ouvrir le chatbot"
       >
-        <div className="flex items-center gap-2 mb-8">
-          <Bot className="w-5 h-5 text-gray-400" />
-          <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Conseil personnalisé</span>
-        </div>
+        <MessageCircle className="w-6 h-6" />
+      </button>
 
-        <div className="space-y-6 mb-8 max-h-[300px] overflow-y-auto pr-2 scrollbar-hide">
-          {chatMessages.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[85%] px-5 py-4 rounded-3xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-yellow-400 text-gray-900 font-bold rounded-tr-sm'
-                    : 'bg-white/5 text-gray-200 border border-white/5 rounded-tl-sm'
-                }`}
-              >
-                {msg.text}
-              </div>
-            </div>
-          ))}
-          <div ref={chatEndRef} />
-        </div>
-
-        <div className="relative">
-          <input
-            type="text"
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-            placeholder="Posez votre question..."
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-400/50 pr-16 transition-all"
-          />
-          <button
-            onClick={handleChatSend}
-            className="absolute right-2 top-2 bottom-2 w-12 rounded-xl bg-yellow-400 text-gray-900 flex items-center justify-center hover:bg-yellow-500 transition-all active:scale-95"
+      <AnimatePresence>
+        {showChatbot && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
+            onClick={() => setShowChatbot(false)}
           >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </motion.div>
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-xl glass-card rounded-3xl border border-white/10 p-5 md:p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-yellow-400" />
+                  <span className="text-sm font-bold text-white">Assistant Krantos</span>
+                </div>
+                <button
+                  onClick={() => setShowChatbot(false)}
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-4">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setChatInput(prompt)}
+                    className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300 hover:text-white"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-4 mb-4 max-h-[320px] overflow-y-auto pr-1">
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm ${
+                        msg.role === 'user'
+                          ? 'bg-yellow-400 text-gray-900 font-bold'
+                          : 'bg-white/5 text-gray-200 border border-white/10'
+                      }`}
+                    >
+                      <p>{msg.text}</p>
+                      {msg.role === 'bot' && msg.cta === 'whatsapp' && (
+                        <button
+                          onClick={handleWhatsApp}
+                          className="mt-3 text-xs px-3 py-1.5 rounded-full bg-green-500 text-white font-bold hover:bg-green-600"
+                        >
+                          Contacter sur WhatsApp
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="text-xs text-gray-400">Le bot écrit...</div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleChatSend()}
+                  placeholder="Posez votre question..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-yellow-400/50 pr-14"
+                />
+                <button
+                  onClick={handleChatSend}
+                  className="absolute right-2 top-2 bottom-2 w-10 rounded-xl bg-yellow-400 text-gray-900 flex items-center justify-center hover:bg-yellow-500"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Alternatives */}
       {alternatives.length > 0 && (

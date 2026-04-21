@@ -43,6 +43,33 @@ export async function requireSuperAdmin(authorizationHeader: string | null) {
   return userData.user;
 }
 
+export async function requireRole(
+  authorizationHeader: string | null,
+  allowedRoles: Array<"super_admin" | "admin" | "vendor" | "user">
+) {
+  if (!authorizationHeader?.startsWith("Bearer ")) {
+    throw new Error("Missing bearer token");
+  }
+  const token = authorizationHeader.replace("Bearer ", "");
+  const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+  if (userError || !userData.user) {
+    throw new Error("Invalid token");
+  }
+
+  const userId = userData.user.id;
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+
+  if (profileError || !profile || !allowedRoles.includes(profile.role)) {
+    throw new Error("Forbidden");
+  }
+
+  return { user: userData.user, role: profile.role as "super_admin" | "admin" | "vendor" | "user" };
+}
+
 export function jsonResponse(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,

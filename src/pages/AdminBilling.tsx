@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Vendor } from '../lib/supabase';
-import { generateReport, exportToPDF, BillingReport } from '../services/billingService';
+import { generateReport, exportToPDF } from '../services/billingService';
+import type { BillingReport } from '../services/billingService';
 
 // ---------------------------------------------------------------------------
 // Component

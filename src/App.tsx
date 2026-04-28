@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
+import AdminLayout from './components/AdminLayout';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -28,18 +29,23 @@ function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-yellow-400 font-bold">Chargement...</div>}>
-        <Layout>
-          <Routes>
+        <Routes>
+          {/* Front/public site (avec Header) */}
+          <Route element={<Layout><div /></Layout>}>
             <Route path="/" element={<Home />} />
             <Route path="/calculate-power" element={<CalculatePower />} />
             <Route path="/results" element={<Results />} />
             <Route path="/vendors" element={<Vendors />} />
             <Route path="/vendor/:id" element={<VendorDetail />} />
             <Route path="/business-login" element={<BusinessLogin />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/business-dashboard" element={<BusinessDashboard />} />
             <Route path="/add-product" element={<AddProduct />} />
             <Route path="/leads" element={<Leads />} />
+          </Route>
+
+          {/* Back-office admin (sans Header) */}
+          <Route element={<AdminLayout><div /></AdminLayout>}>
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route
               path="/admin"
               element={
@@ -112,8 +118,8 @@ function App() {
                 </SuperAdminRoute>
               }
             />
-          </Routes>
-        </Layout>
+          </Route>
+        </Routes>
       </Suspense>
     </BrowserRouter>
   );

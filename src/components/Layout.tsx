@@ -1,4 +1,5 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import Header from './Header';
 
 interface LayoutProps {
@@ -10,6 +11,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-[#0a0a0c] text-white selection:bg-yellow-400 selection:text-gray-900">
       <Header />
       <main className="pt-16 pb-20">
+        <Outlet />
         {children}
       </main>
       

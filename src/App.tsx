@@ -10,6 +10,7 @@ const Results = lazy(() => import('./pages/Results'));
 const Vendors = lazy(() => import('./pages/Vendors'));
 const VendorDetail = lazy(() => import('./pages/VendorDetail'));
 const BusinessLogin = lazy(() => import('./pages/BusinessLogin'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const BusinessDashboard = lazy(() => import('./pages/BusinessDashboard'));
 const AddProduct = lazy(() => import('./pages/AddProduct'));
 const Leads = lazy(() => import('./pages/Leads'));
@@ -35,6 +36,7 @@ function App() {
             <Route path="/vendors" element={<Vendors />} />
             <Route path="/vendor/:id" element={<VendorDetail />} />
             <Route path="/business-login" element={<BusinessLogin />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/business-dashboard" element={<BusinessDashboard />} />
             <Route path="/add-product" element={<AddProduct />} />
             <Route path="/leads" element={<Leads />} />

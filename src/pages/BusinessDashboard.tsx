@@ -133,10 +133,47 @@ const BusinessDashboard = () => {
         .eq('profile_id', userId)
         .single();
 
-      const end = (vendorData as { contract_end_date?: string | null } | null)?.contract_end_date ?? null;
-      const hasValidContract = !end || new Date(end) >= new Date(new Date().toISOString().slice(0, 10));
+      const vd = vendorData as {
+        status?: string;
+        contract_end_date?: string | null;
+        access_status?: string;
+        access_restricted_until?: string | null;
+        access_block_reason?: string | null;
+      } | null;
 
-      if (vError || !vendorData || vendorData.status !== 'active' || !hasValidContract) {
+      const end = vd?.contract_end_date ?? null;
+      const today = new Date(new Date().toISOString().slice(0, 10));
+      const hasValidContract = !end || new Date(end) >= today;
+
+      const accessStatus = vd?.access_status ?? (vd?.status === 'active' ? 'active' : 'pending_validation');
+      const restrictedUntil = vd?.access_restricted_until ? new Date(vd.access_restricted_until) : null;
+
+      const isRestrictedNow =
+        (accessStatus === 'restricted_3d' || accessStatus === 'restricted_7d' || accessStatus === 'restricted_30d') &&
+        restrictedUntil !== null &&
+        restrictedUntil >= today;
+
+      const blocked =
+        vError ||
+        !vd ||
+        accessStatus !== 'active' ||
+        !hasValidContract ||
+        isRestrictedNow;
+
+      if (blocked) {
+        const reason =
+          vd?.access_block_reason ??
+          (accessStatus === 'pending_validation'
+            ? 'Votre inscription est en attente de validation par un administrateur.'
+            : accessStatus === 'disabled'
+              ? 'Votre accès a été désactivé. Contactez le support.'
+              : accessStatus === 'subscription_expired' || !hasValidContract
+                ? 'Votre abonnement a expiré. Veuillez renouveler votre contrat.'
+                : isRestrictedNow
+                  ? `Accès restreint jusqu’au ${restrictedUntil?.toLocaleDateString('fr-FR')}.`
+                  : 'Accès non autorisé.');
+
+        toast.error(reason);
         await supabase.auth.signOut();
         navigate('/business-login', { replace: true });
         return;

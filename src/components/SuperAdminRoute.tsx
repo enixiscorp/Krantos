@@ -22,7 +22,7 @@ const SuperAdminRoute = ({ children }: Props) => {
     const run = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        navigate('/business-login', { replace: true });
+        navigate('/admin-login', { replace: true });
         return;
       }
 

@@ -130,10 +130,13 @@ const BusinessDashboard = () => {
       const { data: vendorData, error: vError } = await supabase
         .from('vendors')
         .select('*')
-        .eq('id', userId)
+        .eq('profile_id', userId)
         .single();
 
-      if (vError || !vendorData || vendorData.status !== 'active') {
+      const end = (vendorData as { contract_end_date?: string | null } | null)?.contract_end_date ?? null;
+      const hasValidContract = !end || new Date(end) >= new Date(new Date().toISOString().slice(0, 10));
+
+      if (vError || !vendorData || vendorData.status !== 'active' || !hasValidContract) {
         await supabase.auth.signOut();
         navigate('/business-login', { replace: true });
         return;

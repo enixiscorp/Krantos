@@ -118,32 +118,53 @@ const AdminUsers = () => {
       return;
     }
 
-    toast.info("L'invitation des administrateurs utilise Supabase Auth Invite. Simulation en cours...");
-    
-    // In a real app, you would call a Supabase Edge Function to invite the user
-    // For this UI demo, we simulate the database record creation
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('admin_users')
-        .insert({
-          name: newName,
-          email: newEmail,
-          role: newRole,
-          auth_user_id: crypto.randomUUID(), // Mock ID for simulation
-        });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (!session) {
+        navigate('/business-login', { replace: true });
+        return;
+      }
 
-      if (error) throw error;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+      const parts = newName.trim().split(/\s+/);
+      const first_name = parts[0] ?? newName.trim();
+      const last_name = parts.slice(1).join(' ') || '—';
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: supabaseAnon,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          first_name,
+          last_name,
+          email: newEmail,
+          role: newRole === 'super_admin' ? 'admin_principal' : newRole,
+        }),
+      });
+      const json = (await res.json()) as { error?: string; password_reset_link?: string | null };
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
 
       toast.success(`${newName} a été ajouté.`);
+      if (json.password_reset_link) {
+        toast.info('Lien de définition du mot de passe généré (voir console).');
+        console.info('[AdminUsers] password_reset_link:', json.password_reset_link);
+      }
       setShowAddModal(false);
       setNewName(''); setNewEmail('');
+      setNewRole('admin_collaborateur');
       
       // Refresh
       const { data } = await supabase.from('admin_users').select('*').order('created_at', { ascending: false });
       setUsers(data ?? []);
     } catch (err) {
-      toast.error('Erreur lors de l’ajout.');
+      toast.error(err instanceof Error ? err.message : 'Erreur lors de l’ajout.');
     } finally {
       setLoading(false);
     }

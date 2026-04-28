@@ -35,13 +35,14 @@ Deno.serve(async (req) => {
       last_name: z.string().min(1).max(80),
       email: z.string().email(),
       phone: z.string().min(6).max(30).optional().nullable(),
-      role: z.enum(["admin", "vendor"]).optional().default("admin"),
+      role: z.enum(["admin_principal", "admin_collaborateur", "vendor"]).optional().default("admin_collaborateur"),
     });
     const parsed = parseOrBadRequest(bodySchema, await req.json());
     if (!parsed.ok) return parsed.response;
 
     const { first_name, last_name, email, phone, role } = parsed.data;
     const normalizedRole = role === "vendor" ? "vendor" : "admin";
+    const adminStaffRole = role === "vendor" ? null : role;
 
     const temporaryPassword = randomPassword();
 
@@ -65,6 +66,27 @@ Deno.serve(async (req) => {
       phone: phone ?? null,
       role: normalizedRole,
     });
+    // If it's an admin staff account, create the admin_users row (RLS: service_role only)
+    if (adminStaffRole) {
+      const { data: actorAdmin } = await adminClient
+        .from("admin_users")
+        .select("id")
+        .eq("auth_user_id", actorId)
+        .maybeSingle();
+
+      const { error: adminUsersError } = await adminClient.from("admin_users").insert({
+        auth_user_id: userId,
+        role: adminStaffRole,
+        name: `${first_name} ${last_name}`.trim(),
+        email,
+        created_by: actorAdmin?.id ?? null,
+      });
+
+      if (adminUsersError) {
+        return jsonResponse(500, { error: adminUsersError.message });
+      }
+    }
+
 
     if (profileError) {
       return jsonResponse(500, { error: profileError.message });
@@ -86,13 +108,14 @@ Deno.serve(async (req) => {
       action: normalizedRole === "admin" ? "admin.create" : "vendor.create_by_admin",
       targetType: "auth_user",
       targetId: userId,
-      metadata: { email, role: normalizedRole },
+      metadata: { email, role: normalizedRole, admin_staff_role: adminStaffRole },
     });
 
     return jsonResponse(201, {
       message: `${normalizedRole} created successfully`,
       user_id: userId,
       role: normalizedRole,
+      admin_staff_role: adminStaffRole,
       // If your SMTP is configured in Supabase, you can send this securely server-side.
       password_reset_link: linkData?.properties?.action_link ?? null,
     });

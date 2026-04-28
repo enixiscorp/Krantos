@@ -154,10 +154,10 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Tester `exportToPDF` : vérifier que le PDF contient les informations requises (nom vendeur, période, lignes, total)
     - _Exigences : C7.2, C7.3, C7.4_
 
-- [~] 8. Checkpoint — Vérifier que tous les tests passent
+- [ ] 8. Checkpoint — Vérifier que tous les tests passent
   - S'assurer que tous les tests unitaires et de propriété des modules ContractService et BillingService passent.
 
-- [~] 9. Interface Admin — Gestion des commissions (`src/pages/AdminCommissions.tsx`)
+- [ ] 9. Interface Admin — Gestion des commissions (`src/pages/AdminCommissions.tsx`)
   - [ ] 9.1 Implémenter la page `/admin/commissions`
     - Protéger la route : accessible uniquement aux admins authentifiés (tous rôles)
     - Afficher la liste des vendeurs avec leur taux de commission actuel et la date de dernière modification
@@ -170,7 +170,7 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Afficher un message d'alerte si la résiliation automatique est déclenchée (fraud_count = 3)
     - _Exigences : C1.1, C1.2, C1.3, C2.3, C2.4, C3.1, C3.2, C3.4, C4.1, C4.2, C4.3_
 
-- [~] 10. Interface Admin — Rapports de facturation (`src/pages/AdminBilling.tsx`)
+- [ ] 10. Interface Admin — Rapports de facturation (`src/pages/AdminBilling.tsx`)
   - [ ] 10.1 Implémenter la page `/admin/billing`
     - Protéger la route : accessible à tous les rôles admin
     - Afficher un formulaire de sélection : vendeur (liste déroulante) + période (date de début, date de fin)
@@ -180,7 +180,7 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Implémenter le bouton "Envoyer au vendeur" : appeler `BillingService.sendInvoice(vendorId, report)` et afficher une confirmation
     - _Exigences : C7.1, C7.2, C7.3, C7.4, C7.5, C7.6_
 
-- [~] 11. Interface Admin — Gestion des contrats (`src/pages/AdminContracts.tsx`)
+- [ ] 11. Interface Admin — Gestion des contrats (`src/pages/AdminContracts.tsx`)
   - [ ] 11.1 Implémenter la page `/admin/contracts`
     - Protéger la route : accessible à tous les rôles admin (lecture), renouvellement réservé aux Super Admin et Admin Principal
     - Afficher la liste des vendeurs avec leur statut de contrat, `contract_start_date`, `contract_end_date`
@@ -191,7 +191,7 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Afficher un message de confirmation après renouvellement avec la nouvelle date de fin
     - _Exigences : C6.1, C6.2, C6.3, C6.4, C6.5, C9.4_
 
-- [~] 12. Interface Admin — Gestion des admins (`src/pages/AdminUsers.tsx`)
+- [ ] 12. Interface Admin — Gestion des admins (`src/pages/AdminUsers.tsx`)
   - [ ] 12.1 Implémenter la page `/admin/users`
     - Protéger la route : accessible uniquement aux Super Admins et Admins Principaux
     - Afficher la liste des admins existants avec leur rôle, leur créateur et leur date de création
@@ -200,7 +200,7 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Masquer l'option de création de Super Admin pour les Admins Principaux
     - _Exigences : C8.1, C8.2, C8.3, C8.4_
 
-- [~] 13. Extension du tableau de bord vendeur — Onglet Commissions
+- [ ] 13. Extension du tableau de bord vendeur — Onglet Commissions
   - [ ] 13.1 Ajouter l'onglet "Commissions" au `/business-dashboard`
     - Ajouter un onglet "Commissions" dans la navigation du tableau de bord vendeur existant
     - Afficher le taux de commission actuel du vendeur (lecture seule)
@@ -210,14 +210,14 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Afficher l'historique paginé des enregistrements de commission (via `CommissionService.getCommissionHistory`)
     - _Exigences : C3.1, C3.2, C3.3, C3.4, C3.5_
 
-- [~] 14. Extension de la gestion des leads vendeur — Marquage de conversion
+- [ ] 14. Extension de la gestion des leads vendeur — Marquage de conversion
   - [ ] 14.1 Étendre la page `/leads` pour le déclenchement des commissions
     - Ajouter un champ "Montant de la vente (FCFA)" lors du passage d'un lead au statut `converted`
     - WHEN le vendeur marque un lead comme `converted`, appeler `CommissionService.recordConversion(leadId, vendorId, saleAmount)` après la mise à jour du statut
     - Afficher une confirmation indiquant que la commission a été enregistrée et est en attente de vérification
     - _Exigences : C2.1, C2.2_
 
-- [~] 15. Mise à jour du routeur et de la navigation admin
+- [ ] 15. Mise à jour du routeur et de la navigation admin
   - [ ] 15.1 Ajouter les nouvelles routes admin
     - Ajouter les routes dans `src/App.tsx` : `/admin/commissions`, `/admin/billing`, `/admin/contracts`, `/admin/users`
     - Implémenter la protection des routes par rôle : vérifier le rôle dans `admin_users` avant d'afficher la page
@@ -225,7 +225,7 @@ Ce plan décompose le module de gestion des commissions, contrats et facturation
     - Implémenter le code splitting via `React.lazy` et `Suspense` pour les nouvelles pages admin
     - _Exigences : C8.4, C8.5_
 
-- [~] 16. Checkpoint final — Vérifier que tous les tests passent
+- [ ] 16. Checkpoint final — Vérifier que tous les tests passent
   - S'assurer que tous les tests unitaires, de propriété et d'intégration passent.
   - Vérifier les politiques RLS sur les nouvelles tables.
   - Vérifier que les nouveaux statuts `expired` et `terminated` sont correctement exclus des requêtes publiques.

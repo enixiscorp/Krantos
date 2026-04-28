@@ -28,17 +28,30 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<AdminDashboardPayload | null>(null);
   const [leadsPerDay, setLeadsPerDay] = useState<{ date: string; count: number }[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [dash, leadStats] = await Promise.all([
+        const [dash, leadStats, roleInfo] = await Promise.all([
           getAdminDashboard(),
           getStatsLeads().catch(() => null),
+          (async () => {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const uid = sessionData.session?.user.id;
+            if (!uid) return { super: false };
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', uid)
+              .single();
+            return { super: profile?.role === 'super_admin' };
+          })(),
         ]);
         if (!mounted) return;
         setDashboard(dash);
+        setIsSuperAdmin(roleInfo.super);
         if (leadStats?.leads_per_day?.length) {
           setLeadsPerDay(leadStats.leads_per_day.slice(-14));
         }
@@ -95,7 +108,9 @@ const Admin = () => {
     { title: 'Commissions', desc: 'Gestion des taux', path: '/admin/commissions', icon: <DollarSign className="w-5 h-5 text-green-400" /> },
     { title: 'Facturation', desc: 'Rapports & PDF', path: '/admin/billing', icon: <FileText className="w-5 h-5 text-purple-400" /> },
     { title: 'Contrats', desc: 'Abonnements', path: '/admin/contracts', icon: <ShieldCheck className="w-5 h-5 text-orange-400" /> },
-    { title: 'Utilisateurs', desc: 'Accès internes', path: '/admin/users', icon: <UserPlus className="w-5 h-5 text-pink-400" /> },
+    ...(isSuperAdmin
+      ? [{ title: 'Utilisateurs', desc: 'Accès internes', path: '/admin/users', icon: <UserPlus className="w-5 h-5 text-pink-400" /> }]
+      : []),
   ];
 
   return (

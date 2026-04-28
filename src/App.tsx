@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import SuperAdminRoute from './components/SuperAdminRoute';
+import AdminRoute from './components/AdminRoute';
 
 const Home = lazy(() => import('./pages/Home'));
 const CalculatePower = lazy(() => import('./pages/CalculatePower'));
@@ -39,57 +40,57 @@ function App() {
             <Route
               path="/admin"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <Admin />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/vendors"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminVendors />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/leads"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminLeads />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/commissions"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminCommissions />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/products"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminProducts />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/billing"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminBilling />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route
               path="/admin/contracts"
               element={
-                <SuperAdminRoute>
+                <AdminRoute>
                   <AdminContracts />
-                </SuperAdminRoute>
+                </AdminRoute>
               }
             />
             <Route

@@ -1,4 +1,4 @@
-import { adminClient, corsHeaders, jsonResponse, requireSuperAdmin } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, jsonResponse, requireAdminStaff } from "../_shared/auth.ts";
 import { enforceRateLimit, logAdminAction } from "../_shared/security.ts";
 
 Deno.serve(async (req) => {
@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
   if (req.method !== "GET") return jsonResponse(405, { error: "Method not allowed" });
 
   try {
-    const user = await requireSuperAdmin(req.headers.get("authorization"));
+    const { user, adminRole } = await requireAdminStaff(req.headers.get("authorization"));
     const limiter = await enforceRateLimit({
       key: `admin-dashboard:${user.id}`,
       maxHits: 60,
@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
 
     await logAdminAction({
       actorId: user.id,
-      actorRole: "super_admin",
+      actorRole: adminRole,
       action: "admin.dashboard",
     });
 

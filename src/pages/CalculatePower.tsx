@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import type { ApplianceInput, PowerUnit } from '../lib/supabase';
 import { calculateTotalPower } from '../utils/powerCalculator';
 import { getRecommendation } from '../services/recommendationEngine';
+import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '../constants/applianceCatalog';
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -59,18 +60,11 @@ const emptyApplianceForm = (): ApplianceFormData => ({
 });
 
 // A few common appliances for the dropdown
-const COMMON_APPLIANCES = [
-  'Réfrigérateur',
-  'Climatiseur 1 CV',
-  'Climatiseur 1.5 CV',
-  'Téléviseur LED',
-  'Ventilateur',
-  'Ampoule LED',
-  'Ordinateur portable',
-  'Fer à repasser',
-  'Micro-ondes',
-  'Pompe à eau',
-];
+const COMMON_APPLIANCES = APPLIANCE_CATALOG.map((p) => p.label);
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -334,13 +328,28 @@ const CalculatePower = () => {
               <select
                 value={COMMON_APPLIANCES.includes(applianceForm.name) ? applianceForm.name : ''}
                 onChange={(e) => {
-                  setApplianceForm(f => ({ ...f, name: e.target.value }));
+                  const label = e.target.value;
+                  const preset = findAppliancePreset(label);
+                  setApplianceForm((f) => ({
+                    ...f,
+                    name: label,
+                    unit: preset ? 'W' : f.unit,
+                    power: preset ? String(preset.typical_watts) : f.power,
+                  }));
                   if (applianceErrors.name) setApplianceErrors(err => ({ ...err, name: undefined }));
                 }}
                 className={`flex-1 bg-white/5 border rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50 ${applianceErrors.name ? 'border-red-500/50' : 'border-white/10'}`}
               >
                 <option value="" className="bg-[#0a0a0c]">Sélectionner un appareil...</option>
-                {COMMON_APPLIANCES.map(a => <option key={a} value={a} className="bg-[#0a0a0c]">{a}</option>)}
+                {APPLIANCE_CATEGORIES.map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {APPLIANCE_CATALOG.filter((p) => p.category === cat).map((p) => (
+                      <option key={p.id} value={p.label} className="bg-[#0a0a0c]">
+                        {p.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
 
               {!COMMON_APPLIANCES.includes(applianceForm.name) && applianceForm.name !== '' && (
@@ -368,6 +377,36 @@ const CalculatePower = () => {
                   onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
                   className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
                 />
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const preset = findAppliancePreset(applianceForm.name);
+                      const step = 10;
+                      const cur = Number(applianceForm.power || 0);
+                      const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
+                      setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                    }}
+                    className="h-[26px] w-[44px] rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm font-black"
+                    title="Augmenter"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const preset = findAppliancePreset(applianceForm.name);
+                      const step = 10;
+                      const cur = Number(applianceForm.power || 0);
+                      const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
+                      setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                    }}
+                    className="h-[26px] w-[44px] rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm font-black"
+                    title="Diminuer"
+                  >
+                    −
+                  </button>
+                </div>
                 <select
                   value={applianceForm.unit}
                   onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))}
@@ -377,6 +416,17 @@ const CalculatePower = () => {
                 </select>
               </div>
             </div>
+
+            {(() => {
+              const preset = findAppliancePreset(applianceForm.name);
+              if (!preset) return null;
+              return (
+                <div className="mb-6 text-xs text-gray-400">
+                  Puissance moyenne suggérée : <span className="text-yellow-300 font-bold">{preset.typical_watts} W</span>{' '}
+                  <span className="text-gray-600">(plage {preset.min_watts}–{preset.max_watts} W)</span>
+                </div>
+              );
+            })()}
 
             {/* Liste des appareils ajoutés */}
             {applianceListError && <p className="text-red-400 text-xs mb-4 font-medium">{applianceListError}</p>}

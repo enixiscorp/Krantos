@@ -17,6 +17,7 @@ import {
   FileText,
   UserPlus,
   Package,
+  ShoppingCart,
   AlertTriangle,
 } from 'lucide-react';
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
@@ -106,6 +107,7 @@ const Admin = () => {
     { title: 'Leads', desc: 'Suivi & détail', path: '/admin/leads', icon: <TrendingUp className="w-5 h-5 text-blue-400" /> },
     { title: 'Produits', desc: 'Vue globale', path: '/admin/products', icon: <Package className="w-5 h-5 text-cyan-400" /> },
     { title: 'Commissions', desc: 'Gestion des taux', path: '/admin/commissions', icon: <DollarSign className="w-5 h-5 text-green-400" /> },
+    { title: 'Commandes', desc: 'Pipeline premium', path: '/admin/orders', icon: <ShoppingCart className="w-5 h-5 text-emerald-400" /> },
     { title: 'Facturation', desc: 'Rapports & PDF', path: '/admin/billing', icon: <FileText className="w-5 h-5 text-purple-400" /> },
     { title: 'Contrats', desc: 'Abonnements', path: '/admin/contracts', icon: <ShieldCheck className="w-5 h-5 text-orange-400" /> },
     ...(isSuperAdmin

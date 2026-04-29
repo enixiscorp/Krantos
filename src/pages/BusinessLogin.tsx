@@ -7,8 +7,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles } from 'lucide-react';
+import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles, CheckCircle2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { AnimatePresence } from 'framer-motion';
 
 const BusinessLogin = () => {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ const BusinessLogin = () => {
   const [category, setCategory] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -115,8 +117,9 @@ const BusinessLogin = () => {
       const json = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
 
-      toast.success('Inscription envoyée. Votre compte sera activé après validation.');
-      setMode('login');
+      toast.success('Inscription envoyée !');
+      setShowSuccessModal(true);
+      // Don't switch mode immediately, let them see the modal
       setPassword('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte.';
@@ -282,6 +285,46 @@ const BusinessLogin = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Success Modal Overlay */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-sm glass-card p-8 rounded-[2.5rem] border-white/10 text-center relative overflow-hidden"
+            >
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-green-500/20 blur-[60px] rounded-full" />
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-yellow-400/20 blur-[60px] rounded-full" />
+              
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle2 className="w-10 h-10 text-green-400" />
+                </div>
+                
+                <h2 className="text-2xl font-black text-white mb-4 tracking-tight">Inscription reçue !</h2>
+                <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                  Votre demande pour <span className="text-white font-semibold">{companyName}</span> a été transmise avec succès.
+                  <br /><br />
+                  Un administrateur Krantos examinera votre dossier sous peu pour activer votre contrat.
+                </p>
+                
+                <button
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setMode('login');
+                  }}
+                  className="w-full h-12 rounded-xl bg-white text-black font-bold text-sm hover:bg-gray-100 transition-all active:scale-[0.98]"
+                >
+                  Continuer vers la connexion
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

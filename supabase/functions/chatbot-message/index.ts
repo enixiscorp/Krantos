@@ -33,8 +33,38 @@ Deno.serve(async (req) => {
   if (!parsed.ok) return parsed.response;
   const { message, product_id } = parsed.data;
 
-  const intent = detectIntent(message);
+  const { data: settings, error: settingsError } = await adminClient
+    .from("chatbot_settings")
+    .select("*");
 
+  if (settingsError || !settings) {
+    return jsonResponse(500, { error: "Failed to load chatbot settings" });
+  }
+
+  // 1. Detect intent
+  const text = message.toLowerCase();
+  let intent: Intent = "fallback";
+  
+  // Hardcoded detection logic (can also be externalized but for now we use the map)
+  const detectionMap = [
+    { intent: "order", keywords: ["commander", "acheter", "achat"] },
+    { intent: "price", keywords: ["prix", "coût", "cout", "tarif"] },
+    { intent: "specs", keywords: ["caractéristique", "caracteristique", "spec", "specs", "puissance"] },
+    { intent: "lifetime", keywords: ["durée de vie", "duree de vie", "longévité", "longevite"] },
+    { intent: "reliability", keywords: ["fiable", "fiabilité", "fiabilite", "qualité", "qualite"] },
+    { intent: "warranty", keywords: ["garantie", "sav"] },
+  ];
+
+  for (const rule of detectionMap) {
+    if (rule.keywords.some((kw) => text.includes(kw))) {
+      intent = rule.intent as Intent;
+      break;
+    }
+  }
+
+  // 2. Get specific settings for this intent
+  const setting = settings.find((s) => s.intent === intent) || settings.find((s) => s.intent === "fallback");
+  
   const { data: product, error: productError } = await adminClient
     .from("products")
     .select(`
@@ -48,53 +78,24 @@ Deno.serve(async (req) => {
     return jsonResponse(404, { error: "Product not found" });
   }
 
-  const p = product as {
-    id: string;
-    name: string;
-    price: number;
-    power_rating: number;
-    description: string | null;
-    keywords: string | null;
-    vendors: { id: string; name: string; phone: string | null } | null;
-  };
-
+  const p = product as any;
   const vendorName = p.vendors?.name ?? "le vendeur";
   const vendorPhone = p.vendors?.phone ?? "";
   const price = Number(p.price).toLocaleString("fr-FR");
   const power = `${p.power_rating} kVA`;
-  const fallbackLifetime = "8 à 12 ans";
+  const description = p.description ?? "";
 
-  let response = "";
-  let cta: "whatsapp" | "none" = "none";
+  // 3. Format response
+  let response = setting?.response_template ?? "Je ne sais pas comment répondre à cela.";
+  response = response
+    .replace("{product_name}", p.name)
+    .replace("{price}", price)
+    .replace("{vendor_name}", vendorName)
+    .replace("{power}", power)
+    .replace("{description}", description)
+    .replace("{lifetime}", "8 à 12 ans");
 
-  switch (intent) {
-    case "price":
-      response = `Le prix de ${p.name} est de ${price} FCFA. Voulez-vous contacter ${vendorName} directement sur WhatsApp ?`;
-      cta = "whatsapp";
-      break;
-    case "specs":
-      response = `Ce produit a une capacité de ${power} et convient bien à votre besoin. ${p.description ? `Détail: ${p.description}` : ""}`.trim();
-      break;
-    case "lifetime":
-      response = `La durée de vie moyenne de ce type d'équipement est d'environ ${fallbackLifetime} selon l'utilisation et la maintenance.`;
-      break;
-    case "reliability":
-      response = "Ce produit est reconnu pour sa fiabilité et son usage régulier en environnement professionnel.";
-      break;
-    case "warranty":
-      response = "Pour la garantie et le SAV, je vous recommande de confirmer directement les conditions avec le vendeur.";
-      cta = vendorPhone ? "whatsapp" : "none";
-      break;
-    case "order":
-      response = `Excellente décision. Je peux vous mettre en relation immédiate avec ${vendorName} sur WhatsApp pour finaliser la commande.`;
-      cta = vendorPhone ? "whatsapp" : "none";
-      break;
-    case "fallback":
-    default:
-      response =
-        "Je peux vous aider sur le prix, les caractéristiques ou la fiabilité du produit. Que souhaitez-vous savoir ?";
-      break;
-  }
+  const cta = setting?.use_whatsapp && vendorPhone ? "whatsapp" : "none";
 
   await adminClient.from("chat_logs").insert({
     message,

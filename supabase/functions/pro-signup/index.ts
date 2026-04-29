@@ -9,6 +9,8 @@ const proSignupSchema = z.object({
   password: z.string().min(8).max(128),
   first_name: z.string().min(1).max(80).optional().nullable(),
   last_name: z.string().min(1).max(80).optional().nullable(),
+  contract_duration: z.number().min(1).max(120).default(12),
+  subscription_type: z.enum(['free', 'basic', 'premium']).default('free'),
 });
 
 Deno.serve(async (req) => {
@@ -39,6 +41,8 @@ Deno.serve(async (req) => {
     password,
     first_name = null,
     last_name = null,
+    contract_duration,
+    subscription_type,
   } = parsed.data;
 
   const { data: authUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -61,6 +65,11 @@ Deno.serve(async (req) => {
   });
   if (profileError) return jsonResponse(500, { error: profileError.message });
 
+  // Contract calculation
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setMonth(startDate.getMonth() + contract_duration);
+
   const { data: vendor, error: vendorError } = await adminClient
     .from("vendors")
     .insert({
@@ -71,6 +80,9 @@ Deno.serve(async (req) => {
       phone,
       email,
       status: "pending",
+      subscription_type,
+      contract_start_date: startDate.toISOString().split("T")[0],
+      contract_end_date: endDate.toISOString().split("T")[0],
     })
     .select("id, profile_id, company_name, status, created_at")
     .single();

@@ -21,6 +21,8 @@ const BusinessLogin = () => {
   const [companyName, setCompanyName] = useState('');
   const [category, setCategory] = useState('');
   const [phone, setPhone] = useState('');
+  const [contractDuration, setContractDuration] = useState(12);
+  const [subscriptionType, setSubscriptionType] = useState('free');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -112,6 +114,8 @@ const BusinessLogin = () => {
           phone,
           email,
           password,
+          contract_duration: contractDuration,
+          subscription_type: subscriptionType,
         }),
       });
       const json = (await res.json()) as { error?: string };
@@ -225,6 +229,34 @@ const BusinessLogin = () => {
                       className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
                       required
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Durée Contrat</label>
+                    <select
+                      value={contractDuration}
+                      onChange={(e) => setContractDuration(Number(e.target.value))}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none"
+                    >
+                      <option value={3} className="bg-gray-900">3 mois</option>
+                      <option value={6} className="bg-gray-900">6 mois</option>
+                      <option value={12} className="bg-gray-900">12 mois</option>
+                      <option value={24} className="bg-gray-900">24 mois</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Type Offre</label>
+                    <select
+                      value={subscriptionType}
+                      onChange={(e) => setSubscriptionType(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none"
+                    >
+                      <option value="free" className="bg-gray-900">Gratuit (Démo)</option>
+                      <option value="basic" className="bg-gray-900">Basic</option>
+                      <option value="premium" className="bg-gray-900">Premium</option>
+                    </select>
                   </div>
                 </div>
               </>

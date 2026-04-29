@@ -24,6 +24,7 @@ const AdminBilling = lazy(() => import('./pages/AdminBilling'));
 const AdminContracts = lazy(() => import('./pages/AdminContracts'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
+const AdminChatbot = lazy(() => import('./pages/AdminChatbot'));
 
 function App() {
   return (
@@ -107,6 +108,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminOrders />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/chatbot"
+              element={
+                <AdminRoute>
+                  <AdminChatbot />
                 </AdminRoute>
               }
             />

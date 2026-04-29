@@ -110,6 +110,7 @@ const Admin = () => {
     { title: 'Commandes', desc: 'Pipeline premium', path: '/admin/orders', icon: <ShoppingCart className="w-5 h-5 text-emerald-400" /> },
     { title: 'Facturation', desc: 'Rapports & PDF', path: '/admin/billing', icon: <FileText className="w-5 h-5 text-purple-400" /> },
     { title: 'Contrats', desc: 'Abonnements', path: '/admin/contracts', icon: <ShieldCheck className="w-5 h-5 text-orange-400" /> },
+    { title: 'Chatbot', desc: 'Conseils & Réponses', path: '/admin/chatbot', icon: <Sparkles className="w-5 h-5 text-yellow-500" /> },
     ...(isSuperAdmin
       ? [{ title: 'Utilisateurs', desc: 'Accès internes', path: '/admin/users', icon: <UserPlus className="w-5 h-5 text-pink-400" /> }]
       : []),

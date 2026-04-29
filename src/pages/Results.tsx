@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import {
   MessageCircle,
+  Phone,
   FileDown,
   Send,
   Bot,

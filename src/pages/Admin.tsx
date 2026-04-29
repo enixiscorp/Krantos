@@ -19,6 +19,7 @@ import {
   Package,
   ShoppingCart,
   AlertTriangle,
+  Sparkles,
 } from 'lucide-react';
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
 import { getStatsLeads } from '../services/statsService';

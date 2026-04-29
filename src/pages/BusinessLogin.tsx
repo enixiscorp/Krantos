@@ -121,10 +121,13 @@ const BusinessLogin = () => {
       const json = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
 
-      toast.success('Inscription envoyée !');
+      // S'assurer que le modal s'affiche bien après le succès de l'API
+      toast.success('Inscription envoyée avec succès !');
       setShowSuccessModal(true);
-      // Don't switch mode immediately, let them see the modal
+      
+      // Nettoyage des champs sensibles
       setPassword('');
+      // On garde l'email pour le login futur mais on peut vider le reste si besoin
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte.';
       toast.error(message);
@@ -237,26 +240,28 @@ const BusinessLogin = () => {
                     <label className="text-[10px] text-gray-500 uppercase font-black px-1">Durée Contrat</label>
                     <select
                       value={contractDuration}
-                      onChange={(e) => setContractDuration(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setContractDuration(val);
+                        // Auto-select plan
+                        if (val === 0.5) setSubscriptionType('free');
+                        else if (val === 1 || val === 3) setSubscriptionType('basic');
+                        else if (val === 6 || val === 12) setSubscriptionType('premium');
+                      }}
                       className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none"
                     >
+                      <option value={0.5} className="bg-gray-900">14 jours (Démo)</option>
+                      <option value={1} className="bg-gray-900">1 mois</option>
                       <option value={3} className="bg-gray-900">3 mois</option>
                       <option value={6} className="bg-gray-900">6 mois</option>
                       <option value={12} className="bg-gray-900">12 mois</option>
-                      <option value={24} className="bg-gray-900">24 mois</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Type Offre</label>
-                    <select
-                      value={subscriptionType}
-                      onChange={(e) => setSubscriptionType(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none"
-                    >
-                      <option value="free" className="bg-gray-900">Gratuit (Démo)</option>
-                      <option value="basic" className="bg-gray-900">Basic</option>
-                      <option value="premium" className="bg-gray-900">Premium</option>
-                    </select>
+                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Type Offre (Auto)</label>
+                    <div className="w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-3 text-yellow-400 font-bold text-sm">
+                      {subscriptionType === 'free' ? 'Démo' : subscriptionType === 'basic' ? 'Basic' : 'Premium'}
+                    </div>
                   </div>
                 </div>
               </>

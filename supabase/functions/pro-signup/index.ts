@@ -9,7 +9,7 @@ const proSignupSchema = z.object({
   password: z.string().min(8).max(128),
   first_name: z.string().min(1).max(80).optional().nullable(),
   last_name: z.string().min(1).max(80).optional().nullable(),
-  contract_duration: z.number().min(1).max(120).default(12),
+  contract_duration: z.number().min(0.4).max(120).default(12),
   subscription_type: z.enum(['free', 'basic', 'premium']).default('free'),
 });
 
@@ -65,10 +65,9 @@ Deno.serve(async (req) => {
   });
   if (profileError) return jsonResponse(500, { error: profileError.message });
 
-  // Contract calculation
+  // Contract calculation (approximate 30 days per month)
   const startDate = new Date();
-  const endDate = new Date();
-  endDate.setMonth(startDate.getMonth() + contract_duration);
+  const endDate = new Date(startDate.getTime() + (contract_duration * 30 * 24 * 60 * 60 * 1000));
 
   const { data: vendor, error: vendorError } = await adminClient
     .from("vendors")

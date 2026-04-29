@@ -14,8 +14,7 @@ import type { ApplianceInput, Product } from '../lib/supabase';
 // ---------------------------------------------------------------------------
 
 const sampleUser: WhatsAppUser = {
-  first_name: 'Kofi',
-  last_name: 'Mensah',
+  fullName: 'Kofi Mensah',
   phone: '+22890123456',
   location: 'Lomé, Tokoin',
 };
@@ -44,10 +43,8 @@ const sampleProduct: Product = {
 // ---------------------------------------------------------------------------
 
 describe('buildWhatsAppMessage — Tests unitaires', () => {
-  it('7.1 — Le message contient le prénom et le nom de l\'utilisateur', () => {
+  it('7.1 — Le message contient le nom complet de l\'utilisateur', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
-    expect(message).toContain('Kofi');
-    expect(message).toContain('Mensah');
     expect(message).toContain('Kofi Mensah');
   });
 
@@ -240,8 +237,7 @@ const nonEmptyString = fc.string({ minLength: 1, maxLength: 50 }).filter((s) => 
 
 /** Generates a valid WhatsAppUser. */
 const whatsAppUserArb: fc.Arbitrary<WhatsAppUser> = fc.record({
-  first_name: nonEmptyString,
-  last_name: nonEmptyString,
+  fullName: nonEmptyString,
   phone: nonEmptyString,
   location: nonEmptyString,
 });
@@ -309,11 +305,8 @@ describe('WhatsAppService — Propriété 7 : Contenu du message WhatsApp', () =
         (user, appliances, totalWatts, totalKVA, product) => {
           const message = buildWhatsAppMessage(user, appliances, totalWatts, totalKVA, product);
 
-          // 1. Prénom de l'utilisateur
-          expect(message).toContain(user.first_name);
-
-          // 2. Nom de l'utilisateur
-          expect(message).toContain(user.last_name);
+          // 1. Nom complet de l'utilisateur
+          expect(message).toContain(user.fullName);
 
           // 3. Numéro de téléphone
           expect(message).toContain(user.phone);

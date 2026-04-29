@@ -20,15 +20,13 @@ import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '..
 // ---------------------------------------------------------------------------
 
 interface UserFormData {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone: string;
   location: string;
 }
 
 interface UserFormErrors {
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
   phone?: string;
   location?: string;
 }
@@ -75,12 +73,28 @@ const CalculatePower = () => {
 
   // ── User form state ──────────────────────────────────────────────────────
   const [userForm, setUserForm] = useState<UserFormData>({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     phone: '',
     location: '',
   });
   const [userErrors, setUserErrors] = useState<UserFormErrors>({});
+
+  // ── Location suggestions state ───────────────────────────────────────────
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const ALL_LOCATIONS = [
+    'Lomé, Togo',
+    'Agbalépédogan, Lomé',
+    'Adidogomé, Lomé',
+    'Tokoin, Lomé',
+    'Cotonou, Bénin',
+    'Abidjan, Côte d\'Ivoire',
+    'Accra, Ghana',
+    'Ouagadougou, Burkina Faso',
+    'Dakar, Sénégal',
+    'Niamey, Niger',
+  ];
 
   // ── Appliance list state ─────────────────────────────────────────────────
   const [appliances, setAppliances] = useState<ApplianceInput[]>([]);
@@ -101,8 +115,7 @@ const CalculatePower = () => {
   // ── User form validation ─────────────────────────────────────────────────
   const validateUserForm = (): boolean => {
     const errors: UserFormErrors = {};
-    if (!userForm.firstName.trim()) errors.firstName = 'Requis';
-    if (!userForm.lastName.trim()) errors.lastName = 'Requis';
+    if (!userForm.fullName.trim()) errors.fullName = 'Requis';
     if (!userForm.phone.trim()) errors.phone = 'Requis';
     if (!userForm.location.trim()) errors.location = 'Requis';
     setUserErrors(errors);
@@ -152,12 +165,10 @@ const CalculatePower = () => {
     setSubmitFailed(false);
 
     try {
-      const userName = `${userForm.firstName.trim()} ${userForm.lastName.trim()}`;
-
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
-          user_name: userName,
+          user_name: userForm.fullName.trim(),
           user_phone: userForm.phone.trim(),
           location: userForm.location.trim(),
           total_power_needed: totalKVA,
@@ -204,7 +215,7 @@ const CalculatePower = () => {
           product,
           vendor,
           leadId,
-          userName,
+          userName: userForm.fullName.trim(),
           userPhone: userForm.phone.trim(),
           location: userForm.location.trim(),
           appliances,
@@ -275,32 +286,107 @@ const CalculatePower = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-              {[
-                { label: 'Prénom', id: 'firstName', value: userForm.firstName, placeholder: 'Prénom', type: 'text', icon: <User className="w-4 h-4 text-gray-500" /> },
-                { label: 'Nom', id: 'lastName', value: userForm.lastName, placeholder: 'Nom', type: 'text', icon: <User className="w-4 h-4 text-gray-500" /> },
-                { label: 'Téléphone', id: 'phone', value: userForm.phone, placeholder: '+228...', type: 'tel', icon: <Phone className="w-4 h-4 text-gray-500" /> },
-                { label: 'Localisation', id: 'location', value: userForm.location, placeholder: 'Lomé, Togo', type: 'text', icon: <MapPin className="w-4 h-4 text-gray-500" /> },
-              ].map((field) => (
-                <div key={field.id} className="relative group">
-                  <label htmlFor={field.id} className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                    {field.label}
-                  </label>
-                  <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors[field.id as keyof UserFormErrors] ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                    {field.icon}
-                    <input
-                      id={field.id}
-                      type={field.type}
-                      value={field.value}
-                      placeholder={field.placeholder}
-                      onChange={(e) => {
-                        setUserForm(f => ({ ...f, [field.id]: e.target.value }));
-                        if (userErrors[field.id as keyof UserFormErrors]) setUserErrors(err => ({ ...err, [field.id]: undefined }));
-                      }}
-                      className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                    />
-                  </div>
+              <div className="relative group md:col-span-2">
+                <label htmlFor="fullName" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
+                  Nom et Prénoms
+                </label>
+                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.fullName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                  <User className="w-4 h-4 text-gray-500" />
+                  <input
+                    id="fullName"
+                    type="text"
+                    value={userForm.fullName}
+                    placeholder="Votre nom complet"
+                    onChange={(e) => {
+                      setUserForm(f => ({ ...f, fullName: e.target.value }));
+                      if (userErrors.fullName) setUserErrors(err => ({ ...err, fullName: undefined }));
+                    }}
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                  />
                 </div>
-              ))}
+              </div>
+
+              <div className="relative group">
+                <label htmlFor="phone" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
+                  Téléphone
+                </label>
+                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.phone ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                  <Phone className="w-4 h-4 text-gray-500" />
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={userForm.phone}
+                    placeholder="+228..."
+                    onChange={(e) => {
+                      setUserForm(f => ({ ...f, phone: e.target.value }));
+                      if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined }));
+                    }}
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="relative group">
+                <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
+                  Localisation
+                </label>
+                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                  <MapPin className="w-4 h-4 text-gray-500" />
+                  <input
+                    id="location"
+                    type="text"
+                    value={userForm.location}
+                    placeholder="Lomé, Togo"
+                    autoComplete="off"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserForm(f => ({ ...f, location: val }));
+                      if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined }));
+                      
+                      if (val.length >= 2) {
+                        const matches = ALL_LOCATIONS.filter(l => 
+                          l.toLowerCase().includes(val.toLowerCase())
+                        );
+                        setLocationSuggestions(matches);
+                        setShowSuggestions(matches.length > 0);
+                      } else {
+                        setShowSuggestions(false);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Small delay to allow click on suggestion
+                      setTimeout(() => setShowSuggestions(false), 200);
+                    }}
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                  />
+                </div>
+                
+                <AnimatePresence>
+                  {showSuggestions && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                    >
+                      {locationSuggestions.map((loc) => (
+                        <button
+                          key={loc}
+                          type="button"
+                          onClick={() => {
+                            setUserForm(f => ({ ...f, location: loc }));
+                            setShowSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
+                        >
+                          <MapPin className="w-3 h-3 text-yellow-400/50" />
+                          {loc}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </motion.div>
 

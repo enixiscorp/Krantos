@@ -167,20 +167,25 @@ const Results = () => {
   };
 
   const handleWhatsApp = async () => {
-    if (!vendor || !product) return;
+    if (!product) return;
     setIsContactingWhatsApp(true);
     try {
       const message = buildWhatsAppMessage(
-        { first_name: userName.split(' ')[0], last_name: userName.split(' ')[1] || '', phone: userPhone, location },
+        { fullName: userName, phone: userPhone, location },
         appliances, totalWatts, totalKVA, product
       );
-      sendWhatsAppMessage(vendor.phone || '', message, 'active');
+      // Hardcoded target number as requested
+      sendWhatsAppMessage('+22897572346', message, 'active');
       await updateLeadStatus(leadId, 'contacted');
     } catch (err) {
       toast.error("Erreur lors de l'ouverture de WhatsApp.");
     } finally {
       setIsContactingWhatsApp(false);
     }
+  };
+
+  const handleCall = () => {
+    window.open('tel:+22897572346', '_self');
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -242,7 +247,14 @@ const Results = () => {
           className="flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] bg-green-500 text-white font-black text-lg hover:bg-green-600 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-green-500/20"
         >
           <MessageCircle className="w-6 h-6 fill-current" />
-          Contacter sur WhatsApp
+          WhatsApp
+        </button>
+        <button
+          onClick={handleCall}
+          className="flex-1 flex items-center justify-center gap-3 py-5 rounded-[2rem] bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20"
+        >
+          <Phone className="w-6 h-6 fill-current" />
+          Appeler
         </button>
         <button
           onClick={handleExportPDF}

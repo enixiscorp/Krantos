@@ -20,8 +20,7 @@ import type { ApplianceInput, Product } from '../lib/supabase';
  * Minimal user data required to build the WhatsApp message.
  */
 export interface WhatsAppUser {
-  first_name: string;
-  last_name: string;
+  fullName: string;
   phone: string;
   location: string;
 }
@@ -56,7 +55,6 @@ export function buildWhatsAppMessage(
   totalKVA: number,
   product: Product
 ): string {
-  const fullName = `${user.first_name} ${user.last_name}`;
 
   // Build appliance list: "Climatiseur x2, Réfrigérateur x1, ..."
   const applianceList = appliances
@@ -67,7 +65,7 @@ export function buildWhatsAppMessage(
   const formattedPrice = Number(product.price).toLocaleString('fr-FR');
 
   const message =
-    `Bonjour, je suis ${fullName} (📞 ${user.phone}, 📍 ${user.location}).\n` +
+    `Bonjour, je suis ${user.fullName} (📞 ${user.phone}, 📍 ${user.location}).\n` +
     `J'ai calculé mes besoins : ${totalWatts} W / ${totalKVA} kVA.\n` +
     `Appareils : ${applianceList}.\n` +
     `Produit recommandé : ${product.name} — ${formattedPrice} FCFA.\n` +

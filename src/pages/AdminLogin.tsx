@@ -17,30 +17,49 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
 
   const redirectIfAdmin = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const session = sessionData.session;
-    if (!session) return;
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      if (!session) return;
 
-    const uid = session.user.id;
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', uid).single();
-    if (profile?.role === 'super_admin') {
-      navigate('/admin', { replace: true });
-      return;
+      const uid = session.user.id;
+      
+      // Tentative de récupération du profil
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', uid)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        // On ne bloque pas forcément ici, on check admin_users après
+      }
+
+      if (profile?.role === 'super_admin' || profile?.role === 'admin') {
+        navigate('/admin', { replace: true });
+        return;
+      }
+
+      // Fallback: check admin_users table
+      const { data: adminUser } = await supabase
+        .from('admin_users')
+        .select('id, role')
+        .eq('auth_user_id', uid)
+        .maybeSingle();
+
+      if (adminUser) {
+        navigate('/admin', { replace: true });
+        return;
+      }
+
+      // Si aucun des deux ne match, on déconnecte
+      await supabase.auth.signOut();
+      toast.error('Accès refusé. Ce compte n\'a pas de privilèges administrateur.');
+    } catch (err) {
+      console.error('Redirection error:', err);
+      toast.error('Une erreur est survenue lors de la vérification des droits.');
     }
-
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', uid)
-      .maybeSingle();
-
-    if (adminUser) {
-      navigate('/admin', { replace: true });
-      return;
-    }
-
-    await supabase.auth.signOut();
-    toast.error('Compte non autorisé pour la connexion admin.');
   };
 
   const handleLogin = async (e: React.FormEvent) => {

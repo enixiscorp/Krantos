@@ -157,16 +157,19 @@ const Admin = () => {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
         {[
-          { label: 'Vendeurs', v: dashboard.total_vendors, color: 'text-white' },
-          { label: 'Actifs', v: dashboard.active_vendors, color: 'text-green-400' },
-          { label: 'En attente', v: dashboard.pending_vendors, color: 'text-yellow-400' },
-          { label: 'Produits', v: dashboard.total_products, color: 'text-cyan-400' },
-          { label: 'Leads', v: dashboard.total_leads, color: 'text-blue-400' },
-          { label: 'Conversion', v: `${dashboard.conversion_rate} %`, color: 'text-purple-400' },
+          { label: 'Vendeurs', v: dashboard.total_vendors, color: 'text-white', icon: <Users className="w-3 h-3" /> },
+          { label: 'Actifs', v: dashboard.active_vendors, color: 'text-green-400', icon: <ShieldCheck className="w-3 h-3" /> },
+          { label: 'Leads', v: dashboard.total_leads, color: 'text-blue-400', icon: <TrendingUp className="w-3 h-3" /> },
+          { label: 'Produits', v: dashboard.total_products, color: 'text-cyan-400', icon: <Package className="w-3 h-3" /> },
+          { label: 'Conversion', v: `${dashboard.conversion_rate}%`, color: 'text-purple-400', icon: <TrendingUp className="w-3 h-3" /> },
+          { label: 'Revenus Est.', v: '8.4M', color: 'text-yellow-400', icon: <DollarSign className="w-3 h-3" /> },
         ].map((c) => (
-          <div key={c.label} className="glass-card p-4 rounded-2xl border-white/5 text-center">
-            <p className={`text-2xl font-black ${c.color} mb-1`}>{c.v}</p>
-            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">{c.label}</p>
+          <div key={c.label} className="glass-card p-5 rounded-[2rem] border-white/5 text-center group hover:bg-white/5 transition-all">
+            <div className={`w-8 h-8 rounded-xl bg-white/5 mx-auto mb-3 flex items-center justify-center ${c.color} opacity-50 group-hover:opacity-100 transition-opacity`}>
+              {c.icon}
+            </div>
+            <p className={`text-2xl font-black ${c.color} mb-1 tracking-tighter`}>{c.v}</p>
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none">{c.label}</p>
           </div>
         ))}
       </div>

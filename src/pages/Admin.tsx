@@ -138,6 +138,8 @@ const Admin = () => {
     leads: { val: '0%', up: true }
   };
 
+  const showPendingAlert = (dashboard?.pending_vendors ?? 0) > 0;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-1000">
       {/* Top Header with Actions */}

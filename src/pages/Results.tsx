@@ -48,7 +48,6 @@ interface ResultsState {
 interface ChatMessage {
   role: 'user' | 'bot';
   text: string;
-  cta?: 'whatsapp' | 'none';
 }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +123,12 @@ const Results = () => {
     setChatLoading(true);
 
     try {
-      const api = await sendChatbotMessage(msg, product.id);
-      setChatMessages(prev => [...prev, { role: 'bot', text: api.response, cta: api.cta }]);
+      const api = await sendChatbotMessage({
+        message: msg,
+        vendor_id: vendor?.id || '',
+        product_id: product.id
+      });
+      setChatMessages(prev => [...prev, { role: 'bot', text: api.response }]);
     } catch {
       setChatMessages(prev => [...prev, { role: 'bot', text: "Erreur lors de la réponse. Réessayez." }]);
     } finally {
@@ -333,14 +336,6 @@ const Results = () => {
                       }`}
                     >
                       <p>{msg.text}</p>
-                      {msg.role === 'bot' && msg.cta === 'whatsapp' && (
-                        <button
-                          onClick={handleWhatsApp}
-                          className="mt-3 text-xs px-3 py-1.5 rounded-full bg-green-500 text-white font-bold hover:bg-green-600"
-                        >
-                          Contacter sur WhatsApp
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}

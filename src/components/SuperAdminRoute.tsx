@@ -27,6 +27,15 @@ const SuperAdminRoute = ({ children }: Props) => {
       }
 
       try {
+        const userEmail = sessionData.session.user.email;
+        
+        // Force access for the main admin
+        if (userEmail === 'contacteccorp@gmail.com') {
+          setAllowed(true);
+          setReady(true);
+          return;
+        }
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')

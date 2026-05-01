@@ -28,6 +28,14 @@ const AdminRoute = ({ children }: Props) => {
         }
 
         const uid = sessionData.session.user.id;
+        const userEmail = sessionData.session.user.email;
+
+        // Force access for the main admin email (Super-Super Admin)
+        if (userEmail === 'contacteccorp@gmail.com') {
+          setAllowed(true);
+          setReady(true);
+          return;
+        }
 
         // 1) Essayer de récupérer le rôle dans profiles
         const { data: profile } = await supabase

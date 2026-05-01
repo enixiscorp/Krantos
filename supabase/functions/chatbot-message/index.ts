@@ -1,115 +1,105 @@
 import { adminClient, corsHeaders, jsonResponse } from "../_shared/auth.ts";
-import { parseOrBadRequest, z } from "../_shared/security.ts";
-
-type Intent = "price" | "specs" | "lifetime" | "reliability" | "warranty" | "order" | "fallback";
+import { z } from "../_shared/security.ts";
 
 const bodySchema = z.object({
-  message: z.string().min(1).max(500),
-  product_id: z.string().uuid(),
+  message: z.string().min(1).max(1000),
+  vendor_id: z.string().uuid(),
+  product_id: z.string().uuid().optional().nullable(),
+  history: z.array(z.object({ role: z.string(), content: z.string() })).optional(),
 });
 
-const keywordMap: Array<{ intent: Intent; keywords: string[] }> = [
-  { intent: "order", keywords: ["commander", "acheter", "achat"] },
-  { intent: "price", keywords: ["prix", "coût", "cout", "tarif"] },
-  { intent: "specs", keywords: ["caractéristique", "caracteristique", "spec", "specs", "puissance"] },
-  { intent: "lifetime", keywords: ["durée de vie", "duree de vie", "longévité", "longevite"] },
-  { intent: "reliability", keywords: ["fiable", "fiabilité", "fiabilite", "qualité", "qualite"] },
-  { intent: "warranty", keywords: ["garantie", "sav"] },
-];
-
-function detectIntent(message: string): Intent {
-  const text = message.toLowerCase();
-  for (const rule of keywordMap) {
-    if (rule.keywords.some((kw) => text.includes(kw))) return rule.intent;
-  }
-  return "fallback";
-}
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse(405, { error: "Method not allowed" });
 
-  const parsed = parseOrBadRequest(bodySchema, await req.json());
-  if (!parsed.ok) return parsed.response;
-  const { message, product_id } = parsed.data;
+  try {
+    const body = await req.json();
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) return jsonResponse(400, { error: "Invalid payload", details: parsed.error });
 
-  const { data: settings, error: settingsError } = await adminClient
-    .from("chatbot_settings")
-    .select("*");
+    const { message, vendor_id, product_id, history } = parsed.data;
 
-  if (settingsError || !settings) {
-    return jsonResponse(500, { error: "Failed to load chatbot settings" });
-  }
+    // 1. Fetch Vendor & Bot Config
+    const [vendorRes, configRes] = await Promise.all([
+      adminClient.from("vendors").select("id, name, phone, category").eq("id", vendor_id).single(),
+      adminClient.from("chatbot_configs").select("*").eq("vendor_id", vendor_id).single(),
+    ]);
 
-  // 1. Detect intent
-  const text = message.toLowerCase();
-  let intent: Intent = "fallback";
-  
-  // Hardcoded detection logic (can also be externalized but for now we use the map)
-  const detectionMap = [
-    { intent: "order", keywords: ["commander", "acheter", "achat"] },
-    { intent: "price", keywords: ["prix", "coût", "cout", "tarif"] },
-    { intent: "specs", keywords: ["caractéristique", "caracteristique", "spec", "specs", "puissance"] },
-    { intent: "lifetime", keywords: ["durée de vie", "duree de vie", "longévité", "longevite"] },
-    { intent: "reliability", keywords: ["fiable", "fiabilité", "fiabilite", "qualité", "qualite"] },
-    { intent: "warranty", keywords: ["garantie", "sav"] },
-  ];
+    const vendor = vendorRes.data;
+    const config = configRes.data;
 
-  for (const rule of detectionMap) {
-    if (rule.keywords.some((kw) => text.includes(kw))) {
-      intent = rule.intent as Intent;
-      break;
+    if (!vendor) return jsonResponse(404, { error: "Vendor not found" });
+
+    // 2. Try static suggestions first (exact match)
+    const staticMatch = config?.suggestions?.find((s: any) => 
+      s.question.toLowerCase().trim() === message.toLowerCase().trim()
+    );
+
+    if (staticMatch) {
+      return jsonResponse(200, {
+        response: staticMatch.answer,
+        suggestions: config.suggestions.map((s: any) => s.question).slice(0, 3),
+        source: "static"
+      });
     }
+
+    // 3. AI Mode (if enabled and key present)
+    if (config?.ai_enabled && GEMINI_API_KEY) {
+      // Fetch Product context if exists
+      let productContext = "";
+      if (product_id) {
+        const { data: p } = await adminClient.from("products").select("*").eq("id", product_id).single();
+        if (p) {
+          productContext = `Tu réponds pour le produit: ${p.name}. Prix: ${p.price} FCFA. Puissance: ${p.power_rating} kVA. Description: ${p.description}.`;
+        }
+      }
+
+      const systemPrompt = `
+        Tu es l'assistant virtuel IA de ${vendor.name}, une entreprise dans le secteur ${vendor.category}.
+        Ton but est d'aider le client et de l'orienter vers l'achat ou le contact WhatsApp.
+        Contexte du vendeur: ${config.ai_context || "Expert et professionnel"}.
+        ${productContext}
+        Instructions:
+        - Sois concis et amical.
+        - Réponds en français.
+        - Termine ta réponse par un format JSON contenant ta réponse et 2-3 suggestions de questions courtes pour le client.
+        Format attendu: {"answer": "votre texte ici", "next_questions": ["question 1?", "question 2?"]}
+      `;
+
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            ...(history || []).map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
+            { role: "user", parts: [{ text: message }] }
+          ],
+          generationConfig: { response_mime_type: "application/json" }
+        })
+      });
+
+      const aiData = await response.json();
+      const aiContent = JSON.parse(aiData.candidates[0].content.parts[0].text);
+
+      return jsonResponse(200, {
+        response: aiContent.answer,
+        suggestions: aiContent.next_questions || [],
+        source: "ai"
+      });
+    }
+
+    // 4. Fallback (Static Welcome or default)
+    return jsonResponse(200, {
+      response: config?.welcome_message.replace("{vendor_name}", vendor.name) || `Bonjour, bienvenue chez ${vendor.name}. Comment puis-je vous aider ?`,
+      suggestions: config?.suggestions?.map((s: any) => s.question).slice(0, 3) || [],
+      source: "fallback"
+    });
+
+  } catch (err) {
+    console.error("Chatbot AI Error:", err);
+    return jsonResponse(500, { error: "Erreur lors de la génération de la réponse" });
   }
-
-  // 2. Get specific settings for this intent
-  const setting = settings.find((s) => s.intent === intent) || settings.find((s) => s.intent === "fallback");
-  
-  const { data: product, error: productError } = await adminClient
-    .from("products")
-    .select(`
-      id, name, price, power_rating, description, keywords,
-      vendors:vendor_id (id, name, phone)
-    `)
-    .eq("id", product_id)
-    .single();
-
-  if (productError || !product) {
-    return jsonResponse(404, { error: "Product not found" });
-  }
-
-  const p = product as any;
-  const vendorName = p.vendors?.name ?? "le vendeur";
-  const vendorPhone = p.vendors?.phone ?? "";
-  const price = Number(p.price).toLocaleString("fr-FR");
-  const power = `${p.power_rating} kVA`;
-  const description = p.description ?? "";
-
-  // 3. Format response
-  let response = setting?.response_template ?? "Je ne sais pas comment répondre à cela.";
-  response = response
-    .replace("{product_name}", p.name)
-    .replace("{price}", price)
-    .replace("{vendor_name}", vendorName)
-    .replace("{power}", power)
-    .replace("{description}", description)
-    .replace("{lifetime}", "8 à 12 ans");
-
-  const cta = setting?.use_whatsapp && vendorPhone ? "whatsapp" : "none";
-
-  await adminClient.from("chat_logs").insert({
-    message,
-    detected_intent: intent,
-    product_id,
-  });
-
-  return jsonResponse(200, {
-    response,
-    intent,
-    cta,
-    vendor_phone: vendorPhone,
-    product_name: p.name,
-  });
 });
-
-

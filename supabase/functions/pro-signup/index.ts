@@ -26,7 +26,6 @@ Deno.serve(async (req) => {
     if (createError) {
       const isExisting = createError.message.toLowerCase().includes("already");
       if (isExisting) {
-        console.log(`[Signup] User already exists in Auth, fetching ID...`);
         const { data: users } = await adminClient.auth.admin.listUsers();
         const found = users?.users.find(u => u.email === email);
         if (!found) return jsonResponse(400, { error: "Utilisateur introuvable." });
@@ -46,13 +45,13 @@ Deno.serve(async (req) => {
       full_name: company_name
     });
 
-    // 3. Create or Update Vendor Record
+    // 3. Create or Update Vendor Record (MANUAL FIND TO AVOID ON CONFLICT ERRORS)
     const durationInMonths = Number(contract_duration) || 12;
     const endDate = new Date();
     if (durationInMonths === 0.5) endDate.setDate(endDate.getDate() + 14);
     else endDate.setMonth(endDate.getMonth() + durationInMonths);
 
-    const { error: vendorError } = await adminClient.from("vendors").upsert({
+    const vendorData = {
       profile_id: userId,
       name: company_name,
       category: category || "Autres",
@@ -62,7 +61,30 @@ Deno.serve(async (req) => {
       subscription_type: subscription_type || "free",
       contract_start_date: new Date().toISOString().split("T")[0],
       contract_end_date: endDate.toISOString().split("T")[0],
-    }, { onConflict: "profile_id" });
+    };
+
+    // Check if vendor already exists
+    const { data: existingVendor } = await adminClient
+      .from("vendors")
+      .select("id")
+      .eq("profile_id", userId)
+      .maybeSingle();
+
+    let vendorError;
+    if (existingVendor) {
+      // Update
+      const { error } = await adminClient
+        .from("vendors")
+        .update(vendorData)
+        .eq("id", existingVendor.id);
+      vendorError = error;
+    } else {
+      // Insert
+      const { error } = await adminClient
+        .from("vendors")
+        .insert(vendorData);
+      vendorError = error;
+    }
 
     if (vendorError) {
       console.error(`[Signup Error] Vendor: ${vendorError.message}`);

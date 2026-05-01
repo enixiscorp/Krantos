@@ -365,10 +365,10 @@ const BusinessLogin = () => {
                 Votre demande d'inscription est en cours. Un administrateur va valider votre compte sous 24h. Vous pourrez ensuite vous connecter.
               </p>
               <button
-                onClick={() => { setShowSuccessModal(false); setMode('login'); }}
+                onClick={() => { window.location.reload(); }}
                 className="w-full h-12 rounded-xl bg-white text-black font-bold text-sm hover:bg-gray-100 transition-all"
               >
-                Continuer
+                Continuer vers la connexion
               </button>
             </motion.div>
           </div>

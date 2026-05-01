@@ -18,6 +18,8 @@ Deno.serve(async (req) => {
 
     const url = new URL(req.url);
     const type = url.searchParams.get("type") ?? "vendors";
+    const period = url.searchParams.get("period") ?? "day"; // day, week, month, quarter, year
+    const vendorId = url.searchParams.get("vendor_id");
 
     if (type === "vendors") {
       const { data: rows } = await adminClient.from("vendors").select("status, created_at");
@@ -48,34 +50,67 @@ Deno.serve(async (req) => {
     }
 
     if (type === "leads") {
-      const { data: leads } = await adminClient
+      let query = adminClient
         .from("leads")
-        .select("status, created_at")
+        .select("status, created_at, vendor_id")
         .order("created_at", { ascending: true });
+      
+      if (vendorId) {
+        query = query.eq("vendor_id", vendorId);
+      }
+
+      const { data: leads } = await query;
       const total = leads?.length ?? 0;
       let converted = 0;
-      const byDay: Record<string, number> = {};
+      
+      const statsByPeriod: Record<string, number> = {};
+      
       for (const l of leads ?? []) {
         const st = (l as { status: string }).status;
         if (st === "converted") converted++;
+        
         const d = new Date((l as { created_at: string }).created_at);
-        const key = d.toISOString().slice(0, 10);
-        byDay[key] = (byDay[key] ?? 0) + 1;
+        let key = "";
+        
+        if (period === "day") {
+          key = d.toISOString().slice(0, 10);
+        } else if (period === "week") {
+          // ISO Week key: YYYY-Www
+          const tempDate = new Date(d.getTime());
+          tempDate.setHours(0, 0, 0, 0);
+          tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
+          const week1 = new Date(tempDate.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+          key = `${tempDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+        } else if (period === "month") {
+          key = d.toISOString().slice(0, 7);
+        } else if (period === "quarter") {
+          const q = Math.floor(d.getMonth() / 3) + 1;
+          key = `${d.getFullYear()}-Q${q}`;
+        } else if (period === "year") {
+          key = `${d.getFullYear()}`;
+        }
+
+        statsByPeriod[key] = (statsByPeriod[key] ?? 0) + 1;
       }
-      const leads_per_day = Object.entries(byDay)
+
+      const chart_data = Object.entries(statsByPeriod)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, count]) => ({ date, count }));
+        .map(([label, count]) => ({ label, count }));
+
       const conversion_rate = total > 0
         ? Math.round((converted / total) * 1000) / 10
         : 0;
+
       await logAdminAction({
         actorId: user.id,
         actorRole: adminRole,
-        action: "admin.stats.leads",
+        action: `admin.stats.leads.${period}`,
       });
+
       return jsonResponse(200, {
         total_leads: total,
-        leads_per_day,
+        chart_data,
         conversion_rate,
       });
     }
@@ -119,8 +154,8 @@ Deno.serve(async (req) => {
     }
 
     return jsonResponse(400, { error: "Invalid type. Use vendors, leads, or products" });
-  } catch {
+  } catch (err) {
+    console.error("Admin Stats Error:", err);
     return jsonResponse(403, { error: "Access denied" });
   }
 });
-

@@ -1,25 +1,20 @@
-// ============================================================
-// Krantos Platform — /admin (Super Admin control center)
-// ============================================================
-
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Loader2,
   Users,
   ShieldCheck,
-  LogOut,
-  ArrowRight,
   TrendingUp,
   DollarSign,
-  FileText,
-  UserPlus,
   Package,
   ShoppingCart,
   AlertTriangle,
-  Sparkles,
+  Calendar,
+  Filter,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
 import { getStatsLeads } from '../services/statsService';
@@ -29,16 +24,20 @@ const Admin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<AdminDashboardPayload | null>(null);
-  const [leadsPerDay, setLeadsPerDay] = useState<{ date: string; count: number }[]>([]);
+  const [chartData, setChartData] = useState<{ label: string; count: number }[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  
+  // Filters
+  const [period, setPeriod] = useState('day');
+  const [selectedVendor, setSelectedVendor] = useState<string>('');
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [dash, leadStats, roleInfo] = await Promise.all([
+        const [dash, roleInfo] = await Promise.all([
           getAdminDashboard(),
-          getStatsLeads().catch(() => null),
           (async () => {
             const { data: sessionData } = await supabase.auth.getSession();
             const uid = sessionData.session?.user.id;
@@ -51,220 +50,262 @@ const Admin = () => {
             return { super: profile?.role === 'super_admin' };
           })(),
         ]);
+        
         if (!mounted) return;
         setDashboard(dash);
         setIsSuperAdmin(roleInfo.super);
-        if (leadStats?.leads_per_day?.length) {
-          setLeadsPerDay(leadStats.leads_per_day.slice(-14));
-        }
       } catch (e) {
-        toast.error(
-          e instanceof Error ? e.message : 'Impossible de charger le tableau de bord (super admin requis).'
-        );
-        // On ne redirige plus violemment vers l'accueil pour laisser l'admin sur sa page
         console.error('Dashboard load error:', e);
+        toast.error('Erreur lors du chargement des données.');
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+    return () => { mounted = false; };
+  }, []);
 
+  // Fetch stats when filters change
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') navigate('/business-login', { replace: true });
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    let mounted = true;
+    const fetchStats = async () => {
+      setStatsLoading(true);
+      try {
+        const res = await getStatsLeads({ 
+          period, 
+          vendor_id: selectedVendor === 'all' ? undefined : selectedVendor 
+        });
+        if (mounted) {
+          setChartData(res.chart_data);
+        }
+      } catch (e) {
+        console.error('Stats fetch error:', e);
+      } finally {
+        if (mounted) setStatsLoading(false);
+      }
+    };
+    fetchStats();
+    return () => { mounted = false; };
+  }, [period, selectedVendor]);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success('Vous avez été déconnecté.');
-    navigate('/business-login');
-  };
-
-  if (loading) {
+  if (loading || !dashboard) {
     return (
-      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
+      <div className="min-h-full flex items-center justify-center py-20">
         <div className="text-center">
-          <Loader2 className="w-10 h-10 text-yellow-400 animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Chargement du centre de contrôle…</p>
+          <Loader2 className="w-12 h-12 text-yellow-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 font-medium">Initialisation du Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!dashboard) {
-    return null;
-  }
-
-  const maxDay = Math.max(1, ...leadsPerDay.map((d) => d.count));
+  const maxCount = Math.max(1, ...chartData.map(d => d.count));
   const showPendingAlert = dashboard.pending_vendors > 0;
-  const lowConversion = dashboard.total_leads >= 20 && dashboard.conversion_rate < 5;
-
-  const adminActions = [
-    { title: 'Vendeurs', desc: 'Liste & filtres', path: '/admin/vendors', icon: <Users className="w-5 h-5 text-yellow-400" /> },
-    { title: 'Leads', desc: 'Suivi & détail', path: '/admin/leads', icon: <TrendingUp className="w-5 h-5 text-blue-400" /> },
-    { title: 'Produits', desc: 'Vue globale', path: '/admin/products', icon: <Package className="w-5 h-5 text-cyan-400" /> },
-    { title: 'Commissions', desc: 'Gestion des taux', path: '/admin/commissions', icon: <DollarSign className="w-5 h-5 text-green-400" /> },
-    { title: 'Commandes', desc: 'Pipeline premium', path: '/admin/orders', icon: <ShoppingCart className="w-5 h-5 text-emerald-400" /> },
-    { title: 'Facturation', desc: 'Rapports & PDF', path: '/admin/billing', icon: <FileText className="w-5 h-5 text-purple-400" /> },
-    { title: 'Contrats', desc: 'Abonnements', path: '/admin/contracts', icon: <ShieldCheck className="w-5 h-5 text-orange-400" /> },
-    { title: 'Chatbot', desc: 'Conseils & Réponses', path: '/admin/chatbot', icon: <Sparkles className="w-5 h-5 text-yellow-500" /> },
-    ...(isSuperAdmin
-      ? [{ title: 'Utilisateurs', desc: 'Accès internes', path: '/admin/users', icon: <UserPlus className="w-5 h-5 text-pink-400" /> }]
-      : []),
-  ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white mb-2">Centre de contrôle</h1>
-          <p className="text-gray-500 text-lg">Super Admin — croissance, performance, pilotage.</p>
+          <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+            Vue d'ensemble <span className="text-yellow-400">Plateforme</span>
+          </h1>
+          <p className="text-gray-500 font-medium">Gestion centrale des opérations Krantos.</p>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-red-400 hover:bg-red-400/10 transition-all text-sm font-bold"
-        >
-          <LogOut className="w-4 h-4" />
-          Déconnexion
-        </button>
       </div>
 
-      {showPendingAlert && (
-        <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-yellow-400/10 border border-yellow-400/30 text-sm text-yellow-200">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p>
-            <span className="font-bold">{dashboard.pending_vendors}</span> vendeur(s) en attente de validation.{' '}
-            <Link to="/admin/vendors" className="underline font-bold text-yellow-400">
-              Traiter
-            </Link>
-          </p>
-        </div>
-      )}
-
-      {lowConversion && (
-        <div className="mb-6 flex items-start gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-sm text-red-200">
-          <AlertTriangle className="w-5 h-5 shrink-0" />
-          <p>
-            Taux de conversion faible ({dashboard.conversion_rate} %). Vérifiez la qualité des leads et le suivi
-            commerciaux.
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-10">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Vendeurs', v: dashboard.total_vendors, color: 'text-white', icon: <Users className="w-3 h-3" /> },
-          { label: 'Actifs', v: dashboard.active_vendors, color: 'text-green-400', icon: <ShieldCheck className="w-3 h-3" /> },
-          { label: 'Leads', v: dashboard.total_leads, color: 'text-blue-400', icon: <TrendingUp className="w-3 h-3" /> },
-          { label: 'Produits', v: dashboard.total_products, color: 'text-cyan-400', icon: <Package className="w-3 h-3" /> },
-          { label: 'Conversion', v: `${dashboard.conversion_rate}%`, color: 'text-purple-400', icon: <TrendingUp className="w-3 h-3" /> },
-          { label: 'Revenus Est.', v: '8.4M', color: 'text-yellow-400', icon: <DollarSign className="w-3 h-3" /> },
-        ].map((c) => (
-          <div key={c.label} className="glass-card p-5 rounded-[2rem] border-white/5 text-center group hover:bg-white/5 transition-all">
-            <div className={`w-8 h-8 rounded-xl bg-white/5 mx-auto mb-3 flex items-center justify-center ${c.color} opacity-50 group-hover:opacity-100 transition-opacity`}>
-              {c.icon}
-            </div>
-            <p className={`text-2xl font-black ${c.color} mb-1 tracking-tighter`}>{c.v}</p>
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none">{c.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {leadsPerDay.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6 rounded-3xl border-white/5 mb-10"
-        >
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Leads (14 derniers jours)</h2>
-          <div className="flex items-end gap-1 h-32">
-            {leadsPerDay.map((d) => (
-              <div key={d.date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                <div
-                  className="w-full bg-yellow-400/80 rounded-t min-h-[2px] transition-all"
-                  style={{ height: `${(d.count / maxDay) * 100}%` }}
-                  title={`${d.date}: ${d.count}`}
-                />
-                <span className="text-[8px] text-gray-600 truncate w-full text-center">
-                  {d.date.slice(5)}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-        <div className="glass-card p-6 rounded-3xl border-white/5">
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Top vendeurs (leads)</h2>
-          <div className="space-y-2 max-h-64 overflow-y-auto text-sm">
-            {dashboard.top_vendors.length === 0 ? (
-              <p className="text-gray-500">Aucune donnée.</p>
-            ) : (
-              dashboard.top_vendors.map((v) => (
-                <div
-                  key={v.vendor_id}
-                  className="flex justify-between items-center py-2 border-b border-white/5"
-                >
-                  <span className="text-white font-medium truncate pr-2">{v.name}</span>
-                  <span className="text-gray-400 shrink-0">
-                    {v.leads_count} leads — {v.conversion_rate} %
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-        <div className="glass-card p-6 rounded-3xl border-white/5">
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Derniers leads</h2>
-          <div className="space-y-2 max-h-64 overflow-y-auto text-sm">
-            {dashboard.recent_leads.map((l) => (
-              <div key={l.id} className="flex justify-between items-start py-2 border-b border-white/5 gap-2">
-                <div>
-                  <p className="text-white font-medium">{l.user_name}</p>
-                  <p className="text-gray-500 text-xs">{l.status} · {new Date(l.created_at).toLocaleString('fr-FR')}</p>
-                </div>
-                <span className="text-yellow-500/80 text-xs shrink-0">{l.total_power_needed} W</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Navigation</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {adminActions.map((action, i) => (
+          { label: 'Vendeurs Totaux', value: dashboard.total_vendors, icon: <Users className="text-blue-400" />, trend: '+12%', up: true },
+          { label: 'Leads Générés', value: dashboard.total_leads, icon: <TrendingUp className="text-yellow-400" />, trend: '+5%', up: true },
+          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: '-2%', up: false },
+          { label: 'Revenus Est.', value: '8.4M', icon: <DollarSign className="text-green-400" />, trend: '+18%', up: true },
+        ].map((stat, i) => (
           <motion.div
-            key={action.path}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.05 * i }}
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="glass-card p-6 rounded-[2.5rem] border-white/5 group hover:border-white/10 transition-all"
           >
-            <Link
-              to={action.path}
-              className="glass-card p-6 rounded-2xl border-white/5 hover:border-white/10 transition-all flex items-center justify-between group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  {action.icon}
-                </div>
-                <div>
-                  <h3 className="font-bold text-white group-hover:text-yellow-400 transition-colors">{action.title}</h3>
-                  <p className="text-xs text-gray-500 font-medium">{action.desc}</p>
-                </div>
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
+                {stat.icon}
               </div>
-              <ArrowRight className="w-5 h-5 text-gray-600 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all" />
-            </Link>
+              <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${stat.up ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                {stat.trend}
+              </div>
+            </div>
+            <p className="text-3xl font-black text-white tracking-tighter mb-1">{stat.value}</p>
+            <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{stat.label}</p>
           </motion.div>
         ))}
+      </div>
+
+      {/* Main Chart Section */}
+      <div className="glass-card p-8 rounded-[3rem] border-white/5 relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 relative z-10">
+          <div>
+            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
+              Évolution des Leads
+              {statsLoading && <Loader2 size={16} className="animate-spin text-yellow-400" />}
+            </h2>
+            <p className="text-sm text-gray-500 font-medium">Analyse des flux de conversion par période.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Vendor Filter */}
+            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 group focus-within:border-yellow-400/50 transition-all">
+              <Users size={16} className="text-gray-500 group-focus-within:text-yellow-400" />
+              <select
+                value={selectedVendor}
+                onChange={(e) => setSelectedVendor(e.target.value)}
+                className="bg-transparent border-none outline-none text-xs font-bold text-white cursor-pointer min-w-[120px]"
+              >
+                <option value="all" className="bg-[#0f0f13]">Tous les vendeurs</option>
+                {dashboard.top_vendors.map(v => (
+                  <option key={v.vendor_id} value={v.vendor_id} className="bg-[#0f0f13]">{v.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Period Filter */}
+            <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10">
+              {[
+                { id: 'day', label: 'Jour' },
+                { id: 'week', label: 'Semaine' },
+                { id: 'month', label: 'Mois' },
+                { id: 'quarter', label: 'Trimestre' },
+                { id: 'year', label: 'An' },
+              ].map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setPeriod(p.id)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    period === p.id 
+                      ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                      : 'text-gray-500 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Chart Area */}
+        <div className="relative h-64 flex items-end gap-2 lg:gap-4 px-2 overflow-x-auto custom-scrollbar pb-4">
+          <AnimatePresence mode="popLayout">
+            {chartData.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-bold text-sm">
+                Aucune donnée disponible pour cette période.
+              </div>
+            ) : (
+              chartData.map((d, i) => (
+                <motion.div
+                  key={d.label}
+                  initial={{ opacity: 0, scaleY: 0 }}
+                  animate={{ opacity: 1, scaleY: 1 }}
+                  exit={{ opacity: 0, scaleY: 0 }}
+                  transition={{ delay: i * 0.03, duration: 0.5 }}
+                  className="flex-1 min-w-[30px] flex flex-col items-center gap-3 group"
+                >
+                  <div className="relative w-full flex flex-col justify-end h-48">
+                    <motion.div
+                      className="w-full bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-xl group-hover:from-yellow-300 group-hover:to-white transition-all shadow-lg shadow-yellow-400/5 relative"
+                      style={{ height: `${(d.count / maxCount) * 100}%` }}
+                    >
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl pointer-events-none">
+                        {d.count}
+                      </div>
+                    </motion.div>
+                  </div>
+                  <span className="text-[9px] font-black text-gray-500 group-hover:text-white transition-colors uppercase whitespace-nowrap rotate-45 lg:rotate-0 origin-left mt-2">
+                    {d.label.split('-').reverse()[0]}
+                  </span>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Bottom Grid: Alerts & Vendors */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Alerts & Tasks */}
+        <div className="space-y-6">
+          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest px-1">Alertes prioritaires</h3>
+          {showPendingAlert && (
+            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex items-start gap-4 p-6 rounded-[2rem] bg-yellow-400/10 border border-yellow-400/20 text-yellow-100">
+              <AlertTriangle className="text-yellow-400 shrink-0" />
+              <div>
+                <p className="font-black mb-1">Validations en attente</p>
+                <p className="text-sm opacity-80 mb-4">{dashboard.pending_vendors} nouveaux vendeurs attendent votre validation pour commencer.</p>
+                <Link to="/admin/vendors" className="px-4 py-2 rounded-xl bg-yellow-400 text-black text-xs font-black inline-flex items-center gap-2 hover:bg-yellow-500 transition-colors">
+                  Voir la liste <ChevronRight size={14} />
+                </Link>
+              </div>
+            </motion.div>
+          )}
+          <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10">
+            <h4 className="font-black text-white mb-4">Objectifs du trimestre</h4>
+            <div className="space-y-4">
+              {[
+                { label: 'Nouveaux Vendeurs', progress: 75, color: 'bg-blue-400' },
+                { label: 'Conversion Leads', progress: 40, color: 'bg-yellow-400' },
+                { label: 'Revenus Premium', progress: 90, color: 'bg-purple-400' },
+              ].map(goal => (
+                <div key={goal.label} className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                    <span className="text-gray-500">{goal.label}</span>
+                    <span className="text-white">{goal.progress}%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${goal.progress}%` }} className={`h-full ${goal.color}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Vendors Table */}
+        <div className="glass-card p-8 rounded-[2.5rem] border-white/5">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Performance Vendeurs</h3>
+            <Link to="/admin/vendors" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Voir tout</Link>
+          </div>
+          <div className="space-y-1">
+            {dashboard.top_vendors.slice(0, 5).map((v, idx) => (
+              <div key={v.vendor_id} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-yellow-400 group-hover:bg-yellow-400/10">
+                    0{idx + 1}
+                  </div>
+                  <div>
+                    <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{v.name}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black">{v.status}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-white font-black tracking-tighter">{v.leads_count} Leads</p>
+                  <p className="text-[10px] text-green-400 font-bold">{v.conversion_rate}% Conv.</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 };
+
+const ChevronRight = ({ size = 16, className = "" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
 
 export default Admin;

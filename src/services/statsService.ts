@@ -32,11 +32,14 @@ export async function getStatsVendors() {
   }>('admin-stats', sp);
 }
 
-export async function getStatsLeads() {
+export async function getStatsLeads(params?: { period?: string; vendor_id?: string }) {
   const sp = new URLSearchParams({ type: 'leads' });
+  if (params?.period) sp.set('period', params.period);
+  if (params?.vendor_id) sp.set('vendor_id', params.vendor_id);
+  
   return getFunction<{
     total_leads: number;
-    leads_per_day: Array<{ date: string; count: number }>;
+    chart_data: Array<{ label: string; count: number }>;
     conversion_rate: number;
   }>('admin-stats', sp);
 }

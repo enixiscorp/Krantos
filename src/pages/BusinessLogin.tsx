@@ -132,6 +132,11 @@ const BusinessLogin = () => {
 
       toast.success('Inscription envoyée avec succès !');
       setShowSuccessModal(true);
+      // Reset form
+      setCompanyName('');
+      setCategory('');
+      setPhone('');
+      setEmail('');
       setPassword('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte.';
@@ -336,9 +341,9 @@ const BusinessLogin = () => {
               <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-8 h-8 text-green-400" />
               </div>
-              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Inscription reçue !</h2>
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Demande envoyée !</h2>
               <p className="text-gray-400 text-sm leading-relaxed mb-8">
-                Votre demande pour <span className="text-white font-semibold">{companyName}</span> est en cours de validation.
+                Votre demande d'inscription est en cours. Un administrateur va valider votre compte sous 24h. Vous pourrez ensuite vous connecter.
               </p>
               <button
                 onClick={() => { setShowSuccessModal(false); setMode('login'); }}

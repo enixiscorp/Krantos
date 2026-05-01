@@ -59,7 +59,11 @@ Deno.serve(async (req) => {
   });
 
   if (createError || !authUser.user) {
-    return jsonResponse(400, { error: createError?.message ?? "Failed to create auth user" });
+    const isDuplicate = createError?.message?.includes("already registered");
+    return jsonResponse(400, { 
+      error: isDuplicate ? "Cet email est déjà utilisé." : (createError?.message ?? "Erreur Auth"),
+      details: isDuplicate ? "Veuillez supprimer l'utilisateur dans l'onglet Authentication de Supabase pour recommencer." : undefined
+    });
   }
 
   const userId = authUser.user.id;

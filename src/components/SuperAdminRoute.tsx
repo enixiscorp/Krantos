@@ -26,24 +26,40 @@ const SuperAdminRoute = ({ children }: Props) => {
         return;
       }
 
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', sessionData.session.user.id)
-        .single();
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', sessionData.session.user.id)
+          .maybeSingle();
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (error || !profile) {
-        toast.error('Profil introuvable.');
-        navigate('/', { replace: true });
-        return;
-      }
+        if (profile?.role === 'super_admin') {
+          setAllowed(true);
+          setReady(true);
+          return;
+        }
 
-      if ((profile.role as AppRole) !== 'super_admin') {
-        toast.error('Accès réservé au super administrateur.');
-        navigate('/', { replace: true });
-        return;
+        // Fallback: Si super_admin via admin_users (admin_principal)
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('role')
+          .eq('auth_user_id', sessionData.session.user.id)
+          .maybeSingle();
+
+        if (mounted) {
+          if (adminUser?.role === 'admin_principal') {
+            setAllowed(true);
+            setReady(true);
+          } else {
+            toast.error('Accès réservé au super administrateur.');
+            navigate('/', { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error('SuperAdminRoute Error:', err);
+        if (mounted) navigate('/', { replace: true });
       }
 
       setAllowed(true);

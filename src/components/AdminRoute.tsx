@@ -20,44 +20,49 @@ const AdminRoute = ({ children }: Props) => {
     let mounted = true;
 
     const run = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        navigate('/admin-login', { replace: true });
-        return;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          navigate('/admin-login', { replace: true });
+          return;
+        }
+
+        const uid = sessionData.session.user.id;
+
+        // 1) Essayer de récupérer le rôle dans profiles
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', uid)
+          .maybeSingle();
+
+        if (mounted && profile && (profile.role === 'super_admin' || profile.role === 'admin')) {
+          setAllowed(true);
+          setReady(true);
+          return;
+        }
+
+        // 2) Fallback : vérifier dans admin_users
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('id, role')
+          .eq('auth_user_id', uid)
+          .maybeSingle();
+
+        if (mounted) {
+          if (adminUser) {
+            setAllowed(true);
+            setReady(true);
+          } else {
+            console.warn('Accès Admin refusé pour UID:', uid);
+            toast.error('Accès refusé. Droits insuffisants.');
+            navigate('/', { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error('AdminRoute Error:', err);
+        if (mounted) navigate('/', { replace: true });
       }
-
-      // 1) super_admin via profiles.role
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', sessionData.session.user.id)
-        .single();
-
-      if (!mounted) return;
-
-      if (!profileError && profile && (profile.role as AppRole) === 'super_admin') {
-        setAllowed(true);
-        setReady(true);
-        return;
-      }
-
-      // 2) admin staff via admin_users table (RLS: only admins can read)
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_users')
-        .select('id, role')
-        .eq('auth_user_id', sessionData.session.user.id)
-        .single();
-
-      if (!mounted) return;
-
-      if (adminError || !adminUser) {
-        toast.error('Accès refusé.');
-        navigate('/', { replace: true });
-        return;
-      }
-
-      setAllowed(true);
-      setReady(true);
     };
 
     void run();

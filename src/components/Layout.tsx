@@ -6,13 +6,12 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-white selection:bg-yellow-400 selection:text-gray-900">
       <Header />
       <main className="pt-16 pb-20">
         <Outlet />
-        {children}
       </main>
       
       {/* Footer-like element or subtle background glows */}

@@ -32,7 +32,7 @@ function App() {
       <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-yellow-400 font-bold">Chargement...</div>}>
         <Routes>
           {/* Front/public site (avec Header) */}
-          <Route element={<Layout><div /></Layout>}>
+          <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/calculate-power" element={<CalculatePower />} />
             <Route path="/results" element={<Results />} />
@@ -45,7 +45,7 @@ function App() {
           </Route>
 
           {/* Back-office admin (sans Header) */}
-          <Route element={<AdminLayout><div /></AdminLayout>}>
+          <Route element={<AdminLayout />}>
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route
               path="/admin"

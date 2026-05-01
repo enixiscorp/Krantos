@@ -148,7 +148,6 @@ export default function AdminLayout(props: { children: ReactNode }) {
       <main className="flex-1 h-screen overflow-y-auto relative z-10 scroll-smooth">
         <div className="p-8">
           <Outlet />
-          {props.children}
         </div>
       </main>
     </div>

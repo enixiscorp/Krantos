@@ -100,13 +100,41 @@ const BusinessLogin = () => {
       return;
     }
 
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', color: 'bg-transparent' };
+    let score = 0;
+    if (pass.length >= 8) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    
+    if (score <= 1) return { score, label: 'Très Faible', color: 'bg-red-500' };
+    if (score === 2) return { score, label: 'Moyen', color: 'bg-yellow-500' };
+    if (score === 3) return { score, label: 'Fort', color: 'bg-green-500' };
+    return { score, label: 'Excellent', color: 'bg-emerald-500' };
+  };
+
+  const strength = getPasswordStrength(password);
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyName || !category || !phone || !email || !password) {
+      toast.error('Veuillez remplir tous les champs.');
+      return;
+    }
+    if (password.length < 8) {
+      toast.error('Mot de passe : 8 caractères minimum.');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/pro-signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          apikey: supabaseAnon,
+          'Authorization': `Bearer ${supabaseAnon}`,
+          'apikey': supabaseAnon,
         },
         body: JSON.stringify({
           company_name: companyName,
@@ -121,13 +149,9 @@ const BusinessLogin = () => {
       const json = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
 
-      // S'assurer que le modal s'affiche bien après le succès de l'API
       toast.success('Inscription envoyée avec succès !');
       setShowSuccessModal(true);
-      
-      // Nettoyage des champs sensibles
       setPassword('');
-      // On garde l'email pour le login futur mais on peut vider le reste si besoin
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte.';
       toast.error(message);
@@ -148,7 +172,7 @@ const BusinessLogin = () => {
         className="w-full max-w-md"
       >
         <div className="glass-card p-10 rounded-[2.5rem] border-white/5 relative overflow-hidden">
-          {/* Header Icon */}
+          {/* Header Icon ... remains same ... */}
           <div className="flex flex-col items-center text-center mb-10">
             <div className="w-16 h-16 rounded-3xl bg-yellow-400/10 flex items-center justify-center mb-6 group transition-all hover:scale-110">
               <Briefcase className="w-8 h-8 text-yellow-400" />
@@ -243,18 +267,17 @@ const BusinessLogin = () => {
                       onChange={(e) => {
                         const val = Number(e.target.value);
                         setContractDuration(val);
-                        // Auto-select plan
                         if (val === 0.5) setSubscriptionType('free');
                         else if (val === 1 || val === 3) setSubscriptionType('basic');
                         else if (val === 6 || val === 12) setSubscriptionType('premium');
                       }}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none cursor-pointer"
                     >
-                      <option value={0.5} className="bg-gray-900">14 jours (Démo)</option>
-                      <option value={1} className="bg-gray-900">1 mois</option>
-                      <option value={3} className="bg-gray-900">3 mois</option>
-                      <option value={6} className="bg-gray-900">6 mois</option>
-                      <option value={12} className="bg-gray-900">12 mois</option>
+                      <option value={0.5} className="bg-gray-900 text-white">14 jours (Démo)</option>
+                      <option value={1} className="bg-gray-900 text-white">1 mois</option>
+                      <option value={3} className="bg-gray-900 text-white">3 mois</option>
+                      <option value={6} className="bg-gray-900 text-white">6 mois</option>
+                      <option value={12} className="bg-gray-900 text-white">12 mois</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -267,7 +290,6 @@ const BusinessLogin = () => {
               </>
             )}
 
-            {/* Email Field */}
             <div className="space-y-2">
               <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
                 <Mail className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
@@ -282,8 +304,7 @@ const BusinessLogin = () => {
               </div>
             </div>
 
-            {/* Password Field */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
                 <Lock className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
                 <input
@@ -295,9 +316,29 @@ const BusinessLogin = () => {
                   required
                 />
               </div>
+              
+              {mode === 'signup' && password.length > 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-2"
+                >
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Sécurité : {strength.label}</span>
+                    <span className="text-[8px] font-medium text-gray-600 uppercase tracking-tighter">Lettres + Chiffres + Symboles</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex gap-1">
+                    {[1, 2, 3, 4].map((step) => (
+                      <div 
+                        key={step}
+                        className={`h-full flex-1 transition-all duration-500 ${step <= strength.score ? strength.color : 'bg-transparent'}`}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </div>
 
-            {/* Login Button */}
             <button
               type="submit"
               disabled={loading}
@@ -314,10 +355,9 @@ const BusinessLogin = () => {
             </button>
           </form>
 
-          {/* Hint */}
           <div className="mt-10 pt-8 border-t border-white/5 text-center px-4">
             <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
-              Sécurité : aucun mot de passe n’est manipulé côté admin. Validation + contrat + commission se font dans l’interface admin.
+              Krantos Professionnel — Validation sous 24/48h.
             </p>
           </div>
         </div>

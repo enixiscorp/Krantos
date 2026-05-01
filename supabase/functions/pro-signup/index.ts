@@ -6,12 +6,12 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    console.log("Signup attempt for:", payload.email);
-
     const { email, password, company_name, category, phone, contract_duration, subscription_type } = payload;
 
-    if (!email || !password) {
-      return jsonResponse(400, { error: "Email et mot de passe requis" });
+    console.log(`[Signup] Attempt for ${email} (${company_name})`);
+
+    if (!email || !password || !company_name) {
+      return jsonResponse(400, { error: "Données manquantes : Email, mot de passe et nom d'entreprise sont requis." });
     }
 
     // 1. Create Auth User
@@ -23,50 +23,57 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      console.error("Auth creation failed:", createError.message);
-      // If user already exists, we might want to link them or return specific error
-      return jsonResponse(400, { error: `Erreur d'authentification: ${createError.message}` });
+      console.error(`[Signup Error] Auth: ${createError.message}`);
+      return jsonResponse(400, { error: `Erreur d'authentification : ${createError.message}` });
     }
 
     const userId = authUser.user.id;
 
-    // 2. Create Profile (with error suppression to continue)
+    // 2. Create Profile
     const { error: profileError } = await adminClient.from("profiles").upsert({
       id: userId,
       phone: phone || "",
       role: "vendor",
-      full_name: company_name || "Vendeur Krantos"
+      full_name: company_name
     });
-    if (profileError) console.error("Profile creation warning:", profileError.message);
+    if (profileError) console.error(`[Signup Warning] Profile: ${profileError.message}`);
 
     // 3. Create Vendor Record
-    const duration = Number(contract_duration) || 12;
+    // Handling 0.5 months (14 days) or full months
+    const durationInMonths = Number(contract_duration) || 12;
+    const startDate = new Date();
     const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + duration);
+    
+    if (durationInMonths === 0.5) {
+      endDate.setDate(endDate.getDate() + 14); // 14 days
+    } else {
+      endDate.setMonth(endDate.getMonth() + durationInMonths);
+    }
 
     const { error: vendorError } = await adminClient.from("vendors").insert({
       profile_id: userId,
-      company_name: company_name || "Entreprise en attente",
-      name: company_name || "Entreprise en attente",
-      category: category || "Autre",
+      company_name: company_name,
+      name: company_name,
+      category: category || "Autres",
       phone: phone || "",
       email: email,
       status: "pending",
       subscription_type: subscription_type || "free",
-      contract_start_date: new Date().toISOString().split("T")[0],
+      contract_start_date: startDate.toISOString().split("T")[0],
       contract_end_date: endDate.toISOString().split("T")[0],
     });
 
     if (vendorError) {
-      console.error("Vendor record creation failed:", vendorError.message);
-      return jsonResponse(500, { error: `Erreur base de données: ${vendorError.message}` });
+      console.error(`[Signup Error] Table Vendors: ${vendorError.message}`);
+      // If vendor table fails, we still have the user, but we should inform the admin
+      return jsonResponse(500, { error: `Erreur base de données : ${vendorError.message}` });
     }
 
-    console.log("Signup successful for:", userId);
+    console.log(`[Signup Success] Created vendor ${userId}`);
     return jsonResponse(201, { message: "Inscription réussie", userId });
 
   } catch (err) {
-    console.error("Global signup crash:", err);
-    return jsonResponse(500, { error: "Le serveur a rencontré une erreur inattendue." });
+    console.error(`[Signup Critical] Crash:`, err);
+    return jsonResponse(500, { error: "Une erreur interne est survenue. Veuillez réessayer." });
   }
 });

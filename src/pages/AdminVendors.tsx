@@ -95,6 +95,15 @@ const AdminVendors = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newVendor, setNewVendor] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: '',
+    category: 'Énergie solaire',
+    subscription_type: 'free'
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -156,6 +165,43 @@ const AdminVendors = () => {
       console.error(err);
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleAddVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pro-signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          company_name: newVendor.name,
+          category: newVendor.category,
+          phone: newVendor.phone,
+          email: newVendor.email,
+          password: newVendor.password,
+          contract_duration: 12,
+          subscription_type: newVendor.subscription_type,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Erreur lors de la création');
+
+      toast.success('Vendeur créé avec succès !');
+      setShowAddModal(false);
+      setNewVendor({ name: '', email: '', password: '', phone: '', category: 'Énergie solaire', subscription_type: 'free' });
+      // Refresh list
+      const { data } = await supabase.from('vendors').select('*').order('created_at', { ascending: false });
+      setVendors(data ?? []);
+    } catch (err) {
+      toast.error('Impossible de créer le vendeur.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,15 +271,27 @@ const AdminVendors = () => {
           <p className="text-gray-500 text-lg font-medium">Gestion des partenaires et validation des comptes.</p>
         </motion.div>
 
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          onClick={handleExportCSV}
-          className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
-        >
-          <Download className="w-4 h-4" />
-          Exporter CSV
-        </motion.button>
+        <div className="flex items-center gap-3">
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-yellow-400 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all active:scale-95 shadow-lg shadow-yellow-400/20"
+          >
+            <Zap className="w-4 h-4" />
+            + Nouveau Vendeur
+          </motion.button>
+          
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            Exporter CSV
+          </motion.button>
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -449,6 +507,73 @@ const AdminVendors = () => {
                    </button>
                 </div>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Add Vendor Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowAddModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden p-10"
+            >
+              <h2 className="text-3xl font-black text-white mb-6 tracking-tight uppercase">Nouveau Vendeur</h2>
+              <form onSubmit={handleAddVendor} className="space-y-4">
+                <input
+                  value={newVendor.name}
+                  onChange={e => setNewVendor({...newVendor, name: e.target.value})}
+                  placeholder="Nom de l'entreprise"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                />
+                <input
+                  type="email"
+                  value={newVendor.email}
+                  onChange={e => setNewVendor({...newVendor, email: e.target.value})}
+                  placeholder="Email Professionnel"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                />
+                <input
+                  type="password"
+                  value={newVendor.password}
+                  onChange={e => setNewVendor({...newVendor, password: e.target.value})}
+                  placeholder="Mot de passe provisoire"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                />
+                <input
+                  value={newVendor.phone}
+                  onChange={e => setNewVendor({...newVendor, phone: e.target.value})}
+                  placeholder="Téléphone (+228...)"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                />
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="flex-1 h-14 rounded-2xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-[2] h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"
+                  >
+                    Créer le compte
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

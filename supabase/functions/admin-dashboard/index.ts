@@ -3,10 +3,8 @@ import { adminClient, corsHeaders, jsonResponse } from "../_shared/auth.ts";
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   
-  // Accept both GET and POST for flexibility
   const url = new URL(req.url);
   const period = url.searchParams.get("period") || "month";
-  const vendor_id = url.searchParams.get("vendor_id");
 
   try {
     console.log(`[Admin Dashboard] Fetching data for period: ${period}`);
@@ -26,7 +24,6 @@ Deno.serve(async (req) => {
     const { data: recentLeads } = await adminClient.from("leads").select("*").order("created_at", { ascending: false }).limit(8);
     const { data: topVendors } = await adminClient.from("vendors").select("id, name, category, status").limit(6);
 
-    // 4. Map top vendors to include counts (simulated for now, real query would be joined)
     const mappedTopVendors = topVendors?.map(v => ({
       vendor_id: v.id,
       name: v.name,
@@ -36,18 +33,25 @@ Deno.serve(async (req) => {
       conversion_rate: 0
     })) || [];
 
-    // 5. Build response exactly as AdminDashboardPayload
+    // 4. Build response with ZEROED metrics for new counters
     return jsonResponse(200, {
       total_vendors: totalVendors || 0,
       active_vendors: activeVendors || 0,
       pending_vendors: pendingVendors || 0,
       total_products: totalProducts || 0,
       total_leads: totalLeads || 0,
-      total_revenue: totalRevenue,
-      conversion_rate: 0, // Real calculation to follow in next update
+      total_revenue: totalRevenue || 0,
+      conversion_rate: 0, 
       trends: {
         vendors: { val: "0%", up: true },
-        leads: { val: "0%", up: true }
+        leads: { val: "0%", up: true },
+        conversion: { val: "0%", up: true },
+        revenue: { val: "0%", up: true }
+      },
+      goals: {
+        acquisition: 0,
+        validation: 0,
+        premium: 0
       },
       top_vendors: mappedTopVendors,
       recent_leads: (recentLeads || []).map(l => ({

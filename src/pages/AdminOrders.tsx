@@ -30,10 +30,16 @@ const STATUS_OPTIONS: Array<{ id: OrderStatus; label: string }> = [
 ];
 
 const AdminOrders = () => {
-  const { loading, orders, stats, selected, setSelected, loadOrders, loadOrderDetails, updateOrderStatus, deleteOrder } =
-    useOrders();
-
   const [filter, setFilter] = useState<OrderStatus | 'all'>('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newOrder, setNewOrder] = useState({
+    client_name: '',
+    client_phone: '',
+    items: [{ product_name: '', quantity: 1, price: 0 }]
+  });
+
+  const { loading, orders, stats, selected, setSelected, loadOrders, loadOrderDetails, createOrder, updateOrderStatus, deleteOrder } =
+    useOrders();
 
   useEffect(() => {
     void loadOrders();
@@ -48,6 +54,17 @@ const AdminOrders = () => {
     const data = await loadOrderDetails(id);
     if (data) setSelected(data);
   };
+
+  const handleCreateOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await createOrder(newOrder);
+    if (success) {
+      setShowAddModal(false);
+      setNewOrder({ client_name: '', client_phone: '', items: [{ product_name: '', quantity: 1, price: 0 }] });
+    }
+  };
+
+  const addItem = () => setNewOrder({...newOrder, items: [...newOrder.items, { product_name: '', quantity: 1, price: 0 }]});
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette commande ?')) return;
@@ -90,13 +107,11 @@ const AdminOrders = () => {
           </select>
           <button
             type="button"
-            onClick={() =>
-              toast.info('Création UI rapide: prochain sprint. (Hook createOrder prêt si besoin.)')
-            }
-            className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-yellow-400 text-gray-900 font-black text-sm hover:bg-yellow-500 transition-all"
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-yellow-400 text-gray-900 font-black text-sm hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"
           >
             <PlusCircle className="w-5 h-5" />
-            Nouvelle
+            Nouvelle Commande
           </button>
         </div>
       </div>
@@ -175,6 +190,85 @@ const AdminOrders = () => {
           </div>
         </div>
       )}
+      {/* Add Order Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] p-8 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <h2 className="text-2xl font-black text-white mb-6 uppercase tracking-tight">Nouvelle Vente Boutique</h2>
+              <form onSubmit={handleCreateOrder} className="space-y-6">
+                <div className="space-y-4">
+                  <input
+                    placeholder="Nom du Client"
+                    value={newOrder.client_name}
+                    onChange={e => setNewOrder({...newOrder, client_name: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm"
+                    required
+                  />
+                  <input
+                    placeholder="Téléphone Client"
+                    value={newOrder.client_phone}
+                    onChange={e => setNewOrder({...newOrder, client_phone: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Articles</p>
+                    <button type="button" onClick={addItem} className="text-[10px] text-yellow-400 font-black uppercase">+ Ajouter</button>
+                  </div>
+                  {newOrder.items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <input
+                        placeholder="Produit"
+                        value={item.product_name}
+                        onChange={e => {
+                          const items = [...newOrder.items];
+                          items[idx].product_name = e.target.value;
+                          setNewOrder({...newOrder, items});
+                        }}
+                        className="col-span-6 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs"
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Qté"
+                        value={item.quantity}
+                        onChange={e => {
+                          const items = [...newOrder.items];
+                          items[idx].quantity = Number(e.target.value);
+                          setNewOrder({...newOrder, items});
+                        }}
+                        className="col-span-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs"
+                        required
+                      />
+                      <input
+                        type="number"
+                        placeholder="Prix"
+                        value={item.price}
+                        onChange={e => {
+                          const items = [...newOrder.items];
+                          items[idx].price = Number(e.target.value);
+                          setNewOrder({...newOrder, items});
+                        }}
+                        className="col-span-4 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs"
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/5 transition-all">Annuler</button>
+                  <button type="submit" className="flex-[2] py-4 rounded-xl bg-yellow-400 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20">Valider la vente</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

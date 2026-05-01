@@ -39,6 +39,22 @@ import { EmailService } from '../services/emailService';
 // Constants
 // ---------------------------------------------------------------------------
 
+const CATEGORIES = [
+  "Énergie solaire",
+  "Énergie éolienne",
+  "Biomasse & Biogaz",
+  "Hydroélectricité",
+  "Géothermie",
+  "Audit Énergétique",
+  "Installation Électrique",
+  "Maintenance & SAV",
+  "Pompage Solaire",
+  "Éclairage Public",
+  "Froid & Climatisation",
+  "Formation & Conseil",
+  "Vente de Matériel"
+];
+
 const STATUS_CONFIG: Record<
   VendorStatus,
   { label: string; color: string; bg: string; icon: React.ReactNode }
@@ -558,6 +574,17 @@ const AdminVendors = () => {
                   className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
                   required
                 />
+                <select
+                  value={newVendor.category}
+                  onChange={e => setNewVendor({...newVendor, category: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                >
+                  <option value="" disabled className="bg-[#0A0A0A]">Sélectionner une catégorie</option>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat} className="bg-[#0A0A0A]">{cat}</option>
+                  ))}
+                </select>
                 <div className="flex gap-4">
                   <button
                     type="button"

@@ -24,15 +24,12 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      if (createError.message.includes("already exists")) {
-        console.log(`[Signup] User already exists in Auth, checking for Vendor record...`);
-        // Get existing user ID
-        const { data: existingUser } = await adminClient.from("profiles").select("id").eq("id", (await adminClient.auth.admin.listUsers()).data.users.find(u => u.email === email)?.id).maybeSingle();
-        
-        // Alternative: use listUsers and filter (less efficient but works if profiles is empty)
-        const allUsers = await adminClient.auth.admin.listUsers();
-        const found = allUsers.data.users.find(u => u.email === email);
-        if (!found) return jsonResponse(400, { error: "Erreur lors de la récupération de l'utilisateur existant." });
+      const isExisting = createError.message.toLowerCase().includes("already");
+      if (isExisting) {
+        console.log(`[Signup] User already exists in Auth, fetching ID...`);
+        const { data: users } = await adminClient.auth.admin.listUsers();
+        const found = users?.users.find(u => u.email === email);
+        if (!found) return jsonResponse(400, { error: "Utilisateur introuvable." });
         userId = found.id;
       } else {
         return jsonResponse(400, { error: `Erreur Auth: ${createError.message}` });
@@ -42,13 +39,12 @@ Deno.serve(async (req) => {
     }
 
     // 2. Ensure Profile exists
-    const { error: profileError } = await adminClient.from("profiles").upsert({
+    await adminClient.from("profiles").upsert({
       id: userId,
       phone: phone || "",
       role: "vendor",
       full_name: company_name
     });
-    if (profileError) console.error(`[Signup Warning] Profile: ${profileError.message}`);
 
     // 3. Create or Update Vendor Record
     const durationInMonths = Number(contract_duration) || 12;
@@ -73,7 +69,15 @@ Deno.serve(async (req) => {
       return jsonResponse(500, { error: `Erreur Database: ${vendorError.message}` });
     }
 
-    console.log(`[Signup Success] Vendor record ready for ${userId}`);
+    // 4. Create Admin Notification
+    await adminClient.from("admin_notifications").insert({
+      type: "vendor_signup",
+      title: "Nouvelle inscription",
+      message: `Vendeur : ${company_name} (${email}). En attente de validation.`,
+      metadata: { vendor_id: userId }
+    });
+
+    console.log(`[Signup Success] Vendor ready and notified: ${userId}`);
     return jsonResponse(201, { message: "Inscription réussie", userId });
 
   } catch (err) {

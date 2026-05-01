@@ -35,9 +35,17 @@ export interface AdminDashboardPayload {
   total_products: number;
   total_leads: number;
   conversion_rate: number;
+  total_revenue: number;
   trends: {
     vendors: { val: string; up: boolean };
     leads: { val: string; up: boolean };
+    conversion: { val: string; up: boolean };
+    revenue: { val: string; up: boolean };
+  };
+  goals: {
+    acquisition: number;
+    validation: number;
+    premium: number;
   };
   top_vendors: Array<{
     vendor_id: string;

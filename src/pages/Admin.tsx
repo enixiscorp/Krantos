@@ -217,8 +217,8 @@ const Admin = () => {
         {[
           { label: 'Vendeurs Totaux', value: dashboard.total_vendors, icon: <Users className="text-blue-400" />, trend: trends.vendors },
           { label: 'Leads Générés', value: dashboard.total_leads, icon: <TrendingUp className="text-yellow-400" />, trend: trends.leads },
-          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: { val: '-2%', up: false } },
-          { label: 'Revenus Est.', value: '8.4M', icon: <DollarSign className="text-green-400" />, trend: { val: '+18%', up: true } },
+          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: trends.conversion },
+          { label: 'Revenus Est.', value: `${dashboard.total_revenue.toLocaleString()} FCFA`, icon: <DollarSign className="text-green-400" />, trend: trends.revenue },
         ].map((stat, i) => {
           const trend = stat.trend;
           return (
@@ -351,9 +351,9 @@ const Admin = () => {
             <h4 className="font-black text-white mb-6 uppercase tracking-widest text-[10px]">Pipeline de conversion</h4>
             <div className="space-y-6">
               {[
-                { label: 'Acquisition Vendeurs', progress: 75, color: 'bg-blue-400', sub: 'Objectif: 100/mois' },
-                { label: 'Taux de Validation', progress: 92, color: 'bg-green-400', sub: 'Délai moyen: 4h' },
-                { label: 'Revenus Premium', progress: 58, color: 'bg-purple-400', sub: 'Abonnements annuels' },
+                { label: 'Acquisition Vendeurs', progress: dashboard.goals.acquisition, color: 'bg-blue-400', sub: 'Objectif: 100/mois' },
+                { label: 'Taux de Validation', progress: dashboard.goals.validation, color: 'bg-green-400', sub: 'Délai moyen: 4h' },
+                { label: 'Revenus Premium', progress: dashboard.goals.premium, color: 'bg-purple-400', sub: 'Abonnements annuels' },
               ].map(goal => (
                 <div key={goal.label} className="space-y-3">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">

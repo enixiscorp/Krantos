@@ -44,7 +44,71 @@ const BusinessLogin = () => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-  // ... (getPasswordStrength and redirectAfterLogin remain same)
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', color: 'bg-transparent' };
+    let score = 0;
+    if (pass.length >= 6) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    
+    if (score <= 1) return { score, label: 'Faible', color: 'bg-red-500' };
+    if (score === 2) return { score, label: 'Moyen', color: 'bg-yellow-500' };
+    if (score === 3) return { score, label: 'Fort', color: 'bg-green-500' };
+    return { score, label: 'Excellent', color: 'bg-emerald-500' };
+  };
+
+  const strength = getPasswordStrength(password);
+
+  const redirectAfterLogin = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profile?.role === 'super_admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
+
+    if (adminUser) {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
+    navigate('/business-dashboard', { replace: true });
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error('Veuillez remplir tous les champs.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success('Connexion réussie !');
+      await redirectAfterLogin();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur de connexion.';
+      toast.error(`Échec de la connexion : ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();

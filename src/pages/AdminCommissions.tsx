@@ -90,8 +90,8 @@ const AdminCommissions = () => {
   const [records, setRecords] = useState<CommissionRecord[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'records' | 'vendors'>('records');
 
   // Rate change modal state
   const [showRateModal, setShowRateModal] = useState(false);
@@ -240,13 +240,29 @@ const AdminCommissions = () => {
           <h1 className="text-4xl font-black text-white mb-2">Commissions</h1>
           <p className="text-gray-500 text-lg">Gestion des revenus et des taux par vendeur.</p>
         </div>
-        <button
-          onClick={() => setShowRateModal(true)}
-          className="flex items-center gap-2 px-6 py-4 rounded-xl bg-yellow-400 text-gray-900 font-bold hover:bg-yellow-500 transition-all accent-glow"
-        >
-          <Percent className="w-5 h-5" />
-          Modifier un taux
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 mr-4">
+            <button 
+              onClick={() => setActiveTab('records')}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'records' ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:text-white'}`}
+            >
+              Historique
+            </button>
+            <button 
+              onClick={() => setActiveTab('vendors')}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'vendors' ? 'bg-yellow-400 text-gray-900' : 'text-gray-500 hover:text-white'}`}
+            >
+              Vendeurs & Taux
+            </button>
+          </div>
+          <button
+            onClick={() => setShowRateModal(true)}
+            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-yellow-400 text-gray-900 font-bold hover:bg-yellow-500 transition-all accent-glow"
+          >
+            <Percent className="w-5 h-5" />
+            Modifier un taux
+          </button>
+        </div>
       </div>
 
       {/* Filters Bar */}
@@ -283,75 +299,108 @@ const AdminCommissions = () => {
 
       {/* List */}
       <div className="space-y-4">
-        {filteredRecords.length === 0 ? (
-          <div className="glass-card p-16 rounded-[2.5rem] text-center border-white/5">
-            <DollarSign className="w-12 h-12 text-gray-700 mx-auto mb-4" />
-            <p className="text-gray-500 font-bold">Aucune commission trouvée.</p>
-          </div>
+        {activeTab === 'records' ? (
+          filteredRecords.length === 0 ? (
+            <div className="glass-card p-16 rounded-[2.5rem] text-center border-white/5">
+              <DollarSign className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+              <p className="text-gray-500 font-bold">Aucune commission trouvée.</p>
+            </div>
+          ) : (
+            filteredRecords.map((rec, i) => (
+              <motion.div
+                key={rec.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="glass-card p-6 rounded-3xl border-white/5 hover:border-white/10 transition-all"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-center gap-5">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${STATUS_CONFIG[rec.status].bg}`}>
+                      <DollarSign className={`w-7 h-7 ${STATUS_CONFIG[rec.status].color}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="font-bold text-white uppercase tracking-tight">{rec.vendors?.name || 'Vendeur Inconnu'}</h3>
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${STATUS_CONFIG[rec.status].bg} ${STATUS_CONFIG[rec.status].color} flex items-center gap-1`}>
+                          {STATUS_CONFIG[rec.status].icon}
+                          {STATUS_CONFIG[rec.status].label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-none">
+                        <span>{new Date(rec.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        <span className="w-1 h-1 rounded-full bg-gray-700" />
+                        <span>{rec.type === 'conversion' ? 'Conversion Lead' : 'Ajustement Admin'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1 md:text-right">
+                    <p className="text-2xl font-black text-white">
+                      {rec.type === 'conversion' ? `${Number(rec.amount).toLocaleString('fr-FR')} FCFA` : '—'}
+                    </p>
+                    <p className="text-xs font-bold text-yellow-400">Taux : {rec.commission_rate_applied}%</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
+                    {rec.status === 'pending_verification' && updatingId !== rec.id ? (
+                      <>
+                        <button
+                          onClick={() => handleUpdateStatus(rec.id, 'confirmed')}
+                          className="p-3 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
+                          title="Confirmer"
+                        >
+                          <Check className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(rec.id, 'rejected')}
+                          className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                          title="Rejeter"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </>
+                    ) : updatingId === rec.id ? (
+                      <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
+                    ) : (
+                      <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Action impossible</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )
         ) : (
-          filteredRecords.map((rec, i) => (
-            <motion.div
-              key={rec.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="glass-card p-6 rounded-3xl border-white/5 hover:border-white/10 transition-all"
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${STATUS_CONFIG[rec.status].bg}`}>
-                    <DollarSign className={`w-7 h-7 ${STATUS_CONFIG[rec.status].color}`} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {vendors.map((v, i) => (
+              <motion.div
+                key={v.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.03 }}
+                className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                    <Percent className="w-6 h-6 text-yellow-400" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-bold text-white uppercase tracking-tight">{rec.vendors?.name || 'Vendeur Inconnu'}</h3>
-                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${STATUS_CONFIG[rec.status].bg} ${STATUS_CONFIG[rec.status].color} flex items-center gap-1`}>
-                        {STATUS_CONFIG[rec.status].icon}
-                        {STATUS_CONFIG[rec.status].label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-none">
-                      <span>{new Date(rec.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                      <span className="w-1 h-1 rounded-full bg-gray-700" />
-                      <span>{rec.type === 'conversion' ? 'Conversion Lead' : 'Ajustement Admin'}</span>
-                    </div>
+                    <h3 className="font-bold text-white uppercase text-xs tracking-tight">{v.name}</h3>
+                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{v.category}</p>
                   </div>
                 </div>
-
-                <div className="flex flex-col items-end gap-1 md:text-right">
-                  <p className="text-2xl font-black text-white">
-                    {rec.type === 'conversion' ? `${Number(rec.amount).toLocaleString('fr-FR')} FCFA` : '—'}
-                  </p>
-                  <p className="text-xs font-bold text-yellow-400">Taux : {rec.commission_rate_applied}%</p>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-white">{v.commission_rate || 0}%</p>
+                  <button 
+                    onClick={() => { setSelectedVendorId(v.id); setNewRate((v.commission_rate || 0).toString()); setShowRateModal(true); }}
+                    className="text-[9px] font-black text-yellow-400 uppercase hover:underline"
+                  >
+                    Modifier
+                  </button>
                 </div>
-
-                <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
-                  {rec.status === 'pending_verification' && updatingId !== rec.id ? (
-                    <>
-                      <button
-                        onClick={() => handleUpdateStatus(rec.id, 'confirmed')}
-                        className="p-3 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"
-                        title="Confirmer"
-                      >
-                        <Check className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleUpdateStatus(rec.id, 'rejected')}
-                        className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
-                        title="Rejeter"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </>
-                  ) : updatingId === rec.id ? (
-                    <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
-                  ) : (
-                    <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Action impossible</span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
 

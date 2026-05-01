@@ -35,10 +35,18 @@ type ProductRow = {
 };
 
 const AdminProducts = () => {
-  const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState<ProductRow[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [newProduct, setNewProduct] = useState({
+    name: '',
+    vendor_id: '',
+    category: 'Panneaux Solaires',
+    price: 0,
+    power_rating: 0,
+    is_active: true
+  });
 
   const load = async () => {
     setLoading(true);
@@ -53,8 +61,33 @@ const AdminProducts = () => {
 
       if (error) throw error;
       setRows(data || []);
+
+      // Load active vendors for the modal
+      const { data: vData } = await supabase.from('vendors').select('id, name').eq('status', 'active');
+      setVendors(vData || []);
     } catch (e) {
       toast.error('Impossible de charger les produits');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProduct.vendor_id) {
+      toast.error('Veuillez sélectionner un vendeur');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('products').insert(newProduct);
+      if (error) throw error;
+      toast.success('Produit ajouté au catalogue !');
+      setShowAddModal(false);
+      setNewProduct({ name: '', vendor_id: '', category: 'Panneaux Solaires', price: 0, power_rating: 0, is_active: true });
+      await load();
+    } catch (err) {
+      toast.error('Erreur lors de la création');
     } finally {
       setLoading(false);
     }
@@ -101,6 +134,13 @@ const AdminProducts = () => {
                 <p className="text-xl font-black text-white leading-none">{rows.length}</p>
               </div>
            </div>
+           <button
+             onClick={() => setShowAddModal(true)}
+             className="px-6 py-4 rounded-2xl bg-cyan-400 text-black font-black text-xs uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 flex items-center gap-2"
+           >
+             <Plus size={18} />
+             Nouveau Produit
+           </button>
         </div>
       </div>
 
@@ -201,6 +241,88 @@ const AdminProducts = () => {
           )}
         </AnimatePresence>
       </div>
+      {/* Add Product Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+            >
+              <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Ajouter un Équipement</h2>
+              
+              <form onSubmit={handleCreateProduct} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Boutique / Vendeur</label>
+                  <select
+                    value={newProduct.vendor_id}
+                    onChange={e => setNewProduct({...newProduct, vendor_id: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    required
+                  >
+                    <option value="" className="bg-[#0A0A0A]">Sélectionner un partenaire...</option>
+                    {vendors.map(v => <option key={v.id} value={v.id} className="bg-[#0A0A0A]">{v.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nom du Produit</label>
+                  <input
+                    value={newProduct.name}
+                    onChange={e => setNewProduct({...newProduct, name: e.target.value})}
+                    placeholder="ex: Panneau Solaire 450W Mono"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Catégorie</label>
+                    <select
+                      value={newProduct.category}
+                      onChange={e => setNewProduct({...newProduct, category: e.target.value})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    >
+                      <option value="Panneaux Solaires" className="bg-[#0A0A0A]">Panneaux Solaires</option>
+                      <option value="Onduleurs" className="bg-[#0A0A0A]">Onduleurs</option>
+                      <option value="Batteries" className="bg-[#0A0A0A]">Batteries</option>
+                      <option value="Régulateurs" className="bg-[#0A0A0A]">Régulateurs</option>
+                      <option value="Accessoires" className="bg-[#0A0A0A]">Accessoires</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Puissance (Watts)</label>
+                    <input
+                      type="number"
+                      value={newProduct.power_rating}
+                      onChange={e => setNewProduct({...newProduct, power_rating: Number(e.target.value)})}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Prix Unitaire (FCFA)</label>
+                  <input
+                    type="number"
+                    value={newProduct.price}
+                    onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-4 pt-6">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
+                  <button type="submit" className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 text-xs uppercase tracking-widest">Enregistrer le produit</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

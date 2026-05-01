@@ -30,9 +30,16 @@ Deno.serve(async (req) => {
   }
 
   const payload = await req.json();
-  const parsed = parseOrBadRequest(proSignupSchema, payload);
-  if (!parsed.ok) return parsed.response;
-
+  const parsed = proSignupSchema.safeParse(payload);
+  
+  if (!parsed.success) {
+    console.error("Validation error:", parsed.error);
+    return jsonResponse(400, { 
+      error: "Validation failed", 
+      details: parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ') 
+    });
+  }
+  
   const {
     company_name,
     category,

@@ -124,15 +124,18 @@ const BusinessLogin = () => {
           subscription_type: subscriptionType,
         }),
       });
-      const json = (await res.json()) as { error?: string };
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      const json = (await res.json()) as { error?: string; details?: string };
+      if (!res.ok) {
+        const errorMsg = json.details ? `${json.error}: ${json.details}` : (json.error ?? `HTTP ${res.status}`);
+        throw new Error(errorMsg);
+      }
 
       toast.success('Inscription envoyée avec succès !');
       setShowSuccessModal(true);
       setPassword('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur lors de la création du compte.';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     } finally {
       setLoading(false);
     }

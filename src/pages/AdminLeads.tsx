@@ -26,6 +26,12 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
 
+const formatWhatsApp = (phone: string) => {
+  let num = phone.replace(/\D/g, '');
+  if (num.length === 8) num = '228' + num;
+  return num;
+};
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -299,7 +305,7 @@ const AdminLeads = () => {
                               <Phone className="w-4 h-4" />
                            </a>
                            <a 
-                             href={`https://wa.me/${lead.user_phone.replace(/\D/g, '')}`} 
+                             href={`https://wa.me/${formatWhatsApp(lead.user_phone)}`} 
                              target="_blank" 
                              rel="noopener noreferrer"
                              className="p-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5" 

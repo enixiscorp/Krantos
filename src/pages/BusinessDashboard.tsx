@@ -184,9 +184,9 @@ const BusinessDashboard = () => {
 
       // Concurrent fetches
       const [pRes, lRes, cRes] = await Promise.all([
-        supabase.from('products').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
-        supabase.from('leads').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
-        supabase.from('commission_records').select('*').eq('vendor_id', userId).order('created_at', { ascending: false }),
+        supabase.from('products').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
+        supabase.from('leads').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
+        supabase.from('commission_records').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
       ]);
 
       if (mounted) {

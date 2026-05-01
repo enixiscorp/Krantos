@@ -84,7 +84,7 @@ const AddProduct = () => {
         return;
       }
       const userId = sessionData.session.user.id;
-      const { data: vendorData } = await supabase.from('vendors').select('id, status').eq('id', userId).single();
+      const { data: vendorData } = await supabase.from('vendors').select('id, status').eq('profile_id', userId).single();
       if (!vendorData || vendorData.status !== 'active') {
         await supabase.auth.signOut();
         navigate('/business-login', { replace: true });

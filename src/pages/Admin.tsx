@@ -98,7 +98,7 @@ const Admin = () => {
     );
   }
 
-  const maxCount = Math.max(1, ...chartData.map(d => d.count));
+  const maxCount = Math.max(1, ...(chartData || []).map(d => d.count));
   const showPendingAlert = dashboard.pending_vendors > 0;
 
   return (
@@ -164,7 +164,7 @@ const Admin = () => {
                 className="bg-transparent border-none outline-none text-xs font-bold text-white cursor-pointer min-w-[120px]"
               >
                 <option value="all" className="bg-[#0f0f13]">Tous les vendeurs</option>
-                {dashboard.top_vendors.map(v => (
+                {dashboard?.top_vendors?.map(v => (
                   <option key={v.vendor_id} value={v.vendor_id} className="bg-[#0f0f13]">{v.name}</option>
                 ))}
               </select>
@@ -198,12 +198,12 @@ const Admin = () => {
         {/* Chart Area */}
         <div className="relative h-64 flex items-end gap-2 lg:gap-4 px-2 overflow-x-auto custom-scrollbar pb-4">
           <AnimatePresence mode="popLayout">
-            {chartData.length === 0 ? (
+            {!chartData || chartData.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-bold text-sm">
                 Aucune donnée disponible pour cette période.
               </div>
             ) : (
-              chartData.map((d, i) => (
+              chartData?.map((d, i) => (
                 <motion.div
                   key={d.label}
                   initial={{ opacity: 0, scaleY: 0 }}
@@ -278,7 +278,7 @@ const Admin = () => {
             <Link to="/admin/vendors" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Voir tout</Link>
           </div>
           <div className="space-y-1">
-            {dashboard.top_vendors.slice(0, 5).map((v, idx) => (
+            {dashboard?.top_vendors?.slice(0, 5).map((v, idx) => (
               <div key={v.vendor_id} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-yellow-400 group-hover:bg-yellow-400/10">
@@ -296,6 +296,33 @@ const Admin = () => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="glass-card p-8 rounded-[3rem] border-white/5">
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Activités Récentes (Leads)</h3>
+          <Link to="/admin/leads" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Voir tout le flux</Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {dashboard?.recent_leads?.map((l) => (
+            <div key={l.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-4 group hover:border-white/10 transition-all">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{l.user_name}</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase">{new Date(l.created_at).toLocaleString('fr-FR')}</p>
+                </div>
+                <div className="px-2 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-[10px] font-black uppercase">
+                  {l.total_power_needed} W
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                <span className={l.status === 'converted' ? 'text-green-400' : 'text-gray-500'}>{l.status}</span>
+                <span className="text-blue-400">#LEAD-{l.id.slice(0, 4)}</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

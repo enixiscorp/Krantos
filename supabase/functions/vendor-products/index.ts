@@ -11,7 +11,7 @@ async function getVendorIdByUserId(userId: string): Promise<string | null> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
   try {
     const { user } = await requireRole(req.headers.get("authorization"), ["vendor"]);
@@ -89,4 +89,5 @@ Deno.serve(async (req) => {
     return jsonResponse(403, { error: "Forbidden" });
   }
 });
+
 

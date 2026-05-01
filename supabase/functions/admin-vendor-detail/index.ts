@@ -2,7 +2,7 @@ import { adminClient, corsHeaders, jsonResponse, requireAdminStaff } from "../_s
 import { enforceRateLimit, logAdminAction } from "../_shared/security.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (req.method !== "GET") return jsonResponse(405, { error: "Method not allowed" });
 
   try {
@@ -74,4 +74,5 @@ Deno.serve(async (req) => {
     return jsonResponse(403, { error: "Access denied" });
   }
 });
+
 

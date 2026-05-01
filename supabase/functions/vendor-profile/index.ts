@@ -1,7 +1,7 @@
 import { adminClient, corsHeaders, jsonResponse, requireRole } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
   try {
     const { user, role } = await requireRole(req.headers.get("authorization"), ["vendor", "admin", "super_admin"]);
@@ -43,4 +43,5 @@ Deno.serve(async (req) => {
     return jsonResponse(403, { error: "Forbidden" });
   }
 });
+
 

@@ -255,7 +255,7 @@ const BusinessLogin = () => {
                   <div className="space-y-2">
                     <label className="text-[9px] text-gray-500 uppercase font-black px-1">Offre</label>
                     <div className="w-full bg-yellow-400/10 border border-yellow-400/20 rounded-2xl px-4 py-3 text-yellow-400 font-black text-[10px] uppercase tracking-widest text-center">
-                      {subscriptionType}
+                      {subscriptionType === 'free' ? 'Démo' : subscriptionType === 'basic' ? 'Basic' : 'Premium'}
                     </div>
                   </div>
                 </div>

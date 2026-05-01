@@ -26,7 +26,7 @@ function detectIntent(message: string): Intent {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse(405, { error: "Method not allowed" });
 
   const parsed = parseOrBadRequest(bodySchema, await req.json());
@@ -111,4 +111,5 @@ Deno.serve(async (req) => {
     product_name: p.name,
   });
 });
+
 

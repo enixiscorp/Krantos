@@ -61,7 +61,8 @@ const Admin = () => {
         toast.error(
           e instanceof Error ? e.message : 'Impossible de charger le tableau de bord (super admin requis).'
         );
-        navigate('/', { replace: true });
+        // On ne redirige plus violemment vers l'accueil pour laisser l'admin sur sa page
+        console.error('Dashboard load error:', e);
       } finally {
         if (mounted) setLoading(false);
       }

@@ -8,7 +8,7 @@ const ACTION_TO_STATUS: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (req.method !== "PATCH") return jsonResponse(405, { error: "Method not allowed" });
 
   try {
@@ -52,4 +52,5 @@ Deno.serve(async (req) => {
     return jsonResponse(403, { error: "Forbidden" });
   }
 });
+
 

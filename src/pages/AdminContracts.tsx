@@ -281,10 +281,14 @@ const AdminContracts = () => {
                 <div className="flex items-center gap-3 border-t md:border-t-0 md:border-l border-white/5 pt-4 md:pt-0 md:pl-6">
                   <button
                     onClick={() => { setSelectedVendor(v); setRenewalEndDate(v.contract_end_date || ''); setShowRenewModal(true); }}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-all border border-white/5"
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                      v.status === 'pending' 
+                        ? 'bg-yellow-400 text-gray-900 border-yellow-400 hover:bg-yellow-500' 
+                        : 'bg-white/5 text-white border-white/5 hover:bg-white/10'
+                    }`}
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Renouveler
+                    {v.status === 'pending' ? <ShieldCheck className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    {v.status === 'pending' ? 'Valider l\'inscription' : 'Renouveler'}
                   </button>
                   {v.status !== 'terminated' && (
                     <button
@@ -320,8 +324,14 @@ const AdminContracts = () => {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="w-full max-w-md glass-card p-10 rounded-[2.5rem] border-white/5 relative z-10"
             >
-              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Renouvellement</h2>
-              <p className="text-gray-500 text-sm mb-8">Définissez la nouvelle date d'expiration pour {selectedVendor?.name}.</p>
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">
+                {selectedVendor?.status === 'pending' ? 'Validation de Contrat' : 'Renouvellement'}
+              </h2>
+              <p className="text-gray-500 text-sm mb-8">
+                {selectedVendor?.status === 'pending' 
+                  ? `Activez le compte de ${selectedVendor?.name} et définissez la durée d'accès.` 
+                  : `Définissez la nouvelle date d'expiration pour ${selectedVendor?.name}.`}
+              </p>
               
               <div className="space-y-6">
                 <div>

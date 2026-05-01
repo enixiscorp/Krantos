@@ -35,28 +35,30 @@ export interface AdminDashboardPayload {
   total_products: number;
   total_leads: number;
   conversion_rate: number;
+  trends: {
+    vendors: { val: string; up: boolean };
+    leads: { val: string; up: boolean };
+  };
   top_vendors: Array<{
     vendor_id: string;
     name: string;
-    company_name: string | null;
-    phone: string;
     status: string;
+    category: string;
     leads_count: number;
     conversion_rate: number;
   }>;
   recent_leads: Array<{
     id: string;
     user_name: string;
-    user_phone: string;
     status: string;
     total_power_needed: number;
-    vendor_id: string | null;
     created_at: string;
   }>;
 }
 
-export async function getAdminDashboard(): Promise<AdminDashboardPayload> {
-  return getFunction<AdminDashboardPayload>('admin-dashboard');
+export async function getAdminDashboard(period: string = 'day') {
+  const sp = new URLSearchParams({ period });
+  return getFunction<AdminDashboardPayload>('admin-dashboard', sp);
 }
 
 export async function getAdminVendorsList(params?: {

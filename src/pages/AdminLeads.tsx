@@ -21,6 +21,7 @@ import {
   User,
   Building2,
   Mail,
+  MessageSquare,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
@@ -296,6 +297,15 @@ const AdminLeads = () => {
                            </button>
                            <a href={`tel:${lead.user_phone}`} className="p-3 rounded-xl bg-yellow-400/10 text-yellow-400 hover:bg-yellow-400 hover:text-gray-900 transition-all shadow-lg shadow-yellow-400/5" title="Appeler">
                               <Phone className="w-4 h-4" />
+                           </a>
+                           <a 
+                             href={`https://wa.me/${lead.user_phone.replace(/\D/g, '')}`} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="p-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5" 
+                             title="WhatsApp"
+                           >
+                              <MessageSquare className="w-4 h-4" />
                            </a>
                            <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">#{lead.id.slice(0, 8)}</p>
                          </div>

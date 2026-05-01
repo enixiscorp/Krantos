@@ -11,10 +11,14 @@ import {
   Package,
   ShoppingCart,
   AlertTriangle,
-  Calendar,
-  Filter,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Download,
+  Settings,
+  Bell,
+  CheckCircle2,
+  XCircle,
+  Smartphone
 } from 'lucide-react';
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
 import { getStatsLeads } from '../services/statsService';
@@ -32,12 +36,27 @@ const Admin = () => {
   const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [statsLoading, setStatsLoading] = useState(false);
 
+  // Settings & PWA
+  const [showSettings, setShowSettings] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    // PWA Install Prompt Listener
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    const fetchDashboard = async () => {
       try {
         const [dash, roleInfo] = await Promise.all([
-          getAdminDashboard(),
+          getAdminDashboard(period),
           (async () => {
             const { data: sessionData } = await supabase.auth.getSession();
             const uid = sessionData.session?.user.id;
@@ -56,15 +75,14 @@ const Admin = () => {
         setIsSuperAdmin(roleInfo.super);
       } catch (e) {
         console.error('Dashboard load error:', e);
-        toast.error('Erreur lors du chargement des données.');
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+    fetchDashboard();
     return () => { mounted = false; };
-  }, []);
+  }, [period]);
 
-  // Fetch stats when filters change
   useEffect(() => {
     let mounted = true;
     const fetchStats = async () => {
@@ -87,60 +105,142 @@ const Admin = () => {
     return () => { mounted = false; };
   }, [period, selectedVendor]);
 
+  const handleInstallPWA = () => {
+    if (!installPrompt) {
+      toast.info("L'application est déjà installée ou votre navigateur ne supporte pas l'installation directe. Utilisez le menu du navigateur (Installer).");
+      return;
+    }
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choice: any) => {
+      if (choice.outcome === 'accepted') {
+        toast.success("Installation lancée !");
+      }
+      setInstallPrompt(null);
+    });
+  };
+
   if (loading || !dashboard) {
     return (
       <div className="min-h-full flex items-center justify-center py-20">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-yellow-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 font-medium">Initialisation du Dashboard...</p>
+          <p className="text-gray-400 font-medium tracking-widest uppercase text-[10px] font-black">Initialisation Krantos OS...</p>
         </div>
       </div>
     );
   }
 
   const maxCount = Math.max(1, ...(chartData || []).map(d => d.count));
-  const showPendingAlert = dashboard.pending_vendors > 0;
+  
+  // Real Dynamic Trends from API
+  const trends = dashboard?.trends || {
+    vendors: { val: '0%', up: true },
+    leads: { val: '0%', up: true }
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-8 animate-in fade-in duration-1000">
+      {/* Top Header with Actions */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+          <h1 className="text-5xl font-black text-white tracking-tighter mb-2">
             Vue d'ensemble <span className="text-yellow-400">Plateforme</span>
           </h1>
-          <p className="text-gray-500 font-medium">Gestion centrale des opérations Krantos.</p>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Système de gestion centrale v2.4.0</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleInstallPWA}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all group"
+          >
+            <Smartphone className="w-4 h-4 text-yellow-400 group-hover:scale-110 transition-transform" />
+            Installer App
+          </button>
+          
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-3 rounded-2xl border transition-all ${showSettings ? 'bg-yellow-400 border-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+          >
+            <Settings className={`w-5 h-5 ${showSettings ? 'animate-spin-slow' : ''}`} />
+          </button>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }} 
+            animate={{ height: 'auto', opacity: 1 }} 
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-card p-8 rounded-[2.5rem] border-yellow-400/20 bg-yellow-400/5">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-black text-white uppercase tracking-widest text-xs flex items-center gap-3">
+                  <Settings size={16} className="text-yellow-400" />
+                  Paramètres de Notifications
+                </h3>
+                <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-white"><XCircle size={20} /></button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <div>
+                    <p className="text-sm font-bold text-white">Inscriptions Vendeurs</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black">Alerte temps réel sur mobile/desktop</p>
+                  </div>
+                  <button 
+                    onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                    className={`w-12 h-6 rounded-full transition-all relative ${notificationsEnabled ? 'bg-yellow-400' : 'bg-gray-800'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${notificationsEnabled ? 'left-7 shadow-lg shadow-black/50' : 'left-1'}`} />
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-black/20 border border-white/5 opacity-50 cursor-not-allowed">
+                  <div>
+                    <p className="text-sm font-bold text-white">Demandes Clients (Leads)</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black">Rapport quotidien par email</p>
+                  </div>
+                  <CheckCircle2 className="text-yellow-400/30" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Vendeurs Totaux', value: dashboard.total_vendors, icon: <Users className="text-blue-400" />, trend: '+12%', up: true },
-          { label: 'Leads Générés', value: dashboard.total_leads, icon: <TrendingUp className="text-yellow-400" />, trend: '+5%', up: true },
-          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: '-2%', up: false },
-          { label: 'Revenus Est.', value: '8.4M', icon: <DollarSign className="text-green-400" />, trend: '+18%', up: true },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="glass-card p-6 rounded-[2.5rem] border-white/5 group hover:border-white/10 transition-all"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
-                {stat.icon}
+          { label: 'Vendeurs Totaux', value: dashboard.total_vendors, icon: <Users className="text-blue-400" />, trend: trends.vendors },
+          { label: 'Leads Générés', value: dashboard.total_leads, icon: <TrendingUp className="text-yellow-400" />, trend: trends.leads },
+          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: { val: '-2%', up: false } },
+          { label: 'Revenus Est.', value: '8.4M', icon: <DollarSign className="text-green-400" />, trend: { val: '+18%', up: true } },
+        ].map((stat, i) => {
+          const trend = stat.trend;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="glass-card p-6 rounded-[2.5rem] border-white/5 group hover:border-white/10 transition-all"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
+                  {stat.icon}
+                </div>
+                <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${trend.up ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                  {trend.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                  {trend.val}
+                </div>
               </div>
-              <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${stat.up ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                {stat.trend}
-              </div>
-            </div>
-            <p className="text-3xl font-black text-white tracking-tighter mb-1">{stat.value}</p>
-            <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{stat.label}</p>
-          </motion.div>
-        ))}
+              <p className="text-4xl font-black text-white tracking-tighter mb-1">{stat.value}</p>
+              <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{stat.label}</p>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Main Chart Section */}
@@ -148,14 +248,13 @@ const Admin = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 relative z-10">
           <div>
             <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
-              Évolution des Leads
+              Flux d'Acquisition
               {statsLoading && <Loader2 size={16} className="animate-spin text-yellow-400" />}
             </h2>
-            <p className="text-sm text-gray-500 font-medium">Analyse des flux de conversion par période.</p>
+            <p className="text-sm text-gray-500 font-medium">Analyse comparative des performances sur la période.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Vendor Filter */}
             <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 group focus-within:border-yellow-400/50 transition-all">
               <Users size={16} className="text-gray-500 group-focus-within:text-yellow-400" />
               <select
@@ -170,37 +269,29 @@ const Admin = () => {
               </select>
             </div>
 
-            {/* Period Filter */}
             <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10">
-              {[
-                { id: 'day', label: 'Jour' },
-                { id: 'week', label: 'Semaine' },
-                { id: 'month', label: 'Mois' },
-                { id: 'quarter', label: 'Trimestre' },
-                { id: 'year', label: 'An' },
-              ].map(p => (
+              {['day', 'week', 'month', 'quarter', 'year'].map(pId => (
                 <button
-                  key={p.id}
-                  onClick={() => setPeriod(p.id)}
+                  key={pId}
+                  onClick={() => setPeriod(pId)}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    period === p.id 
+                    period === pId 
                       ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
                       : 'text-gray-500 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {p.label}
+                  {pId === 'day' ? 'Jour' : pId === 'week' ? 'Semaine' : pId === 'month' ? 'Mois' : pId === 'quarter' ? 'Trimestre' : 'An'}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Chart Area */}
         <div className="relative h-64 flex items-end gap-2 lg:gap-4 px-2 overflow-x-auto custom-scrollbar pb-4">
           <AnimatePresence mode="popLayout">
             {!chartData || chartData.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-bold text-sm">
-                Aucune donnée disponible pour cette période.
+                En attente de nouvelles interactions...
               </div>
             ) : (
               chartData?.map((d, i) => (
@@ -214,7 +305,7 @@ const Admin = () => {
                 >
                   <div className="relative w-full flex flex-col justify-end h-48">
                     <motion.div
-                      className="w-full bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-xl group-hover:from-yellow-300 group-hover:to-white transition-all shadow-lg shadow-yellow-400/5 relative"
+                      className="w-full bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-xl group-hover:from-yellow-300 group-hover:to-white transition-all shadow-lg shadow-yellow-400/10 relative"
                       style={{ height: `${(d.count / maxCount) * 100}%` }}
                     >
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl pointer-events-none">
@@ -232,37 +323,45 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Bottom Grid: Alerts & Vendors */}
+      {/* Bottom Grid: Activity & Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Alerts & Tasks */}
         <div className="space-y-6">
-          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest px-1">Alertes prioritaires</h3>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Alertes & Priorités</h3>
+            {showPendingAlert && <span className="px-2 py-1 rounded-lg bg-yellow-400 text-black text-[10px] font-black animate-pulse">ACTION REQUISE</span>}
+          </div>
+          
           {showPendingAlert && (
-            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex items-start gap-4 p-6 rounded-[2rem] bg-yellow-400/10 border border-yellow-400/20 text-yellow-100">
+            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex items-start gap-4 p-6 rounded-[2rem] bg-yellow-400/10 border border-yellow-400/20 text-yellow-100 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity"><Users size={80} /></div>
               <AlertTriangle className="text-yellow-400 shrink-0" />
-              <div>
-                <p className="font-black mb-1">Validations en attente</p>
-                <p className="text-sm opacity-80 mb-4">{dashboard.pending_vendors} nouveaux vendeurs attendent votre validation pour commencer.</p>
-                <Link to="/admin/vendors" className="px-4 py-2 rounded-xl bg-yellow-400 text-black text-xs font-black inline-flex items-center gap-2 hover:bg-yellow-500 transition-colors">
-                  Voir la liste <ChevronRight size={14} />
+              <div className="relative z-10">
+                <p className="font-black mb-1">Inscriptions en attente</p>
+                <p className="text-sm opacity-80 mb-4">{dashboard.pending_vendors} nouveaux comptes à valider pour débloquer leur interface.</p>
+                <Link to="/admin/vendors" className="px-5 py-2.5 rounded-xl bg-yellow-400 text-black text-xs font-black inline-flex items-center gap-2 hover:bg-yellow-500 transition-colors shadow-lg shadow-yellow-400/20">
+                  Accéder aux validations
                 </Link>
               </div>
             </motion.div>
           )}
-          <div className="p-6 rounded-[2rem] bg-white/5 border border-white/10">
-            <h4 className="font-black text-white mb-4">Objectifs du trimestre</h4>
-            <div className="space-y-4">
+
+          <div className="p-8 rounded-[3rem] bg-white/5 border border-white/10">
+            <h4 className="font-black text-white mb-6 uppercase tracking-widest text-[10px]">Pipeline de conversion</h4>
+            <div className="space-y-6">
               {[
-                { label: 'Nouveaux Vendeurs', progress: 75, color: 'bg-blue-400' },
-                { label: 'Conversion Leads', progress: 40, color: 'bg-yellow-400' },
-                { label: 'Revenus Premium', progress: 90, color: 'bg-purple-400' },
+                { label: 'Acquisition Vendeurs', progress: 75, color: 'bg-blue-400', sub: 'Objectif: 100/mois' },
+                { label: 'Taux de Validation', progress: 92, color: 'bg-green-400', sub: 'Délai moyen: 4h' },
+                { label: 'Revenus Premium', progress: 58, color: 'bg-purple-400', sub: 'Abonnements annuels' },
               ].map(goal => (
-                <div key={goal.label} className="space-y-2">
+                <div key={goal.label} className="space-y-3">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                    <span className="text-gray-500">{goal.label}</span>
-                    <span className="text-white">{goal.progress}%</span>
+                    <div>
+                      <span className="text-white block mb-0.5">{goal.label}</span>
+                      <span className="text-gray-600 lowercase font-medium">{goal.sub}</span>
+                    </div>
+                    <span className="text-yellow-400">{goal.progress}%</span>
                   </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                     <motion.div initial={{ width: 0 }} animate={{ width: `${goal.progress}%` }} className={`h-full ${goal.color}`} />
                   </div>
                 </div>
@@ -271,27 +370,26 @@ const Admin = () => {
           </div>
         </div>
 
-        {/* Top Vendors Table */}
-        <div className="glass-card p-8 rounded-[2.5rem] border-white/5">
+        <div className="glass-card p-8 rounded-[3rem] border-white/5">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Performance Vendeurs</h3>
-            <Link to="/admin/vendors" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Voir tout</Link>
+            <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Classement Performance</h3>
+            <Link to="/admin/vendors" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Full Report</Link>
           </div>
           <div className="space-y-1">
-            {dashboard?.top_vendors?.slice(0, 5).map((v, idx) => (
+            {dashboard?.top_vendors?.slice(0, 6).map((v, idx) => (
               <div key={v.vendor_id} className="group flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-yellow-400 group-hover:bg-yellow-400/10">
-                    0{idx + 1}
+                  <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-gray-500 group-hover:text-yellow-400 group-hover:bg-yellow-400/10 transition-all">
+                    {(idx + 1).toString().padStart(2, '0')}
                   </div>
                   <div>
                     <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{v.name}</p>
-                    <p className="text-[10px] text-gray-500 uppercase font-black">{v.status}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black">{v.category}</p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-white font-black tracking-tighter">{v.leads_count} Leads</p>
-                  <p className="text-[10px] text-green-400 font-bold">{v.conversion_rate}% Conv.</p>
+                  <p className={`text-[10px] font-bold ${v.status === 'active' ? 'text-green-400' : 'text-yellow-400'}`}>{v.status.toUpperCase()}</p>
                 </div>
               </div>
             ))}
@@ -299,27 +397,32 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="glass-card p-8 rounded-[3rem] border-white/5">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Activités Récentes (Leads)</h3>
-          <Link to="/admin/leads" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Voir tout le flux</Link>
+      {/* Recent Activity Full Width */}
+      <div className="glass-card p-8 rounded-[3rem] border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
+        <div className="flex items-center justify-between mb-8 px-2">
+          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Journal d'activité Lead</h3>
+          <Link to="/admin/leads" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Flux complet</Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {dashboard?.recent_leads?.map((l) => (
-            <div key={l.id} className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-4 group hover:border-white/10 transition-all">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {dashboard?.recent_leads?.slice(0, 8).map((l) => (
+            <div key={l.id} className="p-5 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-6 group hover:border-white/10 hover:bg-white/[0.04] transition-all">
               <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-white font-bold group-hover:text-yellow-400 transition-colors">{l.user_name}</p>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase">{new Date(l.created_at).toLocaleString('fr-FR')}</p>
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 text-xs font-black">
+                  {l.user_name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="px-2 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-[10px] font-black uppercase">
                   {l.total_power_needed} W
                 </div>
               </div>
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
-                <span className={l.status === 'converted' ? 'text-green-400' : 'text-gray-500'}>{l.status}</span>
-                <span className="text-blue-400">#LEAD-{l.id.slice(0, 4)}</span>
+              <div>
+                <p className="text-white font-bold group-hover:text-yellow-400 transition-colors truncate">{l.user_name}</p>
+                <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">
+                  {new Date(l.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-4 border-t border-white/5">
+                <span className={l.status === 'converted' ? 'text-green-400' : 'text-gray-600'}>{l.status}</span>
+                <span className="text-blue-400/50">#ID-{l.id.slice(0, 4)}</span>
               </div>
             </div>
           ))}
@@ -328,11 +431,5 @@ const Admin = () => {
     </div>
   );
 };
-
-const ChevronRight = ({ size = 16, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
 
 export default Admin;

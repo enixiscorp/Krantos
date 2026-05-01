@@ -16,97 +16,96 @@ Deno.serve(async (req) => {
       return jsonResponse(429, { error: "Too many requests", retry_at: limiter.resetAt });
     }
 
-    const { count: totalVendors } = await adminClient
-      .from("vendors")
-      .select("*", { count: "exact", head: true });
-    const { data: vRows } = await adminClient.from("vendors").select("status");
-    const byStatus: Record<string, number> = {};
-    for (const r of vRows ?? []) {
-      const s = (r as { status: string }).status;
-      byStatus[s] = (byStatus[s] ?? 0) + 1;
+    const url = new URL(req.url);
+    const period = url.searchParams.get("period") ?? "day";
+
+    // Basic Counts
+    const { count: totalVendors } = await adminClient.from("vendors").select("*", { count: "exact", head: true });
+    const { data: vStatusRows } = await adminClient.from("vendors").select("status");
+    const activeVendors = (vStatusRows ?? []).filter(v => v.status === "active").length;
+    const pendingVendors = (vStatusRows ?? []).filter(v => v.status === "pending").length;
+
+    const { count: totalProducts } = await adminClient.from("products").select("*", { count: "exact", head: true });
+    const { count: totalLeads } = await adminClient.from("leads").select("*", { count: "exact", head: true });
+    const { data: leadStatusRows } = await adminClient.from("leads").select("status");
+    const convertedCount = (leadStatusRows ?? []).filter(v => v.status === "converted").length;
+    const conversionRate = totalLeads ? Math.round((convertedCount / totalLeads) * 1000) / 10 : 0;
+
+    // Trend calculation
+    // We define "current" and "previous" periods
+    const now = new Date();
+    let currentStart = new Date();
+    let previousStart = new Date();
+
+    if (period === "day") {
+      currentStart.setDate(now.getDate() - 1);
+      previousStart.setDate(now.getDate() - 2);
+    } else if (period === "week") {
+      currentStart.setDate(now.getDate() - 7);
+      previousStart.setDate(now.getDate() - 14);
+    } else if (period === "month") {
+      currentStart.setMonth(now.getMonth() - 1);
+      previousStart.setMonth(now.getMonth() - 2);
+    } else {
+      currentStart.setMonth(now.getMonth() - 3);
+      previousStart.setMonth(now.getMonth() - 6);
     }
-    const activeVendors = byStatus["active"] ?? 0;
-    const pendingVendors = byStatus["pending"] ?? 0;
 
-    const { count: totalProducts } = await adminClient
-      .from("products")
-      .select("*", { count: "exact", head: true });
+    const [currVendors, prevVendors, currLeads, prevLeads] = await Promise.all([
+      adminClient.from("vendors").select("*", { count: "exact", head: true }).gte("created_at", currentStart.toISOString()),
+      adminClient.from("vendors").select("*", { count: "exact", head: true }).gte("created_at", previousStart.toISOString()).lt("created_at", currentStart.toISOString()),
+      adminClient.from("leads").select("*", { count: "exact", head: true }).gte("created_at", currentStart.toISOString()),
+      adminClient.from("leads").select("*", { count: "exact", head: true }).gte("created_at", previousStart.toISOString()).lt("created_at", currentStart.toISOString()),
+    ]);
 
-    const { count: totalLeadsCount } = await adminClient
-      .from("leads")
-      .select("*", { count: "exact", head: true });
-    const { data: lRows } = await adminClient.from("leads").select("status");
-    let converted = 0;
-    for (const r of lRows ?? []) {
-      if ((r as { status: string }).status === "converted") converted++;
-    }
-    const leadTotal = totalLeadsCount ?? lRows?.length ?? 0;
-    const conversionRate = leadTotal > 0
-      ? Math.round((converted / leadTotal) * 1000) / 10
-      : 0;
+    const calculateTrend = (curr: number, prev: number) => {
+      if (prev === 0) return curr > 0 ? { val: `+${curr}`, up: true } : { val: "0%", up: true };
+      const diff = ((curr - prev) / prev) * 100;
+      return { val: `${diff > 0 ? "+" : ""}${Math.round(diff)}%`, up: diff >= 0 };
+    };
 
-    const { data: allLeads } = await adminClient
-      .from("leads")
-      .select("vendor_id, status")
-      .not("vendor_id", "is", null);
-    const vendorLeadCounts: Record<string, { total: number; converted: number }> = {};
-    for (const row of allLeads ?? []) {
-      const lid = (row as { vendor_id: string; status: string }).vendor_id;
-      if (!lid) continue;
-      if (!vendorLeadCounts[lid]) vendorLeadCounts[lid] = { total: 0, converted: 0 };
-      vendorLeadCounts[lid].total += 1;
-      if ((row as { status: string }).status === "converted") {
-        vendorLeadCounts[lid].converted += 1;
-      }
-    }
-    const topIds = Object.entries(vendorLeadCounts)
-      .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, 5)
-      .map(([id]) => id);
+    const trends = {
+      vendors: calculateTrend(currVendors.count ?? 0, prevVendors.count ?? 0),
+      leads: calculateTrend(currLeads.count ?? 0, prevLeads.count ?? 0),
+    };
 
-    const { data: topVendorRows } = topIds.length
-      ? await adminClient.from("vendors").select("id, name, phone, status").in("id", topIds)
-      : { data: [] };
-    const topVendors = (topVendorRows ?? []).map((v) => {
-      const id = (v as { id: string }).id;
-      const c = vendorLeadCounts[id] ?? { total: 0, converted: 0 };
-      return {
-        vendor_id: id,
-        name: (v as { name: string }).name,
-        company_name: (v as { company_name?: string | null }).company_name ?? null,
-        phone: (v as { phone: string }).phone,
-        status: (v as { status: string }).status,
-        leads_count: c.total,
-        conversion_rate: c.total > 0
-          ? Math.round((c.converted / c.total) * 1000) / 10
-          : 0,
-      };
+    // Top Vendors
+    const { data: topVendorLeads } = await adminClient.from("leads").select("vendor_id, status").not("vendor_id", "is", null);
+    const vStats: Record<string, { total: number, conv: number }> = {};
+    topVendorLeads?.forEach(l => {
+      if (!vStats[l.vendor_id]) vStats[l.vendor_id] = { total: 0, conv: 0 };
+      vStats[l.vendor_id].total++;
+      if (l.status === "converted") vStats[l.vendor_id].conv++;
     });
 
-    const { data: recentLeads } = await adminClient
-      .from("leads")
-      .select("id, user_name, user_phone, status, total_power_needed, vendor_id, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10);
+    const topIds = Object.entries(vStats).sort((a,b) => b[1].total - a[1].total).slice(0, 6).map(e => e[0]);
+    const { data: topVendorsRaw } = topIds.length ? await adminClient.from("vendors").select("id, name, status, category").in("id", topIds) : { data: [] };
+    const topVendors = (topVendorsRaw ?? []).map(v => ({
+      vendor_id: v.id,
+      name: v.name,
+      status: v.status,
+      category: v.category,
+      leads_count: vStats[v.id].total,
+      conversion_rate: Math.round((vStats[v.id].conv / vStats[v.id].total) * 100)
+    }));
 
-    await logAdminAction({
-      actorId: user.id,
-      actorRole: adminRole,
-      action: "admin.dashboard",
-    });
+    // Recent Leads
+    const { data: recentLeads } = await adminClient.from("leads").select("*").order("created_at", { ascending: false }).limit(8);
 
     return jsonResponse(200, {
       total_vendors: totalVendors ?? 0,
       active_vendors: activeVendors,
       pending_vendors: pendingVendors,
       total_products: totalProducts ?? 0,
-      total_leads: leadTotal,
+      total_leads: totalLeads ?? 0,
       conversion_rate: conversionRate,
+      trends,
       top_vendors: topVendors,
       recent_leads: recentLeads ?? [],
     });
-  } catch {
-    return jsonResponse(403, { error: "Access denied" });
+
+  } catch (err) {
+    console.error("Dashboard Error:", err);
+    return jsonResponse(500, { error: "Internal Error" });
   }
 });
-

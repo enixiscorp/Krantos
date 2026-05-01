@@ -52,8 +52,7 @@ Deno.serve(async (req) => {
 
     const { error: vendorError } = await adminClient.from("vendors").insert({
       profile_id: userId,
-      company_name: company_name,
-      name: company_name,
+      name: company_name || "Entreprise en attente",
       category: category || "Autres",
       phone: phone || "",
       email: email,

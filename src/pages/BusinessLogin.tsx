@@ -5,11 +5,10 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles, CheckCircle2, X } from 'lucide-react';
+import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { AnimatePresence } from 'framer-motion';
 
 const BusinessLogin = () => {
   const navigate = useNavigate();
@@ -29,77 +28,6 @@ const BusinessLogin = () => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-  const redirectAfterLogin = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const session = sessionData.session;
-    if (!session) return;
-
-    // Super admin via profiles
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
-
-    if (profile?.role === 'super_admin') {
-      navigate('/admin', { replace: true });
-      return;
-    }
-
-    // Staff admins via admin_users (RLS allows only admins to read)
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('auth_user_id', session.user.id)
-      .maybeSingle();
-
-    if (adminUser) {
-      navigate('/admin', { replace: true });
-      return;
-    }
-
-    // Vendors
-    navigate('/business-dashboard', { replace: true });
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error('Veuillez remplir tous les champs.');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      toast.success('Connexion réussie !');
-      await redirectAfterLogin();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur de connexion.';
-      toast.error(`Échec de la connexion : ${message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!companyName || !category || !phone || !email || !password) {
-      toast.error('Veuillez remplir tous les champs.');
-      return;
-    }
-    if (password.length < 8) {
-      toast.error('Mot de passe : 8 caractères minimum.');
-      return;
-    }
-
   const getPasswordStrength = (pass: string) => {
     if (!pass) return { score: 0, label: '', color: 'bg-transparent' };
     let score = 0;
@@ -115,6 +43,56 @@ const BusinessLogin = () => {
   };
 
   const strength = getPasswordStrength(password);
+
+  const redirectAfterLogin = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData.session;
+    if (!session) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profile?.role === 'super_admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('auth_user_id', session.user.id)
+      .maybeSingle();
+
+    if (adminUser) {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
+    navigate('/business-dashboard', { replace: true });
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      toast.error('Veuillez remplir tous les champs.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      toast.success('Connexion réussie !');
+      await redirectAfterLogin();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur de connexion.';
+      toast.error(`Échec de la connexion : ${message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +140,6 @@ const BusinessLogin = () => {
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 relative">
-      {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
 
       <motion.div
@@ -172,7 +149,6 @@ const BusinessLogin = () => {
         className="w-full max-w-md"
       >
         <div className="glass-card p-10 rounded-[2.5rem] border-white/5 relative overflow-hidden">
-          {/* Header Icon ... remains same ... */}
           <div className="flex flex-col items-center text-center mb-10">
             <div className="w-16 h-16 rounded-3xl bg-yellow-400/10 flex items-center justify-center mb-6 group transition-all hover:scale-110">
               <Briefcase className="w-8 h-8 text-yellow-400" />
@@ -185,7 +161,6 @@ const BusinessLogin = () => {
             </p>
           </div>
 
-          {/* Switch cards */}
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button
               type="button"
@@ -196,11 +171,11 @@ const BusinessLogin = () => {
                   : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-2 font-black">
+              <div className="flex items-center gap-2 font-black text-xs">
                 <Sparkles className="w-4 h-4 text-yellow-400" />
-                S’inscrire (Pro)
+                S’inscrire
               </div>
-              <div className="text-[11px] text-gray-500 font-medium mt-1">Entreprise + email + mot de passe</div>
+              <div className="text-[10px] text-gray-500 font-medium mt-1">Entreprise & Offres</div>
             </button>
             <button
               type="button"
@@ -211,57 +186,51 @@ const BusinessLogin = () => {
                   : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-2 font-black">
+              <div className="flex items-center gap-2 font-black text-xs">
                 <LogIn className="w-4 h-4 text-yellow-400" />
                 Se connecter
               </div>
-              <div className="text-[11px] text-gray-500 font-medium mt-1">Accès après validation & contrat</div>
+              <div className="text-[10px] text-gray-500 font-medium mt-1">Accès Pro</div>
             </button>
           </div>
 
-          <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-6">
+          <form onSubmit={mode === 'login' ? handleLogin : handleSignup} className="space-y-5">
             {mode === 'signup' && (
               <>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
-                    <Building2 className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                    <input
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="Nom de l'entreprise"
-                      className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                      required
-                    />
-                  </div>
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
+                  <Building2 className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                  <input
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Nom de l'entreprise"
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                    required
+                  />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
-                    <Briefcase className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                    <input
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      placeholder="Catégorie (ex: Énergie solaire)"
-                      className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                      required
-                    />
-                  </div>
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
+                  <Briefcase className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                  <input
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="Catégorie"
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                    required
+                  />
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
-                    <Phone className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Téléphone"
-                      className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                      required
-                    />
-                  </div>
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
+                  <Phone className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Téléphone"
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Durée Contrat</label>
+                    <label className="text-[9px] text-gray-500 uppercase font-black px-1">Contrat</label>
                     <select
                       value={contractDuration}
                       onChange={(e) => {
@@ -271,37 +240,35 @@ const BusinessLogin = () => {
                         else if (val === 1 || val === 3) setSubscriptionType('basic');
                         else if (val === 6 || val === 12) setSubscriptionType('premium');
                       }}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3 text-white text-sm focus:border-yellow-400/50 outline-none appearance-none cursor-pointer"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-xs outline-none appearance-none cursor-pointer hover:bg-white/10 transition-all"
                     >
-                      <option value={0.5} className="bg-gray-900 text-white">14 jours (Démo)</option>
-                      <option value={1} className="bg-gray-900 text-white">1 mois</option>
-                      <option value={3} className="bg-gray-900 text-white">3 mois</option>
-                      <option value={6} className="bg-gray-900 text-white">6 mois</option>
-                      <option value={12} className="bg-gray-900 text-white">12 mois</option>
+                      <option value={0.5} className="bg-gray-900">14j (Démo)</option>
+                      <option value={1} className="bg-gray-900">1 mois</option>
+                      <option value={3} className="bg-gray-900">3 mois</option>
+                      <option value={6} className="bg-gray-900">6 mois</option>
+                      <option value={12} className="bg-gray-900">12 mois</option>
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-black px-1">Type Offre (Auto)</label>
-                    <div className="w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-3 text-yellow-400 font-bold text-sm">
-                      {subscriptionType === 'free' ? 'Démo' : subscriptionType === 'basic' ? 'Basic' : 'Premium'}
+                    <label className="text-[9px] text-gray-500 uppercase font-black px-1">Offre</label>
+                    <div className="w-full bg-yellow-400/10 border border-yellow-400/20 rounded-2xl px-4 py-3 text-yellow-400 font-black text-[10px] uppercase tracking-widest text-center">
+                      {subscriptionType}
                     </div>
                   </div>
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
-                <Mail className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre@email.com"
-                  className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                  required
-                />
-              </div>
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
+              <Mail className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                required
+              />
             </div>
 
             <div className="space-y-3">
@@ -318,21 +285,14 @@ const BusinessLogin = () => {
               </div>
               
               {mode === 'signup' && password.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="px-2"
-                >
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Sécurité : {strength.label}</span>
-                    <span className="text-[8px] font-medium text-gray-600 uppercase tracking-tighter">Lettres + Chiffres + Symboles</span>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-1">
+                  <div className="flex justify-between items-center mb-1.5 text-[9px] font-black uppercase tracking-widest">
+                    <span className="text-gray-500">Sécurité : {strength.label}</span>
+                    <span className="text-gray-600">A-Z, 0-9, !@#</span>
                   </div>
-                  <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden flex gap-1">
-                    {[1, 2, 3, 4].map((step) => (
-                      <div 
-                        key={step}
-                        className={`h-full flex-1 transition-all duration-500 ${step <= strength.score ? strength.color : 'bg-transparent'}`}
-                      />
+                  <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden flex gap-0.5">
+                    {[1, 2, 3, 4].map((s) => (
+                      <div key={s} className={`h-full flex-1 transition-all duration-500 ${s <= strength.score ? strength.color : 'bg-transparent'}`} />
                     ))}
                   </div>
                 </motion.div>
@@ -342,7 +302,7 @@ const BusinessLogin = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 flex items-center justify-center gap-2 accent-glow"
+              className="w-full h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <Loader2 className="w-6 h-6 animate-spin" />
@@ -355,49 +315,34 @@ const BusinessLogin = () => {
             </button>
           </form>
 
-          <div className="mt-10 pt-8 border-t border-white/5 text-center px-4">
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest leading-relaxed">
+          <div className="mt-8 pt-6 border-t border-white/5 text-center px-4">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
               Krantos Professionnel — Validation sous 24/48h.
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* Success Modal Overlay */}
       <AnimatePresence>
         {showSuccessModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
               className="w-full max-w-sm glass-card p-8 rounded-[2.5rem] border-white/10 text-center relative overflow-hidden"
             >
-              <div className="absolute -top-24 -left-24 w-48 h-48 bg-green-500/20 blur-[60px] rounded-full" />
-              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-yellow-400/20 blur-[60px] rounded-full" />
-              
-              <div className="relative">
-                <div className="w-20 h-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 className="w-10 h-10 text-green-400" />
-                </div>
-                
-                <h2 className="text-2xl font-black text-white mb-4 tracking-tight">Inscription reçue !</h2>
-                <p className="text-gray-400 text-sm leading-relaxed mb-8">
-                  Votre demande pour <span className="text-white font-semibold">{companyName}</span> a été transmise avec succès.
-                  <br /><br />
-                  Un administrateur Krantos examinera votre dossier sous peu pour activer votre contrat.
-                </p>
-                
-                <button
-                  onClick={() => {
-                    setShowSuccessModal(false);
-                    setMode('login');
-                  }}
-                  className="w-full h-12 rounded-xl bg-white text-black font-bold text-sm hover:bg-gray-100 transition-all active:scale-[0.98]"
-                >
-                  Continuer vers la connexion
-                </button>
+              <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-8 h-8 text-green-400" />
               </div>
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Inscription reçue !</h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-8">
+                Votre demande pour <span className="text-white font-semibold">{companyName}</span> est en cours de validation.
+              </p>
+              <button
+                onClick={() => { setShowSuccessModal(false); setMode('login'); }}
+                className="w-full h-12 rounded-xl bg-white text-black font-bold text-sm hover:bg-gray-100 transition-all"
+              >
+                Continuer
+              </button>
             </motion.div>
           </div>
         )}

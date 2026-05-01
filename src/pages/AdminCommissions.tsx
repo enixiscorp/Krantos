@@ -8,22 +8,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
-  Zap,
-  Loader2,
   DollarSign,
   CheckCircle,
   XCircle,
   Clock,
   ArrowLeft,
-  Filter,
   Search,
   Check,
   X,
   TrendingUp,
   Percent,
+  Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { Vendor } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +40,13 @@ interface CommissionRecord {
   notes: string | null;
   created_at: string;
   vendors?: { name: string };
+}
+
+interface VendorWithRate {
+  id: string;
+  name: string;
+  category: string;
+  commission_rate: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,8 +92,9 @@ const AdminCommissions = () => {
 
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<CommissionRecord[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<VendorWithRate[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'records' | 'vendors'>('records');
 
@@ -98,46 +103,32 @@ const AdminCommissions = () => {
   const [selectedVendorId, setSelectedVendorId] = useState('');
   const [newRate, setNewRate] = useState('');
 
+  const init = async () => {
+    setLoading(true);
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      navigate('/business-login', { replace: true });
+      return;
+    }
+
+    const { data: recData } = await supabase
+      .from('commission_records')
+      .select('*, vendors(name)')
+      .order('created_at', { ascending: false });
+
+    const { data: venData } = await supabase
+      .from('vendors')
+      .select('id, name, category, commission_rate')
+      .order('name');
+
+    setRecords(recData || []);
+    setVendors(venData as VendorWithRate[] || []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    let mounted = true;
-
-    const init = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        navigate('/business-login', { replace: true });
-        return;
-      }
-
-      // Fetch all records with vendor names
-      const { data: recData, error: recError } = await supabase
-        .from('commission_records')
-        .select('*, vendors(name)')
-        .order('created_at', { ascending: false });
-
-      // Fetch all vendors for the rate change feature
-      const { data: venData, error: venError } = await supabase
-        .from('vendors')
-        .select('*')
-        .order('name');
-
-      if (recError) toast.error('Erreur lors du chargement des commissions.');
-      if (venError) toast.error('Erreur lors du chargement des vendeurs.');
-
-      if (mounted) {
-        setRecords(recData ?? []);
-        setVendors(venData ?? []);
-        setLoading(false);
-      }
-    };
-
     init();
-
-    return () => { mounted = false; };
-  }, [navigate]);
-
-  // ---------------------------------------------------------------------------
-  // Handlers
-  // ---------------------------------------------------------------------------
+  }, []);
 
   const handleUpdateStatus = async (recordId: string, status: 'confirmed' | 'rejected') => {
     setUpdatingId(recordId);
@@ -168,7 +159,6 @@ const AdminCommissions = () => {
 
     setLoading(true);
     try {
-      // 1. Update vendor rate
       const { error: uvError } = await supabase
         .from('vendors')
         .update({ commission_rate: rate })
@@ -176,8 +166,7 @@ const AdminCommissions = () => {
 
       if (uvError) throw uvError;
 
-      // 2. Create history record
-      const { error: rhError } = await supabase
+      await supabase
         .from('commission_records')
         .insert({
           vendor_id: selectedVendorId,
@@ -187,17 +176,9 @@ const AdminCommissions = () => {
           notes: `Taux modifié à ${rate}% par l'administrateur.`
         });
 
-      if (rhError) throw rhError;
-
       toast.success('Taux mis à jour avec succès.');
       setShowRateModal(false);
-      
-      // Refresh list
-      const { data } = await supabase
-        .from('commission_records')
-        .select('*, vendors(name)')
-        .order('created_at', { ascending: false });
-      setRecords(data ?? []);
+      await init();
     } catch (err) {
       toast.error('Erreur lors de la modification.');
     } finally {
@@ -205,20 +186,12 @@ const AdminCommissions = () => {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Filters
-  // ---------------------------------------------------------------------------
-
   const filteredRecords = records.filter(r => {
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
-    const matchesSearch = r.vendors?.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          r.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (r.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (r.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   if (loading && records.length === 0) {
     return (
@@ -229,11 +202,11 @@ const AdminCommissions = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
+    <div className="max-w-6xl mx-auto px-4 py-12 pb-32">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
-          <Link to="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4 group">
+          <Link to="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4 group font-bold text-xs uppercase tracking-widest">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Retour Dashboard
           </Link>
@@ -363,7 +336,7 @@ const AdminCommissions = () => {
                     ) : updatingId === rec.id ? (
                       <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
                     ) : (
-                      <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Action impossible</span>
+                      <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Fait</span>
                     )}
                   </div>
                 </div>
@@ -378,10 +351,10 @@ const AdminCommissions = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.03 }}
-                className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between"
+                className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between hover:border-yellow-400/20 transition-all"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center">
                     <Percent className="w-6 h-6 text-yellow-400" />
                   </div>
                   <div>
@@ -408,21 +381,12 @@ const AdminCommissions = () => {
       <AnimatePresence>
         {showRateModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowRateModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRateModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="w-full max-w-md glass-card p-10 rounded-[2.5rem] border-white/5 relative z-10"
             >
               <h2 className="text-2xl font-black text-white mb-6 tracking-tight">Modifier un taux</h2>
-              
               <div className="space-y-6">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Vendeur</label>
@@ -435,7 +399,6 @@ const AdminCommissions = () => {
                     {vendors.map(v => <option key={v.id} value={v.id} className="bg-[#0a0a0c]">{v.name}</option>)}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Nouveau Taux (%)</label>
                   <input
@@ -446,20 +409,9 @@ const AdminCommissions = () => {
                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
                   />
                 </div>
-
                 <div className="flex gap-4 pt-4">
-                  <button
-                    onClick={() => setShowRateModal(false)}
-                    className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleChangeRate}
-                    className="flex-[2] py-4 rounded-xl bg-yellow-400 text-gray-900 font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"
-                  >
-                    Confirmer
-                  </button>
+                  <button onClick={() => setShowRateModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all">Annuler</button>
+                  <button onClick={handleChangeRate} className="flex-[2] py-4 rounded-xl bg-yellow-400 text-gray-900 font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20">Confirmer</button>
                 </div>
               </div>
             </motion.div>

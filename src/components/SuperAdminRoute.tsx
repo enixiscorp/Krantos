@@ -63,12 +63,12 @@ const SuperAdminRoute = ({ children }: Props) => {
             setReady(true);
           } else {
             toast.error('Accès réservé au super administrateur.');
-            navigate('/', { replace: true });
+            navigate('/admin-login', { replace: true });
           }
         }
       } catch (err) {
         console.error('SuperAdminRoute Error:', err);
-        if (mounted) navigate('/', { replace: true });
+        if (mounted) navigate('/admin-login', { replace: true });
       }
 
       setAllowed(true);

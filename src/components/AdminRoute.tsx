@@ -63,13 +63,14 @@ const AdminRoute = ({ children }: Props) => {
             setReady(true);
           } else {
             console.warn('Accès Admin refusé pour UID:', uid);
-            toast.error('Accès refusé. Droits insuffisants.');
-            navigate('/', { replace: true });
+            toast.error('Session non autorisée. Veuillez vous reconnecter.');
+            // Rediriger vers login admin plutôt que le site vitrine
+            navigate('/admin-login', { replace: true });
           }
         }
       } catch (err) {
         console.error('AdminRoute Error:', err);
-        if (mounted) navigate('/', { replace: true });
+        if (mounted) navigate('/admin-login', { replace: true });
       }
     };
 

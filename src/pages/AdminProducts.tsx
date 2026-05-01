@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -6,20 +6,15 @@ import {
   ArrowLeft, 
   Loader2, 
   Package, 
-  Filter, 
   Search, 
-  Download,
-  MoreVertical,
+  Plus,
   Edit,
   Trash2,
-  ExternalLink,
   ChevronRight,
-  TrendingUp,
   Zap,
   Building2,
   Tag
 } from 'lucide-react';
-import { getAdminProducts } from '../services/productService';
 import { supabase } from '../lib/supabase';
 
 type ProductRow = {
@@ -35,10 +30,13 @@ type ProductRow = {
 };
 
 const AdminProducts = () => {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<ProductRow[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  
   const [newProduct, setNewProduct] = useState({
     name: '',
     vendor_id: '',
@@ -62,7 +60,6 @@ const AdminProducts = () => {
       if (error) throw error;
       setRows(data || []);
 
-      // Load active vendors for the modal
       const { data: vData } = await supabase.from('vendors').select('id, name').eq('status', 'active');
       setVendors(vData || []);
     } catch (e) {
@@ -71,6 +68,10 @@ const AdminProducts = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    load();
+  }, []);
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,27 +94,20 @@ const AdminProducts = () => {
     }
   };
 
-  useEffect(() => {
-    void load();
-  }, []);
-
   const filteredProducts = rows.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          p.vendors?.name.toLowerCase().includes(searchTerm.toLowerCase());
+                          (p.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const categories = ['all', ...new Set(rows.map(p => p.category).filter(Boolean))];
+  const categories = ['all', ...new Set(rows.map(p => p.category).filter(Boolean) as string[])];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 pb-32">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-        >
+        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <Link to="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4 group font-bold text-xs uppercase tracking-widest">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Retour Dashboard
@@ -161,7 +155,7 @@ const AdminProducts = () => {
           {categories.map(cat => (
             <button
               key={cat}
-              onClick={() => setCategoryFilter(cat!)}
+              onClick={() => setCategoryFilter(cat)}
               className={`flex-shrink-0 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
                 categoryFilter === cat 
                   ? 'bg-cyan-400 text-black border-cyan-400 shadow-lg shadow-cyan-400/20' 
@@ -195,9 +189,7 @@ const AdminProducts = () => {
                 transition={{ delay: i * 0.05 }}
                 className="glass-card p-8 rounded-[2.5rem] border-white/5 hover:border-cyan-400/30 transition-all group relative overflow-hidden"
               >
-                {/* Accent glow */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 blur-3xl -mr-16 -mt-16 group-hover:bg-cyan-400/10 transition-all" />
-                
                 <div className="flex justify-between items-start mb-6">
                   <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-cyan-400/10 group-hover:text-cyan-400 transition-all">
                     <Zap size={24} className="text-gray-500 group-hover:text-cyan-400" />
@@ -206,11 +198,7 @@ const AdminProducts = () => {
                     {p.is_active ? 'En ligne' : 'Masqué'}
                   </div>
                 </div>
-
-                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 truncate group-hover:text-cyan-400 transition-colors">
-                  {p.name}
-                </h3>
-                
+                <h3 className="text-xl font-black text-white uppercase tracking-tight mb-2 truncate group-hover:text-cyan-400 transition-colors">{p.name}</h3>
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center gap-3 text-xs font-bold text-gray-500 uppercase tracking-widest">
                     <Building2 size={14} className="text-cyan-400/50" />
@@ -221,18 +209,14 @@ const AdminProducts = () => {
                     {p.category}
                   </div>
                 </div>
-
                 <div className="flex items-end justify-between pt-6 border-t border-white/5">
                   <div>
                     <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Prix unitaire</p>
                     <p className="text-2xl font-black text-white tracking-tighter">
-                      {p.price?.toLocaleString('fr-FR')} <span className="text-xs text-gray-500">FCFA</span>
+                      {Number(p.price || 0).toLocaleString('fr-FR')} <span className="text-xs text-gray-500">FCFA</span>
                     </p>
                   </div>
-                  <Link 
-                    to={`/vendor/${p.vendor_id}`}
-                    className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-white hover:bg-cyan-400 hover:text-black transition-all"
-                  >
+                  <Link to={`/admin/products/${p.id}`} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-cyan-400 transition-all">
                     <ChevronRight size={20} />
                   </Link>
                 </div>
@@ -241,6 +225,7 @@ const AdminProducts = () => {
           )}
         </AnimatePresence>
       </div>
+
       {/* Add Product Modal */}
       <AnimatePresence>
         {showAddModal && (
@@ -251,7 +236,6 @@ const AdminProducts = () => {
               className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
             >
               <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Ajouter un Équipement</h2>
-              
               <form onSubmit={handleCreateProduct} className="space-y-6">
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Boutique / Vendeur</label>
@@ -265,7 +249,6 @@ const AdminProducts = () => {
                     {vendors.map(v => <option key={v.id} value={v.id} className="bg-[#0A0A0A]">{v.name}</option>)}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nom du Produit</label>
                   <input
@@ -276,7 +259,6 @@ const AdminProducts = () => {
                     required
                   />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Catégorie</label>
@@ -302,7 +284,6 @@ const AdminProducts = () => {
                     />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Prix Unitaire (FCFA)</label>
                   <input
@@ -313,7 +294,6 @@ const AdminProducts = () => {
                     required
                   />
                 </div>
-
                 <div className="flex gap-4 pt-6">
                   <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
                   <button type="submit" className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 text-xs uppercase tracking-widest">Enregistrer le produit</button>

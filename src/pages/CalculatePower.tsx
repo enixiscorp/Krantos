@@ -101,6 +101,7 @@ const CalculatePower = () => {
   const [applianceForm, setApplianceForm] = useState<ApplianceFormData>(emptyApplianceForm());
   const [applianceErrors, setApplianceErrors] = useState<ApplianceFormErrors>({});
   const [applianceListError, setApplianceListError] = useState<string>('');
+  const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
 
   // ── Submission state ─────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -409,97 +410,124 @@ const CalculatePower = () => {
               </button>
             </div>
 
-            {/* Formulaire d'ajout rapide (ligne format) */}
-            <div className="flex flex-col md:flex-row gap-4 mb-8">
-              <select
-                value={COMMON_APPLIANCES.includes(applianceForm.name) ? applianceForm.name : ''}
-                onChange={(e) => {
-                  const label = e.target.value;
-                  const preset = findAppliancePreset(label);
-                  setApplianceForm((f) => ({
-                    ...f,
-                    name: label,
-                    unit: preset ? 'W' : f.unit,
-                    power: preset ? String(preset.typical_watts) : f.power,
-                  }));
-                  if (applianceErrors.name) setApplianceErrors(err => ({ ...err, name: undefined }));
-                }}
-                className={`flex-1 bg-white/5 border rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50 ${applianceErrors.name ? 'border-red-500/50' : 'border-white/10'}`}
-              >
-                <option value="" className="bg-[#0a0a0c]">Sélectionner un appareil...</option>
-                {APPLIANCE_CATEGORIES.map((cat) => (
-                  <optgroup key={cat} label={cat}>
-                    {APPLIANCE_CATALOG.filter((p) => p.category === cat).map((p) => (
-                      <option key={p.id} value={p.label} className="bg-[#0a0a0c]">
-                        {p.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-
-              {!COMMON_APPLIANCES.includes(applianceForm.name) && applianceForm.name !== '' && (
-                <input
-                  type="text"
-                  placeholder="Nom de l'appareil"
-                  value={applianceForm.name}
-                  onChange={(e) => setApplianceForm(f => ({ ...f, name: e.target.value }))}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                />
-              )}
-
-              <div className="flex gap-2 min-w-[300px]">
-                <input
-                  type="number"
-                  placeholder="Qté"
-                  value={applianceForm.quantity}
-                  onChange={(e) => setApplianceForm(f => ({ ...f, quantity: e.target.value }))}
-                  className="w-20 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                />
-                <input
-                  type="number"
-                  placeholder="Puiss."
-                  value={applianceForm.power}
-                  onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                />
-                <div className="flex flex-col gap-2">
+            <div className="relative mb-8">
+              <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Sélectionner un appareil</label>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1 relative">
                   <button
                     type="button"
-                    onClick={() => {
-                      const preset = findAppliancePreset(applianceForm.name);
-                      const step = 10;
-                      const cur = Number(applianceForm.power || 0);
-                      const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
-                      setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                    }}
-                    className="h-[26px] w-[44px] rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm font-black"
-                    title="Augmenter"
+                    onClick={() => setShowDeviceDropdown(!showDeviceDropdown)}
+                    className={`w-full bg-white/5 border rounded-2xl px-6 py-4 text-left text-sm transition-all flex items-center justify-between ${applianceErrors.name ? 'border-red-500/50' : 'border-white/10 hover:border-white/20'}`}
                   >
-                    +
+                    <span className={applianceForm.name ? 'text-white font-bold' : 'text-gray-600'}>
+                      {applianceForm.name || "Sélectionner un appareil..."}
+                    </span>
+                    <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showDeviceDropdown ? 'rotate-90' : ''}`} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const preset = findAppliancePreset(applianceForm.name);
-                      const step = 10;
-                      const cur = Number(applianceForm.power || 0);
-                      const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
-                      setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                    }}
-                    className="h-[26px] w-[44px] rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm font-black"
-                    title="Diminuer"
-                  >
-                    −
-                  </button>
+
+                  <AnimatePresence>
+                    {showDeviceDropdown && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowDeviceDropdown(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto scrollbar-hide"
+                        >
+                          {APPLIANCE_CATEGORIES.map((cat) => (
+                            <div key={cat} className="p-2">
+                              <div className="px-4 py-2 text-[10px] font-black text-yellow-400 uppercase tracking-[0.2em] bg-yellow-400/5 rounded-lg mb-1">
+                                {cat}
+                              </div>
+                              {APPLIANCE_CATALOG.filter((p) => p.category === cat).map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => {
+                                    const preset = findAppliancePreset(p.label);
+                                    setApplianceForm((f) => ({
+                                      ...f,
+                                      name: p.label,
+                                      unit: preset ? 'W' : f.unit,
+                                      power: preset ? String(preset.typical_watts) : f.power,
+                                    }));
+                                    setShowDeviceDropdown(false);
+                                    if (applianceErrors.name) setApplianceErrors(err => ({ ...err, name: undefined }));
+                                  }}
+                                  className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors rounded-xl font-medium"
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <select
-                  value={applianceForm.unit}
-                  onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))}
-                  className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                >
-                  {UNITS.map(u => <option key={u} value={u} className="bg-[#0a0a0c]">{u}</option>)}
-                </select>
+
+                <div className="flex gap-2 min-w-[300px]">
+                  <div className="relative flex-1 group">
+                    <label className="absolute -top-6 left-1 text-[9px] font-black text-gray-600 uppercase tracking-widest opacity-0 group-focus-within:opacity-100 transition-opacity">Quantité</label>
+                    <input
+                      type="number"
+                      placeholder="Qté"
+                      value={applianceForm.quantity}
+                      onChange={(e) => setApplianceForm(f => ({ ...f, quantity: e.target.value }))}
+                      className="w-full h-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
+                    />
+                  </div>
+                  
+                  <div className="relative flex-[2] group">
+                    <label className="absolute -top-6 left-1 text-[9px] font-black text-gray-600 uppercase tracking-widest opacity-0 group-focus-within:opacity-100 transition-opacity">Puissance</label>
+                    <input
+                      type="number"
+                      placeholder="Puiss."
+                      value={applianceForm.power}
+                      onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
+                      className="w-full h-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const preset = findAppliancePreset(applianceForm.name);
+                        const step = 10;
+                        const cur = Number(applianceForm.power || 0);
+                        const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
+                        setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                      }}
+                      className="h-[24px] w-[40px] rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-yellow-400/20 hover:border-yellow-400/30 transition-all text-xs font-black"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const preset = findAppliancePreset(applianceForm.name);
+                        const step = 10;
+                        const cur = Number(applianceForm.power || 0);
+                        const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
+                        setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                      }}
+                      className="h-[24px] w-[40px] rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-yellow-400/20 hover:border-yellow-400/30 transition-all text-xs font-black"
+                    >
+                      −
+                    </button>
+                  </div>
+
+                  <select
+                    value={applianceForm.unit}
+                    onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))}
+                    className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
+                  >
+                    {UNITS.map(u => <option key={u} value={u} className="bg-[#0a0a0c]">{u}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -20,7 +20,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
-export default function AdminLayout(props: { children: ReactNode }) {
+export default function AdminLayout(props: { children?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);

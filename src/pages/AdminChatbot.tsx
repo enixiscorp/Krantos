@@ -106,13 +106,18 @@ const AdminChatbot = () => {
     if (!config || !selectedVendorId) return;
     setSaving(true);
     try {
+      const payload = {
+        vendor_id: selectedVendorId,
+        welcome_message: config.welcome_message,
+        suggestions: config.suggestions,
+        ai_enabled: config.ai_enabled,
+        ai_context: config.ai_context,
+        updated_at: new Date().toISOString()
+      };
+
       const { error } = await supabase
         .from('chatbot_configs')
-        .upsert({
-          ...config,
-          vendor_id: selectedVendorId,
-          updated_at: new Date().toISOString()
-        });
+        .upsert(payload, { onConflict: 'vendor_id' });
 
       if (error) throw error;
       toast.success('Configuration enregistrée !');

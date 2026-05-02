@@ -4,16 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, 
-  Loader2, 
   Package, 
   Search, 
   Plus,
-  Edit,
-  Trash2,
-  ChevronRight,
+  Edit2,
+  X,
   Zap,
   Building2,
-  Tag
+  Tag,
+  Save
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -37,6 +36,8 @@ const AdminProducts = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
+  const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
   
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -131,6 +132,44 @@ const AdminProducts = () => {
       toast.error(`Erreur d'enregistrement : ${err.message || 'Problème de connexion'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editProduct) return;
+    setEditSaving(true);
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          name: editProduct.name,
+          category: editProduct.category,
+          price: Number(editProduct.price),
+          power_rating: Number(editProduct.power_rating),
+          is_active: editProduct.is_active,
+        })
+        .eq('id', editProduct.id);
+      if (error) throw error;
+      toast.success('Produit mis à jour avec succès.');
+      setEditProduct(null);
+      await load();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm('Supprimer ce produit ?')) return;
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      toast.success('Produit supprimé.');
+      await load();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
     }
   };
 
@@ -256,9 +295,14 @@ const AdminProducts = () => {
                       {Number(p.price || 0).toLocaleString('fr-FR')} <span className="text-xs text-gray-500">FCFA</span>
                     </p>
                   </div>
-                  <Link to={`/admin/products/${p.id}`} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-cyan-400 transition-all">
-                    <ChevronRight size={20} />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleDeleteProduct(p.id)} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all" title="Supprimer">
+                      <X size={18} />
+                    </button>
+                    <button onClick={() => setEditProduct(p)} className="p-3 rounded-xl bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20 transition-all" title="Modifier">
+                      <Edit2 size={18} />
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))
@@ -388,15 +432,65 @@ const AdminProducts = () => {
                 <Package size={40} className="text-cyan-400" />
               </div>
               <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tight">Produit Enregistré</h2>
-              <p className="text-gray-400 font-medium mb-10 leading-relaxed">
-                Le produit <span className="text-white font-bold">{rows[0]?.name}</span> a été correctement ajouté au catalogue de la boutique sélectionnée.
-              </p>
-              <button 
-                onClick={() => setShowSuccessModal(false)}
-                className="w-full py-5 rounded-2xl bg-cyan-400 text-black font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20"
-              >
+              <button onClick={() => setShowSuccessModal(false)} className="w-full py-5 rounded-2xl bg-cyan-400 text-black font-black uppercase tracking-widest hover:bg-cyan-500 transition-all">
                 Génial, Continuer
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Product Modal */}
+      <AnimatePresence>
+        {editProduct && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditProduct(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg bg-[#0A0A0A] border border-cyan-400/20 rounded-[3rem] p-10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-yellow-400" />
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight">Modifier le Produit</h2>
+                <button onClick={() => setEditProduct(null)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
+              </div>
+              <form onSubmit={handleSaveEdit} className="space-y-5">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nom du Produit</label>
+                  <input value={editProduct.name} onChange={e => setEditProduct({...editProduct, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none" required />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Catégorie</label>
+                    <select value={editProduct.category || ''} onChange={e => setEditProduct({...editProduct, category: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white text-sm focus:border-cyan-400/50 outline-none appearance-none">
+                      {['Panneaux Solaires','Panneaux Eoliens','Batteries','Onduleurs','Générateur Mécanique','Générateur Electrique','Régulateurs','Accessoires'].map(c => <option key={c} value={c} className="bg-[#0A0A0A]">{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Statut</label>
+                    <select value={editProduct.is_active ? 'true' : 'false'} onChange={e => setEditProduct({...editProduct, is_active: e.target.value === 'true'})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white text-sm focus:border-cyan-400/50 outline-none appearance-none">
+                      <option value="true" className="bg-[#0A0A0A]">En ligne</option>
+                      <option value="false" className="bg-[#0A0A0A]">Masqué</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Puissance (kVA)</label>
+                    <input type="number" step="0.01" value={editProduct.power_rating || 0} onChange={e => setEditProduct({...editProduct, power_rating: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Prix (FCFA)</label>
+                    <input type="number" value={editProduct.price || 0} onChange={e => setEditProduct({...editProduct, price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none" />
+                  </div>
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <button type="button" onClick={() => setEditProduct(null)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
+                  <button type="submit" disabled={editSaving} className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50">
+                    {editSaving ? <span className="animate-spin h-4 w-4 border-2 border-black/20 border-t-black rounded-full" /> : <><Save size={16} /> Enregistrer</>}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

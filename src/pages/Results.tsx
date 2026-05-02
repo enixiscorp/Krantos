@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 
 import type { Product, Vendor, ApplianceInput } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import {
   buildWhatsAppMessage,
   sendWhatsAppMessage,
@@ -255,8 +256,27 @@ const Results = () => {
         appliances, totalWatts, totalKVA, product
       );
       const cleanPhone = vendor.phone.replace(/\D/g, '');
+
+      // If lead was not saved to DB (offline fallback), insert it now with status 'contacted'
+      if (leadId.startsWith('offline-')) {
+        const { error: insertErr } = await supabase
+          .from('leads')
+          .insert({
+            user_name: userName,
+            user_phone: userPhone,
+            location,
+            total_power_needed: totalKVA,
+            recommended_product_id: product.id,
+            vendor_id: vendor.id,
+            status: 'contacted',
+          });
+        if (insertErr) console.warn('[Lead] Could not save offline lead:', insertErr.message);
+      } else {
+        // Update existing lead status to 'contacted'
+        await updateLeadStatus(leadId, 'contacted');
+      }
+
       sendWhatsAppMessage(cleanPhone, message, vendor.status);
-      await updateLeadStatus(leadId, 'contacted');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de WhatsApp.");
     } finally {

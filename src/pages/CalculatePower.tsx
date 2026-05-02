@@ -368,7 +368,7 @@ const CalculatePower = () => {
                         <input id="phone" type="tel" value={userForm.phone} placeholder="+228..." onChange={(e) => { setUserForm(f => ({ ...f, phone: e.target.value })); if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
                       </div>
                     </div>
-                    <div className="relative group">
+                    <div className={`relative group ${showSuggestions ? 'z-[200]' : ''}`}>
                       <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Localisation</label>
                       <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
                         <MapPin className="w-4 h-4 text-gray-500" />
@@ -376,10 +376,15 @@ const CalculatePower = () => {
                       </div>
                       <AnimatePresence>
                         {showSuggestions && (
-                          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[100] overflow-hidden backdrop-blur-xl">
+                          <motion.div 
+                            initial={{ opacity: 0, y: -10 }} 
+                            animate={{ opacity: 1, y: 0 }} 
+                            exit={{ opacity: 0, y: -10 }} 
+                            className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[999] overflow-hidden backdrop-blur-xl max-h-48 overflow-y-auto scrollbar-hide"
+                          >
                             {locationSuggestions.map((loc) => (
-                              <button key={loc} type="button" onClick={() => { setUserForm(f => ({ ...f, location: loc })); setShowSuggestions(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2">
-                                <MapPin className="w-3 h-3 text-yellow-400/50" />
+                              <button key={loc} type="button" onMouseDown={(e) => { e.preventDefault(); setUserForm(f => ({ ...f, location: loc })); setShowSuggestions(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-yellow-400/50 flex-shrink-0" />
                                 {loc}
                               </button>
                             ))}

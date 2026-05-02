@@ -1,4 +1,4 @@
-import { adminClient, corsHeaders, jsonResponse, requireSuperAdmin } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, jsonResponse, requireRole } from "../_shared/auth.ts";
 import { enforceRateLimit, logAdminAction, parseOrBadRequest, z } from "../_shared/security.ts";
 
 const ACTION_TO_STATUS: Record<string, string> = {
@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
   if (req.method !== "PATCH") return jsonResponse(405, { error: "Method not allowed" });
 
   try {
-    const auth = await requireRole(req.headers.get("authorization"), ["admin", "super_admin"]);
+    const { user } = await requireRole(req.headers.get("authorization"), ["super_admin", "admin"]);
 
     const limiter = await enforceRateLimit({
-      key: `admin-vendor-status:${auth.user.id}`,
+      key: `admin-vendor-status:${user.id}`,
       maxHits: 60,
       windowSeconds: 60,
     });
@@ -48,9 +48,7 @@ Deno.serve(async (req) => {
     });
 
     return jsonResponse(200, { message: "Vendor status updated", vendor: data });
-  } catch {
-    return jsonResponse(403, { error: "Forbidden" });
+  } catch (err: any) {
+    return jsonResponse(403, { error: err?.message || "Forbidden" });
   }
 });
-
-

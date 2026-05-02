@@ -20,13 +20,15 @@ import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '..
 // ---------------------------------------------------------------------------
 
 interface UserFormData {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   location: string;
 }
 
 interface UserFormErrors {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
   location?: string;
 }
@@ -73,7 +75,8 @@ const CalculatePower = () => {
 
   // ── User form state ──────────────────────────────────────────────────────
   const [userForm, setUserForm] = useState<UserFormData>({
-    fullName: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     location: '',
   });
@@ -154,7 +157,8 @@ const CalculatePower = () => {
   // ── User form validation ─────────────────────────────────────────────────
   const validateUserForm = (): boolean => {
     const errors: UserFormErrors = {};
-    if (!userForm.fullName.trim()) errors.fullName = 'Requis';
+    if (!userForm.firstName.trim()) errors.firstName = 'Requis';
+    if (!userForm.lastName.trim()) errors.lastName = 'Requis';
     if (!userForm.phone.trim()) errors.phone = 'Requis';
     if (!userForm.location.trim()) errors.location = 'Requis';
     setUserErrors(errors);
@@ -207,7 +211,7 @@ const CalculatePower = () => {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
         .insert({
-          user_name: userForm.fullName.trim(),
+          user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
           user_phone: userForm.phone.trim(),
           location: userForm.location.trim(),
           total_power_needed: totalKVA,
@@ -254,7 +258,7 @@ const CalculatePower = () => {
           product,
           vendor,
           leadId,
-          userName: userForm.fullName.trim(),
+          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
           userPhone: userForm.phone.trim(),
           location: userForm.location.trim(),
           appliances,
@@ -325,22 +329,40 @@ const CalculatePower = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-              <div className="relative group md:col-span-2">
-                <label htmlFor="fullName" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                  Nom et Prénoms
+              <div className="relative group">
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
+                  Prénom
                 </label>
-                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.fullName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.firstName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
                   <User className="w-4 h-4 text-gray-500" />
                   <input
-                    id="fullName"
                     type="text"
-                    value={userForm.fullName}
-                    placeholder="Votre nom complet"
+                    value={userForm.firstName}
+                    placeholder="Votre prénom"
                     onChange={(e) => {
-                      setUserForm(f => ({ ...f, fullName: e.target.value }));
-                      if (userErrors.fullName) setUserErrors(err => ({ ...err, fullName: undefined }));
+                      setUserForm(f => ({ ...f, firstName: e.target.value }));
+                      if (userErrors.firstName) setUserErrors(err => ({ ...err, firstName: undefined }));
                     }}
-                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="relative group">
+                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
+                  Nom
+                </label>
+                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.lastName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                  <User className="w-4 h-4 text-gray-500" />
+                  <input
+                    type="text"
+                    value={userForm.lastName}
+                    placeholder="Votre nom"
+                    onChange={(e) => {
+                      setUserForm(f => ({ ...f, lastName: e.target.value }));
+                      if (userErrors.lastName) setUserErrors(err => ({ ...err, lastName: undefined }));
+                    }}
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium"
                   />
                 </div>
               </div>
@@ -519,49 +541,47 @@ const CalculatePower = () => {
                   </div>
                   
                   <div className="relative flex-[2] group">
-                    <label className="absolute -top-6 left-1 text-[9px] font-black text-gray-600 uppercase tracking-widest opacity-0 group-focus-within:opacity-100 transition-opacity">Puissance</label>
-                    <input
-                      type="number"
-                      placeholder="Puiss."
-                      value={applianceForm.power}
-                      onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
-                      className="w-full h-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const preset = findAppliancePreset(applianceForm.name);
-                        const step = 10;
-                        const cur = Number(applianceForm.power || 0);
-                        const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
-                        setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                      }}
-                      className="h-[24px] w-[40px] rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-yellow-400/20 hover:border-yellow-400/30 transition-all text-xs font-black"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const preset = findAppliancePreset(applianceForm.name);
-                        const step = 10;
-                        const cur = Number(applianceForm.power || 0);
-                        const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
-                        setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                      }}
-                      className="h-[24px] w-[40px] rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-yellow-400/20 hover:border-yellow-400/30 transition-all text-xs font-black"
-                    >
-                      −
-                    </button>
+                    <div className={`flex items-center bg-white/5 border rounded-2xl transition-all group-focus-within:border-yellow-400/50 ${applianceErrors.power ? 'border-red-500/50' : 'border-white/10'}`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const preset = findAppliancePreset(applianceForm.name);
+                          const step = 10;
+                          const cur = Number(applianceForm.power || 0);
+                          const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
+                          setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                        }}
+                        className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        placeholder="Puiss."
+                        value={applianceForm.power}
+                        onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
+                        className="w-full bg-transparent border-none outline-none text-white text-center text-sm font-bold placeholder:text-gray-700"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const preset = findAppliancePreset(applianceForm.name);
+                          const step = 10;
+                          const cur = Number(applianceForm.power || 0);
+                          const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
+                          setApplianceForm((f) => ({ ...f, power: String(next || '') }));
+                        }}
+                        className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
 
                   <select
                     value={applianceForm.unit}
                     onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))}
-                    className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
+                    className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50 font-bold"
                   >
                     {UNITS.map(u => <option key={u} value={u} className="bg-[#0a0a0c]">{u}</option>)}
                   </select>

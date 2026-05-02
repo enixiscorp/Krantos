@@ -35,6 +35,7 @@ const AdminProducts = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
   
   const [newProduct, setNewProduct] = useState({
@@ -61,7 +62,8 @@ const AdminProducts = () => {
       if (error) throw error;
       setRows(data || []);
 
-      const { data: vData } = await supabase.from('vendors').select('id, name').eq('status', 'active');
+      // Load all vendors (even pending ones) for manual attribution
+      const { data: vData } = await supabase.from('vendors').select('id, name').order('name');
       setVendors(vData || []);
     } catch (e) {
       toast.error('Impossible de charger les produits');
@@ -76,20 +78,57 @@ const AdminProducts = () => {
 
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Tentative d\'enregistrement:', newProduct);
+
     if (!newProduct.vendor_id) {
-      toast.error('Veuillez sélectionner un vendeur');
+      toast.error('Veuillez sélectionner une boutique');
       return;
     }
+    if (!newProduct.name.trim()) {
+      toast.error('Le nom du produit est requis');
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await supabase.from('products').insert(newProduct);
-      if (error) throw error;
-      toast.success('Produit ajouté au catalogue !');
+      // Nettoyage de l'objet pour l'insertion
+      const payload = {
+        name: newProduct.name.trim(),
+        vendor_id: newProduct.vendor_id,
+        category: newProduct.category,
+        price: Number(newProduct.price),
+        power_rating: Number(newProduct.power_rating),
+        unit: (newProduct as any).unit || 'W',
+        is_active: true
+      };
+
+      const { data, error } = await supabase
+        .from('products')
+        .insert([payload])
+        .select();
+
+      if (error) {
+        console.error('Erreur Supabase:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('Succès enregistrement:', data);
+      setShowSuccessModal(true);
       setShowAddModal(false);
-      setNewProduct({ name: '', vendor_id: '', category: 'Panneaux Solaires', price: 0, power_rating: 0, unit: 'W', is_active: true });
+      setNewProduct({ 
+        name: '', 
+        vendor_id: '', 
+        category: 'Panneaux Solaires', 
+        price: 0, 
+        power_rating: 0, 
+        unit: 'W', 
+        is_active: true 
+      });
+      
       await load();
-    } catch (err) {
-      toast.error('Erreur lors de la création');
+    } catch (err: any) {
+      console.error('Erreur complète:', err);
+      toast.error(`Erreur d'enregistrement : ${err.message || 'Problème de connexion'}`);
     } finally {
       setLoading(false);
     }
@@ -322,6 +361,33 @@ const AdminProducts = () => {
                   <button type="submit" className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 text-xs uppercase tracking-widest">Enregistrer le produit</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Success Modal */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSuccessModal(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-[#0A0A0A] border border-cyan-400/30 rounded-[3rem] p-12 text-center shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-cyan-400" />
+              <div className="w-20 h-20 bg-cyan-400/10 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Package size={40} className="text-cyan-400" />
+              </div>
+              <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tight">Produit Enregistré</h2>
+              <p className="text-gray-400 font-medium mb-10 leading-relaxed">
+                Le produit <span className="text-white font-bold">{rows[0]?.name}</span> a été correctement ajouté au catalogue de la boutique sélectionnée.
+              </p>
+              <button 
+                onClick={() => setShowSuccessModal(false)}
+                className="w-full py-5 rounded-2xl bg-cyan-400 text-black font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20"
+              >
+                Génial, Continuer
+              </button>
             </motion.div>
           </div>
         )}

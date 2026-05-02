@@ -13,7 +13,9 @@ import {
   Bot,
   User,
   Settings2,
-  Zap
+  Zap,
+  Search,
+  ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -32,6 +34,9 @@ const AdminChatbot = () => {
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
   const [config, setConfig] = useState<ChatbotConfig | null>(null);
+  const [vendorSearch, setVendorSearch] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetchVendors();
@@ -85,8 +90,9 @@ const AdminChatbot = () => {
     if (!config) return;
     setConfig({
       ...config,
-      suggestions: [...config.suggestions, { question: '', answer: '' }]
+      suggestions: [{ question: '', answer: '' }, ...config.suggestions]
     });
+    toast.success('Nouvelle question ajoutée en haut de la liste');
   };
 
   const handleUpdateSuggestion = (index: number, field: 'question' | 'answer', value: string) => {
@@ -120,6 +126,7 @@ const AdminChatbot = () => {
         .upsert(payload, { onConflict: 'vendor_id' });
 
       if (error) throw error;
+      setShowSuccessModal(true);
       toast.success('Configuration enregistrée !');
     } catch (err) {
       toast.error('Erreur lors de la sauvegarde.');
@@ -128,6 +135,10 @@ const AdminChatbot = () => {
       setSaving(false);
     }
   };
+
+  const filteredVendors = vendors.filter(v => 
+    v.name.toLowerCase().includes(vendorSearch.toLowerCase())
+  );
 
   if (loading && vendors.length === 0) {
     return (
@@ -141,10 +152,21 @@ const AdminChatbot = () => {
     <div className="max-w-5xl mx-auto px-4 py-12 pb-32">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
-          <Link to="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-4 group font-bold text-xs uppercase tracking-widest">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Retour Dashboard
-          </Link>
+          <div className="flex items-center gap-4 mb-4">
+            <Link to="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-white transition-colors group font-bold text-xs uppercase tracking-widest">
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              Dashboard
+            </Link>
+            {selectedVendorId && (
+              <button 
+                onClick={() => setSelectedVendorId('')}
+                className="inline-flex items-center gap-2 text-yellow-500 hover:text-yellow-400 transition-colors font-bold text-xs uppercase tracking-widest"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Changer de vendeur
+              </button>
+            )}
+          </div>
           <h1 className="text-5xl font-black text-white mb-2 tracking-tighter flex items-center gap-4">
             Intelligence <span className="text-yellow-400">Conversationnelle</span>
           </h1>
@@ -152,24 +174,66 @@ const AdminChatbot = () => {
         </div>
       </div>
 
-      {/* Vendor Selector */}
-      <div className="glass-card p-8 rounded-[2.5rem] border-white/5 mb-8 bg-gradient-to-r from-yellow-400/5 to-transparent">
+      {/* Searchable Vendor Selector */}
+      <div className="glass-card p-8 rounded-[2.5rem] border-white/5 mb-8 bg-gradient-to-r from-yellow-400/5 to-transparent relative z-[60]">
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="w-16 h-16 rounded-2xl bg-yellow-400/10 flex items-center justify-center">
             <User className="w-8 h-8 text-yellow-400" />
           </div>
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 space-y-2 relative">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block ml-1">Sélectionner un Vendeur</label>
-            <select
-              value={selectedVendorId}
-              onChange={(e) => setSelectedVendorId(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-lg font-bold focus:border-yellow-400/50 outline-none transition-all cursor-pointer appearance-none"
-            >
-              <option value="" className="bg-[#0f0f13]">Choisir un partenaire...</option>
-              {vendors.map(v => (
-                <option key={v.id} value={v.id} className="bg-[#0f0f13]">{v.name}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-500">
+                <Search size={18} />
+              </div>
+              <input
+                type="text"
+                value={selectedVendorId ? (vendors.find(v => v.id === selectedVendorId)?.name || '') : vendorSearch}
+                placeholder="Saisir ou choisir un partenaire..."
+                onClick={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setVendorSearch(e.target.value);
+                  setIsDropdownOpen(true);
+                  if (selectedVendorId) setSelectedVendorId('');
+                }}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-6 py-4 text-white text-lg font-bold focus:border-yellow-400/50 outline-none transition-all"
+              />
+              
+              <AnimatePresence>
+                {isDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsDropdownOpen(false)} />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-20 max-h-60 overflow-y-auto scrollbar-hide"
+                    >
+                      {filteredVendors.length > 0 ? (
+                        filteredVendors.map(v => (
+                          <button
+                            key={v.id}
+                            onClick={() => {
+                              setSelectedVendorId(v.id);
+                              setVendorSearch('');
+                              setIsDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-6 py-4 text-white hover:bg-yellow-400/10 transition-colors font-bold flex items-center justify-between border-b border-white/5"
+                          >
+                            {v.name}
+                            <ChevronRight size={16} className="text-gray-600" />
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-gray-500 text-sm font-bold uppercase tracking-widest">
+                          Aucun vendeur trouvé
+                        </div>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
@@ -314,6 +378,44 @@ const AdminChatbot = () => {
             </div>
           </motion.div>
         ) : null}
+      </AnimatePresence>
+      {/* Success Modal */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSuccessModal(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-[#0A0A0A] border border-yellow-400/30 rounded-[3rem] p-12 text-center shadow-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-yellow-400" />
+              <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Zap size={40} className="text-yellow-400" />
+              </div>
+              <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tight">Configuration Enregistrée</h2>
+              <p className="text-gray-400 font-medium mb-10 leading-relaxed">
+                Le chatbot de <span className="text-white font-bold">{vendors.find(v => v.id === selectedVendorId)?.name}</span> est maintenant à jour et prêt à répondre à vos clients.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => setShowSuccessModal(false)}
+                  className="w-full py-5 rounded-2xl bg-white/5 text-white font-black uppercase tracking-widest hover:bg-white/10 transition-all border border-white/10"
+                >
+                  Continuer l'édition
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    setSelectedVendorId('');
+                  }}
+                  className="w-full py-5 rounded-2xl bg-yellow-400 text-black font-black uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"
+                >
+                  Changer de vendeur
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

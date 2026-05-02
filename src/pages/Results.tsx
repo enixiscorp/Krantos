@@ -5,7 +5,7 @@
 // ============================================================
 
 import { useState, useRef, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -18,11 +18,9 @@ import {
   ChevronRight,
   AlertCircle,
   Sparkles,
-  Share2,
-  ExternalLink,
   MessageSquare,
   User,
-  Package
+  RotateCcw
 } from 'lucide-react';
 
 import type { Product, Vendor, ApplianceInput } from '../lib/supabase';
@@ -82,12 +80,13 @@ const Results = () => {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Scroll within the container only!
-    // Handled by the fact that we use chatEndRef inside the chat container.
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll within the chat container only to avoid page jumps
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
   }, [chatMessages]);
 
   if (!state) {
@@ -143,7 +142,7 @@ const Results = () => {
   };
 
   const handleExportPDF = () => {
-     const doc = jsPDF({ unit: 'mm', format: 'a4' });
+     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
      const pageWidth = doc.internal.pageSize.getWidth();
      
      // Krantos Background Header

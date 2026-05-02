@@ -68,6 +68,7 @@ function formatPrice(price: number): string {
 // ---------------------------------------------------------------------------
 
 const Results = () => {
+  const navigate = useNavigate();
   const { state } = useLocation() as { state: ResultsState | null };
   const [showChatbot, setShowChatbot] = useState(false);
   const [isContactingWhatsApp, setIsContactingWhatsApp] = useState(false);
@@ -82,9 +83,10 @@ const Results = () => {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const quickPrompts = ['Quel est le prix ?', 'Quelle est la durée de vie ?', 'Est-ce fiable ?', 'Je veux commander'];
 
   useEffect(() => {
+    // Scroll within the container only!
+    // Handled by the fact that we use chatEndRef inside the chat container.
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
@@ -110,7 +112,6 @@ const Results = () => {
     totalKVA,
     product,
     vendor,
-    alternatives = [],
     leadId,
     userName,
     userPhone,
@@ -142,34 +143,105 @@ const Results = () => {
   };
 
   const handleExportPDF = () => {
-     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+     const doc = jsPDF({ unit: 'mm', format: 'a4' });
      const pageWidth = doc.internal.pageSize.getWidth();
-     let y = 20;
-
-     doc.setFontSize(22);
+     
+     // Krantos Background Header
+     doc.setFillColor(20, 20, 24);
+     doc.rect(0, 0, pageWidth, 40, 'F');
+     
+     doc.setTextColor(250, 204, 21); // Krantos Yellow
+     doc.setFontSize(26);
      doc.setFont('helvetica', 'bold');
-     doc.text('Krantos Energy', pageWidth / 2, y, { align: 'center' });
-     y += 12;
+     doc.text('Krantos Energy', 15, 25);
+     
+     doc.setTextColor(255, 255, 255);
+     doc.setFontSize(10);
+     doc.text(`Rapport personnalisé — ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 15, 25, { align: 'right' });
+     
+     let y = 55;
 
+     // Client Section
+     doc.setTextColor(50);
+     doc.setFontSize(14);
+     doc.setFont('helvetica', 'bold');
+     doc.text('Détails du Client', 15, y);
+     y += 8;
      doc.setFontSize(10);
      doc.setFont('helvetica', 'normal');
-     doc.setTextColor(150);
-     doc.text(`Rapport généré le ${new Date().toLocaleDateString('fr-FR')}`, pageWidth / 2, y, { align: 'center' });
+     doc.text(`Nom : ${userName}`, 15, y);
+     doc.text(`Téléphone : ${userPhone}`, pageWidth / 2, y);
+     y += 5;
+     doc.text(`Localisation : ${location}`, 15, y);
      y += 15;
 
+     // Energy Results
+     doc.setFillColor(250, 204, 21, 0.1);
+     doc.rect(10, y-5, pageWidth-20, 30, 'F');
+     
      doc.setTextColor(0);
      doc.setFontSize(14);
-     doc.text('Besoins énergétiques', 15, y); y += 8;
+     doc.setFont('helvetica', 'bold');
+     doc.text('Besoin Énergétique Estimé', 15, y+5);
+     
+     doc.setFontSize(18);
+     doc.setTextColor(250, 204, 21);
+     doc.text(`${totalWatts.toFixed(0)} W`, pageWidth - 20, y+5, { align: 'right' });
+     
      doc.setFontSize(10);
-     doc.text(`Puissance estimée : ${totalWatts} W (${totalKVA.toFixed(2)} kVA)`, 15, y); y += 10;
+     doc.setTextColor(100);
+     doc.text(`Soit environ ${(totalWatts / 1000).toFixed(2)} kW / ${totalKVA.toFixed(2)} kVA`, pageWidth - 20, y+12, { align: 'right' });
+     y += 35;
 
+     // Product Section
      if (product) {
+       doc.setTextColor(0);
        doc.setFontSize(14);
-       doc.text('Produit recommandé', 15, y); y += 8;
-       doc.setFontSize(10);
-       doc.text(`Nom : ${product.name}`, 15, y); y += 5;
-       doc.text(`Prix : ${formatPrice(product.price)} FCFA`, 15, y); y += 10;
+       doc.setFont('helvetica', 'bold');
+       doc.text('Solution Recommandée', 15, y);
+       y += 8;
+       
+       doc.setFontSize(11);
+       doc.text(product.name, 15, y);
+       doc.setTextColor(250, 204, 21);
+       doc.text(`${formatPrice(product.price)} FCFA`, pageWidth - 20, y, { align: 'right' });
+       
+       y += 6;
+       doc.setFontSize(9);
+       doc.setTextColor(100);
+       const splitDesc = doc.splitTextToSize(product.description || '', pageWidth - 30);
+       doc.text(splitDesc, 15, y);
+       y += (splitDesc.length * 5) + 10;
      }
+
+     // Vendor Section
+     if (vendor) {
+       doc.setDrawColor(230);
+       doc.line(15, y, pageWidth - 15, y);
+       y += 10;
+       
+       doc.setTextColor(0);
+       doc.setFontSize(12);
+       doc.setFont('helvetica', 'bold');
+       doc.text('Boutique Partenaire', 15, y);
+       y += 8;
+       
+       doc.setFontSize(14);
+       doc.setTextColor(250, 204, 21);
+       doc.text(vendor.name, 15, y);
+       
+       y += 6;
+       doc.setFontSize(10);
+       doc.setTextColor(50);
+       doc.text(`Contact WhatsApp : ${vendor.phone}`, 15, y);
+       y += 5;
+       doc.text(`Email : ${vendor.email}`, 15, y);
+     }
+
+     // Footer
+     doc.setTextColor(150);
+     doc.setFontSize(8);
+     doc.text('Ce rapport est une estimation basée sur vos appareils. Krantos Energy Lomé.', pageWidth / 2, 285, { align: 'center' });
 
      doc.save(`krantos-report-${userName.replace(/\s+/g, '-')}.pdf`);
      toast.success('Rapport PDF exporté.');
@@ -183,12 +255,7 @@ const Results = () => {
         { fullName: userName, phone: userPhone, location },
         appliances, totalWatts, totalKVA, product
       );
-      
-      // Format number: remove +, spaces, dashes. Ensure it's international.
-      // If it starts with 00, replace with nothing. If it doesn't have +228, we could add it, 
-      // but let's assume the phone in DB is already formatted or has the country code.
       const cleanPhone = vendor.phone.replace(/\D/g, '');
-      
       sendWhatsAppMessage(cleanPhone, message, vendor.status);
       await updateLeadStatus(leadId, 'contacted');
     } catch (err) {
@@ -198,15 +265,23 @@ const Results = () => {
     }
   };
 
-  const handleCall = () => {
-    if (!vendor) return;
-    const cleanPhone = vendor.phone.replace(/\D/g, '');
-    window.open(`tel:+${cleanPhone}`, '_self');
-  };
-
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      {/* Home Navigation */}
+      <div className="flex justify-between items-center mb-12">
+        <Link 
+          to="/" 
+          className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-black uppercase tracking-widest"
+        >
+          <RotateCcw className="w-4 h-4" />
+          Retour à l'accueil
+        </Link>
+        <div className="flex gap-4">
+           {/* Add share or other small utils here if needed */}
+        </div>
+      </div>
+
       {/* Header Recommendation */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -221,7 +296,7 @@ const Results = () => {
           {product ? product.name : "Système Énergétique Optimisé"}
         </h1>
         <p className="text-gray-400 text-lg font-medium max-w-2xl">
-          {product?.description || `Idéal pour petits foyers : éclairage, TV, ventilateur, frigo. Basé sur votre besoin de ${totalKVA.toFixed(2)} kVA.`}
+          {product?.description || `Idéal pour vos besoins calculés de ${totalKVA.toFixed(2)} kVA.`}
         </p>
       </motion.div>
 
@@ -234,10 +309,12 @@ const Results = () => {
         >
           <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-6 block">Puissance estimée</span>
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-6xl font-black text-white leading-none tracking-tighter">{totalWatts}</span>
+            <span className="text-6xl font-black text-white leading-none tracking-tighter">{totalWatts.toFixed(0)}</span>
             <span className="text-2xl font-bold text-gray-600">W</span>
           </div>
-          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-60">≈ {totalKVA.toFixed(2)} kVA (marge 30% incluse)</p>
+          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-60">
+            ≈ {(totalWatts / 1000).toFixed(2)} kW / {totalKVA.toFixed(2)} kVA
+          </p>
         </motion.div>
 
         <motion.div
@@ -245,24 +322,32 @@ const Results = () => {
           animate={{ opacity: 1, x: 0 }}
           className="glass-card p-10 rounded-[2.5rem] flex flex-col justify-center border-yellow-400/30 accent-glow bg-yellow-400/[0.03] shadow-[0_0_50px_-12px_rgba(250,204,21,0.15)] h-full min-h-[220px]"
         >
-          <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-6 block">Prix</span>
+          <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-6 block">Prix de la solution</span>
           <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-6xl font-black text-yellow-400 leading-none tracking-tighter">{product ? formatPrice(product.price) : "—"}</span>
+            <motion.span 
+              animate={{ opacity: [1, 0.7, 1], scale: [1, 1.02, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="text-6xl font-black text-yellow-400 leading-none tracking-tighter"
+            >
+              {product ? formatPrice(product.price) : "—"}
+            </motion.span>
             <span className="text-2xl font-bold text-yellow-400/60 uppercase">FCFA</span>
           </div>
-          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-80 italic">Vendu par {vendor?.name || "Krantos Energy Lomé"}</p>
+          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-80 italic">Vendu par {vendor?.name || "Partenaire Krantos"}</p>
         </motion.div>
       </div>
 
       {/* Main Actions Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-20 items-stretch">
-        <button
+        <motion.button
           onClick={handleWhatsApp}
+          animate={{ boxShadow: ["0 0 0px rgba(0,217,95,0)", "0 0 20px rgba(0,217,95,0.4)", "0 0 0px rgba(0,217,95,0)"] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
           className="flex-[2] flex items-center justify-center gap-3 py-5 rounded-2xl bg-[#00D95F] text-white font-black text-sm uppercase tracking-widest hover:bg-[#00c456] transition-all shadow-xl shadow-green-500/10"
         >
           <MessageCircle className="w-5 h-5 fill-current" />
           Contacter sur WhatsApp
-        </button>
+        </motion.button>
         <button
           onClick={handleExportPDF}
           className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
@@ -270,13 +355,17 @@ const Results = () => {
           <FileDown className="w-5 h-5" />
           Exporter PDF
         </button>
-        <Link
-          to={`/vendor/${vendor?.id}`}
+        <button
+          onClick={() => {
+             if (!vendor) return;
+             const cleanPhone = vendor.phone.replace(/\D/g, '');
+             window.open(`tel:+${cleanPhone}`, '_self');
+          }}
           className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
         >
-          <ExternalLink className="w-5 h-5" />
-          Voir le vendeur
-        </Link>
+          <Phone className="w-5 h-5" />
+          Appeler
+        </button>
       </div>
 
       {/* Integrated Chat Advice Section */}
@@ -290,8 +379,11 @@ const Results = () => {
           <h2 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest">Conseil personnalisé</h2>
         </div>
 
-        <div className="bg-[#0A0A0B] rounded-[2.5rem] p-8 border border-white/5 min-h-[200px] flex flex-col">
-          <div className="space-y-6 flex-1 mb-8">
+        <div className="bg-[#0A0A0B] rounded-[2.5rem] p-8 border border-white/5 h-[450px] flex flex-col">
+          <div 
+            ref={chatContainerRef}
+            className="space-y-6 flex-1 mb-8 overflow-y-auto scrollbar-hide"
+          >
             {chatMessages.map((msg, idx) => (
               <motion.div 
                 key={idx} 
@@ -305,7 +397,7 @@ const Results = () => {
                   </div>
                   <div className={`px-6 py-4 rounded-[1.5rem] text-sm font-medium leading-relaxed ${
                     msg.role === 'user' 
-                    ? 'bg-yellow-400 text-gray-950 font-black' 
+                    ? 'bg-yellow-400 text-gray-950 font-black shadow-lg shadow-yellow-400/10' 
                     : 'bg-white/[0.03] text-gray-300 border border-white/5'
                   }`}>
                     {msg.text}
@@ -323,7 +415,6 @@ const Results = () => {
                 </div>
               </div>
             )}
-            <div ref={chatEndRef} />
           </div>
 
           <div className="relative group">
@@ -343,37 +434,6 @@ const Results = () => {
               <Send size={18} />
             </button>
           </div>
-        </div>
-      </motion.div>
-
-      {/* Alternatives Grid */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-32"
-      >
-        <h2 className="text-2xl font-black text-white mb-10 tracking-tight uppercase tracking-widest ml-2">Solutions Alternatives</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { cat: 'Solaire', name: 'Kit Solaire 3 kVA + batteries', price: 1200000, details: '2400 W - 3 kVA' },
-            { cat: 'Groupe électrogène essence', name: 'Groupe électrogène 5 kVA - Kipor', price: 850000, details: '4000 W - 5 kVA' },
-            { cat: 'Groupe électrogène diesel', name: 'Groupe électrogène 8 kVA Diesel', price: 1850000, details: '6400 W - 8 kVA' },
-          ].map((alt, i) => (
-            <motion.div
-              key={i}
-              whileHover={{ y: -8, transition: { duration: 0.2 } }}
-              className="glass-card p-8 rounded-[2.5rem] border-white/5 hover:border-white/10 transition-all cursor-pointer group bg-gradient-to-br from-white/[0.01] to-transparent"
-            >
-              <div className="flex flex-col gap-2 mb-8">
-                <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">{alt.cat}</span>
-                <h3 className="font-bold text-white group-hover:text-yellow-400 transition-colors leading-snug">{alt.name}</h3>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xl font-black text-yellow-400 tracking-tight">{formatPrice(alt.price)} FCFA</p>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider opacity-60">{alt.details}</p>
-              </div>
-            </motion.div>
-          ))}
         </div>
       </motion.div>
     </div>

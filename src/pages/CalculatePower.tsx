@@ -485,7 +485,7 @@ const CalculatePower = () => {
               <div className="text-center mb-12">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/20 mb-4">
                   <Zap className="w-3.5 h-3.5 text-yellow-400" />
-                  <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Calcul terminé : {calculatedPower.watts} W</span>
+                  <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Calcul terminé : {calculatedPower.watts.toFixed(0)} W ({(calculatedPower.watts / 1000).toFixed(2)} kW)</span>
                 </div>
                 <h2 className="text-4xl font-black text-white mb-4 tracking-tight">Choisissez votre solution</h2>
                 <p className="text-gray-400 text-sm max-w-md mx-auto">Sélectionnez le vendeur qui vous convient le mieux pour continuer vers les détails.</p>
@@ -509,8 +509,16 @@ const CalculatePower = () => {
                       </div>
                       <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
                         <div>
-                          <p className="text-2xl font-black text-yellow-400">{recommendations.product.price.toLocaleString('fr-FR')} FCFA</p>
-                          <p className="text-[10px] text-gray-500 font-bold uppercase">{recommendations.product.power_rating} kVA</p>
+                          <motion.p 
+                            animate={{ opacity: [1, 0.7, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="text-2xl font-black text-yellow-400"
+                          >
+                            {recommendations.product.price.toLocaleString('fr-FR')} FCFA
+                          </motion.p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">
+                            {recommendations.product.power_rating} kVA / {(recommendations.product.power_rating).toFixed(2)} kW
+                          </p>
                         </div>
                         <button
                           onClick={() => handleSelectProduct(recommendations.product, recommendations.vendor)}
@@ -539,8 +547,16 @@ const CalculatePower = () => {
                       </div>
                       <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
                         <div>
-                          <p className="text-xl font-bold text-white">{alt.product.price.toLocaleString('fr-FR')} FCFA</p>
-                          <p className="text-[10px] text-gray-500 font-bold uppercase">{alt.product.power_rating} kVA</p>
+                          <motion.p 
+                            animate={{ opacity: [1, 0.8, 1] }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                            className="text-xl font-bold text-white"
+                          >
+                            {alt.product.price.toLocaleString('fr-FR')} FCFA
+                          </motion.p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">
+                            {alt.product.power_rating} kVA / {(alt.product.power_rating).toFixed(2)} kW
+                          </p>
                         </div>
                         <button
                           onClick={() => handleSelectProduct(alt.product, alt.vendor)}

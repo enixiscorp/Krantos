@@ -247,10 +247,12 @@ export default function AdminLayout() {
                 <span className="whitespace-nowrap text-sm font-bold">Déconnexion</span>
               )}
             </button>
-          </div>
-          </AnimatePresence>
-        </>
-      )}
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+    </>
+  )}
 
       {/* Mobile Overlay */}
       <AnimatePresence>

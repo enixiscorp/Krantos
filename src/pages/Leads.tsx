@@ -317,13 +317,24 @@ const Leads = () => {
                 </div>
 
                 <div className="mt-auto grid grid-cols-2 gap-4 pt-6 border-t border-white/5">
-                   <a
-                     href={`tel:${l.user_phone}`}
-                     className="flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-all border border-white/5"
-                   >
-                     <Phone className="w-3.5 h-3.5" />
-                     Appeler
-                   </a>
+                   <div className="grid grid-cols-2 gap-2">
+                     <a
+                       href={`tel:${l.user_phone}`}
+                       className="flex items-center justify-center py-3 rounded-xl bg-white/5 text-xs font-bold text-white hover:bg-white/10 transition-all border border-white/5"
+                       title="Appeler"
+                     >
+                       <Phone className="w-3.5 h-3.5" />
+                     </a>
+                     <a
+                       href={`https://wa.me/${l.user_phone.replace(/\D/g, '').length === 8 ? '228' + l.user_phone.replace(/\D/g, '') : l.user_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${l.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center justify-center py-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all border border-green-500/20"
+                       title="WhatsApp"
+                     >
+                        <ZapIcon className="w-3.5 h-3.5" />
+                     </a>
+                   </div>
                    <div className="flex items-center justify-center px-4 py-3 rounded-xl bg-white/[0.02] text-[10px] font-black text-gray-600 uppercase tracking-widest">
                       {new Date(l.created_at).toLocaleDateString('fr-FR')}
                    </div>

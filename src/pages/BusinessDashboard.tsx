@@ -24,6 +24,7 @@ import {
   Briefcase,
   ChevronRight,
   Calendar,
+  Phone,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Product, Lead, LeadStatus } from '../lib/supabase';
@@ -31,6 +32,16 @@ import type { Product, Lead, LeadStatus } from '../lib/supabase';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+interface Lead {
+  id: string;
+  user_name: string;
+  user_phone?: string;
+  location: string;
+  status: string;
+  total_power_needed: number;
+  created_at: string;
+}
 
 interface VendorInfo {
   id: string;
@@ -383,9 +394,9 @@ const BusinessDashboard = () => {
                           <p className="font-bold text-white text-sm">{lead.user_name}</p>
                           <div className="flex items-center gap-2">
                             <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
-                            {lead.phone && (
+                            {lead.user_phone && (
                               <a 
-                                href={`https://wa.me/${lead.phone.replace(/\D/g, '').length === 8 ? '228' + lead.phone.replace(/\D/g, '') : lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
+                                href={`https://wa.me/${lead.user_phone.replace(/\D/g, '').length === 8 ? '228' + lead.user_phone.replace(/\D/g, '') : lead.user_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover/lead:opacity-100 shadow-lg shadow-green-500/20"

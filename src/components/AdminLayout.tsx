@@ -32,6 +32,9 @@ export default function AdminLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
+  // Hide sidebar on login page
+  const isLoginPage = location.pathname === '/admin-login';
+
   // Listen for PWA install prompt
   useState(() => {
     const handler = (e: any) => {
@@ -123,9 +126,6 @@ export default function AdminLayout() {
     toast.success('Déconnexion réussie');
     navigate('/admin-login');
   };
-
-  // Hide sidebar on login page
-  const isLoginPage = location.pathname === '/admin-login';
 
   return (
     <div className="min-h-screen bg-[#070709] text-white flex overflow-hidden">

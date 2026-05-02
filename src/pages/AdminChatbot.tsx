@@ -37,6 +37,7 @@ const AdminChatbot = () => {
   const [vendorSearch, setVendorSearch] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [activeConfigs, setActiveConfigs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchVendors();
@@ -51,13 +52,24 @@ const AdminChatbot = () => {
   }, [selectedVendorId]);
 
   const fetchVendors = async () => {
-    const { data, error } = await supabase
+    const { data: vData, error: vError } = await supabase
       .from('vendors')
       .select('id, name')
-      .eq('status', 'active')
       .order('name');
     
-    if (!error && data) setVendors(data);
+    if (!vError && vData) setVendors(vData);
+
+    // Fetch active chatbot configs to show status
+    const { data: cData } = await supabase
+      .from('chatbot_configs')
+      .select('vendor_id');
+    
+    if (cData) {
+      const statusMap: Record<string, boolean> = {};
+      cData.forEach(c => statusMap[c.vendor_id] = true);
+      setActiveConfigs(statusMap);
+    }
+    
     setLoading(false);
   };
 
@@ -242,10 +254,57 @@ const AdminChatbot = () => {
         {!selectedVendorId ? (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="p-20 text-center glass-card rounded-[3rem] border-white/5 border-dashed"
+            className="glass-card rounded-[3rem] border-white/5 overflow-hidden"
           >
-            <Bot className="w-16 h-16 text-gray-800 mx-auto mb-6" />
-            <p className="text-gray-500 font-black uppercase tracking-widest text-sm">Sélectionnez un vendeur pour configurer son IA.</p>
+            <div className="p-10 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest">Liste des Partenaires & IA</h3>
+                <p className="text-sm text-gray-500 font-medium">Visualisez l'état de configuration du chatbot pour chaque boutique.</p>
+              </div>
+              <Bot className="w-10 h-10 text-gray-800" />
+            </div>
+
+            <div className="max-h-[500px] overflow-y-auto scrollbar-hide">
+              {vendors.length > 0 ? (
+                <div className="divide-y divide-white/5">
+                  {vendors.map(v => (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVendorId(v.id)}
+                      className="w-full flex items-center justify-between p-8 hover:bg-white/[0.03] transition-all group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${activeConfigs[v.id] ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-600'}`}>
+                          {v.name.charAt(0)}
+                        </div>
+                        <div className="text-left">
+                          <h4 className="font-bold text-white group-hover:text-yellow-400 transition-colors">{v.name}</h4>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">ID: {v.id.substring(0, 8)}...</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        {activeConfigs[v.id] ? (
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">Chatbot Actif</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10">
+                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Non configuré</span>
+                          </div>
+                        )}
+                        <ChevronRight size={20} className="text-gray-700 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-20 text-center">
+                  <p className="text-gray-500 font-black uppercase tracking-widest text-sm italic">Aucun vendeur trouvé sur la plateforme.</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         ) : config ? (
           <motion.div 

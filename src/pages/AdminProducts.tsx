@@ -318,27 +318,36 @@ const AdminProducts = () => {
                       <option value="Onduleurs" className="bg-[#0A0A0A]">Onduleurs</option>
                       <option value="Batteries" className="bg-[#0A0A0A]">Batteries</option>
                       <option value="Régulateurs" className="bg-[#0A0A0A]">Régulateurs</option>
-                      <option value="Accessoires" className="bg-[#0A0A0A]">Accessoires</option>
+                      <option value="Panneaux Solaires" className="bg-[#0A0A0B]">Panneaux Solaires</option>
+                      <option value="Panneaux Eoliens" className="bg-[#0A0A0B]">Panneaux Eoliens</option>
+                      <option value="Batteries" className="bg-[#0A0A0B]">Batteries</option>
+                      <option value="Onduleurs" className="bg-[#0A0A0B]">Onduleurs</option>
+                      <option value="Générateur Mécanique" className="bg-[#0A0A0B]">Générateur Mécanique</option>
+                      <option value="Générateur Electrique" className="bg-[#0A0A0B]">Générateur Electrique</option>
+                      <option value="Accessoires" className="bg-[#0A0A0B]">Accessoires</option>
                     </select>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2 ml-1">
-                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest">Puissance / Capacité</label>
-                    </div>
-                    <div className="flex gap-2">
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Puissance / Capacité</label>
                       <input
                         type="number"
                         value={newProduct.power_rating}
                         onChange={e => setNewProduct({...newProduct, power_rating: Number(e.target.value)})}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all"
+                        required
                       />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Unité</label>
                       <select
                         value={(newProduct as any).unit || 'W'}
                         onChange={e => setNewProduct({...newProduct, unit: e.target.value} as any)}
-                        className="w-24 bg-white/5 border border-white/10 rounded-2xl px-2 py-4 text-white text-xs font-bold focus:border-cyan-400/50 outline-none transition-all appearance-none cursor-pointer text-center"
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all appearance-none cursor-pointer"
                       >
                         {['W', 'kW', 'MW', 'Wh', 'kWh', 'MWh', 'V', 'VA', 'kVA', 'MVA', 'A', 'Ah', 'mAh', 'Wc', 'L'].map(u => (
-                          <option key={u} value={u} className="bg-[#0A0A0A]">{u}</option>
+                          <option key={u} value={u} className="bg-[#0A0A0B]">{u}</option>
                         ))}
                       </select>
                     </div>

@@ -25,6 +25,8 @@ import {
   ChevronRight,
   Calendar,
   Phone,
+  Camera,
+  Upload,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Product, Lead, LeadStatus } from '../lib/supabase';
@@ -40,6 +42,7 @@ interface VendorInfo {
   subscription_type: string;
   status: string;
   commission_rate: number;
+  logo_url?: string | null;
 }
 
 interface LeadMetrics {
@@ -412,14 +415,60 @@ const BusinessDashboard = () => {
 
               <div className="space-y-6">
                 <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em] px-2">Mon Profil</h2>
-                <div className="glass-card p-8 rounded-[2.5rem] border-white/5">
+                <div className="glass-card p-8 rounded-[2.5rem] border-white/5 relative overflow-hidden group/profile">
                    <div className="flex items-center gap-4 mb-8">
-                      <div className="w-12 h-12 rounded-2xl bg-yellow-400 flex items-center justify-center font-black text-gray-900 text-xl">
-                         {vendor?.name.charAt(0)}
+                      <div className="relative">
+                        <div className="w-16 h-16 rounded-2xl bg-yellow-400 overflow-hidden flex items-center justify-center font-black text-gray-900 text-2xl shadow-lg shadow-yellow-400/20">
+                           {vendor?.logo_url ? (
+                             <img src={vendor.logo_url} alt={vendor.name} className="w-full h-full object-cover" />
+                           ) : (
+                             vendor?.name.charAt(0)
+                           )}
+                        </div>
+                        <label className="absolute -bottom-2 -right-2 p-2 bg-black border border-white/10 rounded-xl text-white cursor-pointer hover:bg-yellow-400 hover:text-black transition-all shadow-xl opacity-0 group-hover/profile:opacity-100">
+                          <Camera size={14} />
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !vendor) return;
+
+                              const loadingToast = toast.loading('Mise à jour du logo...');
+                              try {
+                                const fileExt = file.name.split('.').pop();
+                                const filePath = `${(await supabase.auth.getUser()).data.user?.id}/logo_${Math.random()}.${fileExt}`;
+
+                                const { error: uploadError } = await supabase.storage
+                                  .from('product-images')
+                                  .upload(filePath, file, { upsert: true });
+
+                                if (uploadError) throw uploadError;
+
+                                const { data: { publicUrl } } = supabase.storage
+                                  .from('product-images')
+                                  .getPublicUrl(filePath);
+
+                                const { error: updateError } = await supabase
+                                  .from('vendors')
+                                  .update({ logo_url: publicUrl })
+                                  .eq('id', vendor.id);
+
+                                if (updateError) throw updateError;
+
+                                setVendor({ ...vendor, logo_url: publicUrl });
+                                toast.success('Logo mis à jour !', { id: loadingToast });
+                              } catch (error: any) {
+                                toast.error('Erreur: ' + error.message, { id: loadingToast });
+                              }
+                            }}
+                          />
+                        </label>
                       </div>
                       <div>
-                         <p className="font-black text-white tracking-tight">{vendor?.name}</p>
-                         <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Commission : {vendor?.commission_rate}%</p>
+                         <p className="font-black text-white tracking-tight leading-tight mb-1">{vendor?.name}</p>
+                         <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Commission : {vendor?.commission_rate}%</p>
                       </div>
                    </div>
                    <div className="space-y-4 pt-6 border-t border-white/5">

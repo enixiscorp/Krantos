@@ -154,9 +154,14 @@ const AdminVendors = () => {
     try {
       const { data: currentVendor } = await supabase.from('vendors').select('name, email').eq('id', vendorId).single();
 
+      const updates: any = { status };
+      if (status === 'active') {
+        updates.access_status = 'active';
+      }
+
       const { error } = await supabase
         .from('vendors')
-        .update({ status })
+        .update(updates)
         .eq('id', vendorId);
 
       if (error) throw error;
@@ -364,8 +369,12 @@ const AdminVendors = () => {
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center font-black text-gray-500 text-2xl group-hover:bg-yellow-400/10 group-hover:text-yellow-400 transition-all">
-                      {vendor.name.charAt(0)}
+                    <div className="w-16 h-16 rounded-2xl bg-white/5 overflow-hidden flex items-center justify-center font-black text-gray-500 text-2xl group-hover:bg-yellow-400/10 group-hover:text-yellow-400 transition-all shadow-lg">
+                      {vendor.logo_url ? (
+                        <img src={vendor.logo_url} alt={vendor.name} className="w-full h-full object-cover" />
+                      ) : (
+                        vendor.name.charAt(0)
+                      )}
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-2">

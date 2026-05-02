@@ -26,6 +26,8 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminOrders = lazy(() => import('./pages/AdminOrders'));
 const AdminChatbot = lazy(() => import('./pages/AdminChatbot'));
 
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+
 function App() {
   return (
     <BrowserRouter>
@@ -39,6 +41,7 @@ function App() {
             <Route path="/vendors" element={<Vendors />} />
             <Route path="/vendor/:id" element={<VendorDetail />} />
             <Route path="/business-login" element={<BusinessLogin />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/business-dashboard" element={<BusinessDashboard />} />
             <Route path="/add-product" element={<AddProduct />} />
             <Route path="/leads" element={<Leads />} />

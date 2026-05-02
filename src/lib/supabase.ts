@@ -76,6 +76,7 @@ export interface Vendor {
   subscription_type: SubscriptionType;
   status: VendorStatus;
   contract_end_date: string | null;
+  logo_url?: string | null;
   created_at: string;
 }
 

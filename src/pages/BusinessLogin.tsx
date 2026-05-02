@@ -24,6 +24,9 @@ const BusinessLogin = () => {
   const [subscriptionType, setSubscriptionType] = useState('free');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const ACTIVITY_CATEGORIES = [
     'Énergie solaire',
@@ -163,6 +166,27 @@ const BusinessLogin = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      toast.error('Veuillez entrer votre adresse email.');
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('Lien de réinitialisation envoyé ! Vérifiez votre boîte mail.');
+      setShowResetModal(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Une erreur est survenue.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
@@ -299,16 +323,31 @@ const BusinessLogin = () => {
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
-                <Lock className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mot de passe"
-                  className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                  required
-                />
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
+                  <Lock className="w-5 h-5 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mot de passe"
+                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
+                    required
+                  />
+                </div>
+                
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetEmail(email);
+                      setShowResetModal(true);
+                    }}
+                    className="text-[10px] text-gray-500 hover:text-yellow-400 font-black uppercase tracking-widest text-right px-2 transition-colors"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                )}
               </div>
               
               {mode === 'signup' && password.length > 0 && (
@@ -370,6 +409,50 @@ const BusinessLogin = () => {
               >
                 Continuer vers la connexion
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showResetModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+              className="w-full max-w-sm glass-card p-8 rounded-[2.5rem] border-white/10 relative overflow-hidden"
+            >
+              <h2 className="text-2xl font-black text-white mb-2 tracking-tight">Récupération</h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-6 text-center">
+                Entrez votre email pour recevoir un lien de réinitialisation.
+              </p>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4">
+                  <Mail className="w-5 h-5 text-gray-500" />
+                  <input
+                    type="email"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="Votre email"
+                    className="bg-transparent border-none outline-none w-full text-white text-sm"
+                    required
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(false)}
+                    className="flex-1 h-12 rounded-xl border border-white/10 text-white font-bold text-sm"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 h-12 rounded-xl bg-yellow-400 text-black font-bold text-sm disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {resetLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Envoyer'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

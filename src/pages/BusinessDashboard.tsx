@@ -33,16 +33,6 @@ import type { Product, Lead, LeadStatus } from '../lib/supabase';
 // Types
 // ---------------------------------------------------------------------------
 
-interface Lead {
-  id: string;
-  user_name: string;
-  user_phone?: string;
-  location: string;
-  status: string;
-  total_power_needed: number;
-  created_at: string;
-}
-
 interface VendorInfo {
   id: string;
   name: string;

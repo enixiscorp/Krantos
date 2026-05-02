@@ -176,25 +176,32 @@ const Results = () => {
   };
 
   const handleWhatsApp = async () => {
-    if (!product) return;
+    if (!product || !vendor) return;
     setIsContactingWhatsApp(true);
     try {
       const message = buildWhatsAppMessage(
         { fullName: userName, phone: userPhone, location },
         appliances, totalWatts, totalKVA, product
       );
-      // Hardcoded target number as requested
-      sendWhatsAppMessage('+22897572346', message, 'active');
+      
+      // Format number: remove +, spaces, dashes. Ensure it's international.
+      // If it starts with 00, replace with nothing. If it doesn't have +228, we could add it, 
+      // but let's assume the phone in DB is already formatted or has the country code.
+      const cleanPhone = vendor.phone.replace(/\D/g, '');
+      
+      sendWhatsAppMessage(cleanPhone, message, vendor.status);
       await updateLeadStatus(leadId, 'contacted');
     } catch (err) {
-      toast.error("Erreur lors de l'ouverture de WhatsApp.");
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de WhatsApp.");
     } finally {
       setIsContactingWhatsApp(false);
     }
   };
 
   const handleCall = () => {
-    window.open('tel:+22897572346', '_self');
+    if (!vendor) return;
+    const cleanPhone = vendor.phone.replace(/\D/g, '');
+    window.open(`tel:+${cleanPhone}`, '_self');
   };
 
   // ── Render ────────────────────────────────────────────────────────────────

@@ -147,12 +147,13 @@ const CalculatePower = () => {
   // ── Submission state ─────────────────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitFailed, setSubmitFailed] = useState(false);
-  const [cachedCalcData, setCachedCalcData] = useState<{
-    totalWatts: number;
-    totalKVA: number;
-    product: any | null;
-    vendor: any | null;
+  const [step, setStep] = useState<'input' | 'suggestions'>('input');
+  const [recommendations, setRecommendations] = useState<{
+    product: any;
+    vendor: any;
+    alternatives: { product: any; vendor: any }[];
   } | null>(null);
+  const [calculatedPower, setCalculatedPower] = useState({ watts: 0, kva: 0 });
 
   // ── User form validation ─────────────────────────────────────────────────
   const validateUserForm = (): boolean => {
@@ -266,9 +267,25 @@ const CalculatePower = () => {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue.';
-      toast.error(`Impossible d'enregistrer votre demande : ${message}`);
-      setSubmitFailed(true);
-      setCachedCalcData({ totalWatts, totalKVA, product, vendor });
+      console.error('Lead recording failed:', message);
+      
+      // We still want to show the results even if recording the lead fails!
+      // This is crucial for user experience.
+      toast.warning("Votre résultat est prêt, mais nous n'avons pas pu enregistrer votre contact. Veuillez contacter le vendeur directement.");
+      
+      navigate('/results', {
+        state: {
+          totalWatts,
+          totalKVA,
+          product,
+          vendor,
+          leadId: 'offline-' + Date.now(), // Fallback ID
+          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
+          userPhone: userForm.phone.trim(),
+          location: userForm.location.trim(),
+          appliances,
+        },
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -284,396 +301,270 @@ const CalculatePower = () => {
     }
     if (!userValid || appliances.length === 0) return;
 
+    setIsSubmitting(true);
     const { totalWatts, totalKVA } = calculateTotalPower(appliances);
+    setCalculatedPower({ watts: totalWatts, kva: totalKVA });
 
-    let product = null;
-    let vendor = null;
     try {
       const result = await getRecommendation(totalKVA);
-      product = result.product;
-      vendor = result.vendor;
-    } catch { }
-
-    await recordLead(totalWatts, totalKVA, product, vendor);
+      setRecommendations(result);
+      setStep('suggestions');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      toast.error("Erreur lors de la recherche de produits.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRetry = async () => {
-    if (!cachedCalcData) return;
-    const { totalWatts, totalKVA, product, vendor } = cachedCalcData;
-    await recordLead(totalWatts, totalKVA, product, vendor);
+  const handleSelectProduct = async (product: any, vendor: any) => {
+    await recordLead(calculatedPower.watts, calculatedPower.kva, product, vendor);
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[calc(100vh-64px)] py-12 px-4 relative">
-      <div className="max-w-3xl mx-auto flex flex-col items-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10"
-        >
-          <h1 className="text-3xl font-bold mb-2">Calculateur de puissance</h1>
-          <p className="text-gray-400 text-sm">Remplissez vos infos puis ajoutez vos appareils. On s'occupe du reste.</p>
-        </motion.div>
-
-        <form onSubmit={handleSubmit} noValidate className="w-full space-y-6">
-          {/* Section 1 : Informations */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-card p-8 rounded-[2rem]"
-          >
-            <div className="flex items-center gap-2 mb-8">
-              <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">Vos informations</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-              <div className="relative group">
-                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                  Prénom
-                </label>
-                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.firstName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                  <User className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    value={userForm.firstName}
-                    placeholder="Votre prénom"
-                    onChange={(e) => {
-                      setUserForm(f => ({ ...f, firstName: e.target.value }));
-                      if (userErrors.firstName) setUserErrors(err => ({ ...err, firstName: undefined }));
-                    }}
-                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium"
-                  />
-                </div>
+      <div className="max-w-4xl mx-auto flex flex-col items-center">
+        <AnimatePresence mode="wait">
+          {step === 'input' ? (
+            <motion.div
+              key="input-step"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="w-full"
+            >
+              <div className="text-center mb-10">
+                <h1 className="text-4xl font-black mb-4 text-white tracking-tight">Calculateur de puissance</h1>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">Remplissez vos infos puis ajoutez vos appareils. On s'occupe de vous proposer les meilleures solutions.</p>
               </div>
 
-              <div className="relative group">
-                <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                  Nom
-                </label>
-                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.lastName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                  <User className="w-4 h-4 text-gray-500" />
-                  <input
-                    type="text"
-                    value={userForm.lastName}
-                    placeholder="Votre nom"
-                    onChange={(e) => {
-                      setUserForm(f => ({ ...f, lastName: e.target.value }));
-                      if (userErrors.lastName) setUserErrors(err => ({ ...err, lastName: undefined }));
-                    }}
-                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium"
-                  />
+              <form onSubmit={handleSubmit} noValidate className="w-full space-y-6">
+                {/* Section 1 : Informations */}
+                <div className="glass-card p-8 rounded-[2rem]">
+                  <div className="flex items-center gap-2 mb-8">
+                    <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">Vos informations</span>
+                  </div>
+                  {/* ... (Existing form inputs) ... */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                    <div className="relative group">
+                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Prénom</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.firstName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <User className="w-4 h-4 text-gray-500" />
+                        <input type="text" value={userForm.firstName} placeholder="Votre prénom" onChange={(e) => { setUserForm(f => ({ ...f, firstName: e.target.value })); if (userErrors.firstName) setUserErrors(err => ({ ...err, firstName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Nom</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.lastName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <User className="w-4 h-4 text-gray-500" />
+                        <input type="text" value={userForm.lastName} placeholder="Votre nom" onChange={(e) => { setUserForm(f => ({ ...f, lastName: e.target.value })); if (userErrors.lastName) setUserErrors(err => ({ ...err, lastName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <label htmlFor="phone" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Téléphone</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.phone ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <input id="phone" type="tel" value={userForm.phone} placeholder="+228..." onChange={(e) => { setUserForm(f => ({ ...f, phone: e.target.value })); if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Localisation</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <input id="location" type="text" value={userForm.location} placeholder="Lomé, Togo" autoComplete="off" onChange={(e) => { const val = e.target.value; setUserForm(f => ({ ...f, location: val })); if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined })); if (val.length >= 2) { const matches = ALL_LOCATIONS.filter(l => l.toLowerCase().includes(val.toLowerCase())); setLocationSuggestions(matches); setShowSuggestions(matches.length > 0); } else { setShowSuggestions(false); } }} onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
+                      </div>
+                      <AnimatePresence>
+                        {showSuggestions && (
+                          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[100] overflow-hidden backdrop-blur-xl">
+                            {locationSuggestions.map((loc) => (
+                              <button key={loc} type="button" onClick={() => { setUserForm(f => ({ ...f, location: loc })); setShowSuggestions(false); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-yellow-400/50" />
+                                {loc}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="relative group">
-                <label htmlFor="phone" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                  Téléphone
-                </label>
-                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.phone ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                  <Phone className="w-4 h-4 text-gray-500" />
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={userForm.phone}
-                    placeholder="+228..."
-                    onChange={(e) => {
-                      setUserForm(f => ({ ...f, phone: e.target.value }));
-                      if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined }));
-                    }}
-                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="relative group">
-                <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">
-                  Localisation
-                </label>
-                <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                  <MapPin className="w-4 h-4 text-gray-500" />
-                  <input
-                    id="location"
-                    type="text"
-                    value={userForm.location}
-                    placeholder="Lomé, Togo"
-                    autoComplete="off"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setUserForm(f => ({ ...f, location: val }));
-                      if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined }));
-                      
-                      if (val.length >= 2) {
-                        const matches = ALL_LOCATIONS.filter(l => 
-                          l.toLowerCase().includes(val.toLowerCase())
-                        );
-                        setLocationSuggestions(matches);
-                        setShowSuggestions(matches.length > 0);
-                      } else {
-                        setShowSuggestions(false);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Small delay to allow click on suggestion
-                      setTimeout(() => setShowSuggestions(false), 200);
-                    }}
-                    className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm"
-                  />
-                </div>
-                
-                <AnimatePresence>
-                  {showSuggestions && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden"
-                    >
-                      {locationSuggestions.map((loc) => (
-                        <button
-                          key={loc}
-                          type="button"
-                          onClick={() => {
-                            setUserForm(f => ({ ...f, location: loc }));
-                            setShowSuggestions(false);
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
-                        >
-                          <MapPin className="w-3 h-3 text-yellow-400/50" />
-                          {loc}
+                {/* Section 2 : Appareils */}
+                <div className="glass-card p-8 rounded-[2rem]">
+                  <div className="flex items-center justify-between mb-8">
+                    <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">Vos appareils</span>
+                    <button type="button" onClick={handleAddAppliance} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 text-gray-900 font-bold text-sm hover:bg-yellow-500 transition-all hover:scale-105">
+                      <Plus className="w-4 h-4" />
+                      Ajouter
+                    </button>
+                  </div>
+                  <div className="relative mb-8">
+                    <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Sélectionner un appareil</label>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <button type="button" onClick={() => setShowDeviceDropdown(!showDeviceDropdown)} className={`w-full bg-white/5 border rounded-2xl px-6 py-4 text-left text-sm transition-all flex items-center justify-between ${applianceErrors.name ? 'border-red-500/50' : 'border-white/10 hover:border-white/20'}`}>
+                          <span className={applianceForm.name ? 'text-white font-bold' : 'text-gray-600'}>{applianceForm.name || "Sélectionner un appareil..."}</span>
+                          <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showDeviceDropdown ? 'rotate-90' : ''}`} />
                         </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Section 2 : Appareils */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card p-8 rounded-[2rem]"
-          >
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">Vos appareils</span>
-              <button
-                type="button"
-                onClick={handleAddAppliance}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 text-gray-900 font-bold text-sm hover:bg-yellow-500 transition-all hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter
-              </button>
-            </div>
-
-            <div className="relative mb-8">
-              <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Sélectionner un appareil</label>
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeviceDropdown(!showDeviceDropdown)}
-                    className={`w-full bg-white/5 border rounded-2xl px-6 py-4 text-left text-sm transition-all flex items-center justify-between ${applianceErrors.name ? 'border-red-500/50' : 'border-white/10 hover:border-white/20'}`}
-                  >
-                    <span className={applianceForm.name ? 'text-white font-bold' : 'text-gray-600'}>
-                      {applianceForm.name || "Sélectionner un appareil..."}
-                    </span>
-                    <ChevronRight className={`w-4 h-4 text-gray-500 transition-transform ${showDeviceDropdown ? 'rotate-90' : ''}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {showDeviceDropdown && (
-                      <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowDeviceDropdown(false)} />
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 10 }}
-                          className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto scrollbar-hide"
-                        >
-                          {APPLIANCE_CATEGORIES.map((cat) => (
-                            <div key={cat} className="p-2">
-                              <div className="px-4 py-2 text-[10px] font-black text-yellow-400 uppercase tracking-[0.2em] bg-yellow-400/5 rounded-lg mb-1">
-                                {cat}
-                              </div>
-                              {APPLIANCE_CATALOG.filter((p) => p.category === cat).map((p) => (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => {
-                                    const preset = findAppliancePreset(p.label);
-                                    setApplianceForm((f) => ({
-                                      ...f,
-                                      name: p.label,
-                                      unit: preset ? 'W' : f.unit,
-                                      power: preset ? String(preset.typical_watts) : f.power,
-                                    }));
-                                    setShowDeviceDropdown(false);
-                                    if (applianceErrors.name) setApplianceErrors(err => ({ ...err, name: undefined }));
-                                  }}
-                                  className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors rounded-xl font-medium"
-                                >
-                                  {p.label}
-                                </button>
-                              ))}
-                            </div>
-                          ))}
+                        <AnimatePresence>
+                          {showDeviceDropdown && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setShowDeviceDropdown(false)} />
+                              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 max-h-80 overflow-y-auto scrollbar-hide backdrop-blur-xl">
+                                {APPLIANCE_CATEGORIES.map((cat) => (
+                                  <div key={cat} className="p-2">
+                                    <div className="px-4 py-2 text-[10px] font-black text-yellow-400 uppercase tracking-[0.2em] bg-yellow-400/5 rounded-lg mb-1">{cat}</div>
+                                    {APPLIANCE_CATALOG.filter((p) => p.category === cat).map((p) => (
+                                      <button key={p.id} type="button" onClick={() => { const preset = findAppliancePreset(p.label); setApplianceForm((f) => ({ ...f, name: p.label, unit: preset ? 'W' : f.unit, power: preset ? String(preset.typical_watts) : f.power, })); setShowDeviceDropdown(false); if (applianceErrors.name) setApplianceErrors(err => ({ ...err, name: undefined })); }} className="w-full text-left px-4 py-3 text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors rounded-xl font-medium">{p.label}</button>
+                                    ))}
+                                  </div>
+                                ))}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <div className="flex gap-2 min-w-[300px]">
+                        <div className="relative flex-1 group">
+                          <input type="number" placeholder="Qté" value={applianceForm.quantity} onChange={(e) => setApplianceForm(f => ({ ...f, quantity: e.target.value }))} className="w-full h-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50" />
+                        </div>
+                        <div className="relative flex-[2] group">
+                          <div className={`flex items-center bg-white/5 border rounded-2xl transition-all group-focus-within:border-yellow-400/50 ${applianceErrors.power ? 'border-red-500/50' : 'border-white/10'}`}>
+                            <button type="button" onClick={() => { const preset = findAppliancePreset(applianceForm.name); const step = 10; const cur = Number(applianceForm.power || 0); const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step); setApplianceForm((f) => ({ ...f, power: String(next || '') })); }} className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black">−</button>
+                            <input type="number" placeholder="Puiss." value={applianceForm.power} onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))} className="w-full bg-transparent border-none outline-none text-white text-center text-sm font-bold placeholder:text-gray-700" />
+                            <button type="button" onClick={() => { const preset = findAppliancePreset(applianceForm.name); const step = 10; const cur = Number(applianceForm.power || 0); const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step; setApplianceForm((f) => ({ ...f, power: String(next || '') })); }} className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black">+</button>
+                          </div>
+                        </div>
+                        <select value={applianceForm.unit} onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))} className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50 font-bold">
+                          {UNITS.map(u => <option key={u} value={u} className="bg-[#0a0a0c]">{u}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  {applianceListError && <p className="text-red-400 text-xs mb-4 font-medium">{applianceListError}</p>}
+                  <div className="space-y-3">
+                    <AnimatePresence>
+                      {appliances.map((a, i) => (
+                        <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center"><Zap className="w-5 h-5 text-yellow-400" /></div>
+                            <div><p className="font-bold text-white text-sm">{a.name}</p><p className="text-xs text-gray-500 uppercase tracking-widest">{a.quantity} × {a.power} {a.unit}</p></div>
+                          </div>
+                          <button type="button" onClick={() => handleRemoveAppliance(i)} className="p-2 rounded-xl text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-all"><Trash2 className="w-5 h-5" /></button>
                         </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full flex items-center justify-center gap-3 py-5 rounded-[2rem] bg-yellow-400 text-gray-900 font-black text-xl hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 accent-glow"
+                  >
+                    {isSubmitting ? <span className="animate-spin h-6 w-6 border-4 border-black/20 border-t-black rounded-full" /> : (
+                      <>
+                        <Zap className="w-6 h-6 fill-current" />
+                        Calculer ma puissance
+                        <ChevronRight className="w-6 h-6" />
                       </>
                     )}
-                  </AnimatePresence>
+                  </button>
                 </div>
-
-                <div className="flex gap-2 min-w-[300px]">
-                  <div className="relative flex-1 group">
-                    <label className="absolute -top-6 left-1 text-[9px] font-black text-gray-600 uppercase tracking-widest opacity-0 group-focus-within:opacity-100 transition-opacity">Quantité</label>
-                    <input
-                      type="number"
-                      placeholder="Qté"
-                      value={applianceForm.quantity}
-                      onChange={(e) => setApplianceForm(f => ({ ...f, quantity: e.target.value }))}
-                      className="w-full h-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
-                    />
-                  </div>
-                  
-                  <div className="relative flex-[2] group">
-                    <div className={`flex items-center bg-white/5 border rounded-2xl transition-all group-focus-within:border-yellow-400/50 ${applianceErrors.power ? 'border-red-500/50' : 'border-white/10'}`}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const preset = findAppliancePreset(applianceForm.name);
-                          const step = 10;
-                          const cur = Number(applianceForm.power || 0);
-                          const next = preset ? clamp(cur - step, preset.min_watts, preset.max_watts) : Math.max(0, cur - step);
-                          setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                        }}
-                        className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black"
-                      >
-                        −
-                      </button>
-                      <input
-                        type="number"
-                        placeholder="Puiss."
-                        value={applianceForm.power}
-                        onChange={(e) => setApplianceForm(f => ({ ...f, power: e.target.value }))}
-                        className="w-full bg-transparent border-none outline-none text-white text-center text-sm font-bold placeholder:text-gray-700"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const preset = findAppliancePreset(applianceForm.name);
-                          const step = 10;
-                          const cur = Number(applianceForm.power || 0);
-                          const next = preset ? clamp(cur + step, preset.min_watts, preset.max_watts) : cur + step;
-                          setApplianceForm((f) => ({ ...f, power: String(next || '') }));
-                        }}
-                        className="px-4 py-4 text-gray-500 hover:text-white transition-colors font-black"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <select
-                    value={applianceForm.unit}
-                    onChange={(e) => setApplianceForm(f => ({ ...f, unit: e.target.value as PowerUnit }))}
-                    className="w-20 bg-white/5 border border-white/10 rounded-2xl px-3 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50 font-bold"
-                  >
-                    {UNITS.map(u => <option key={u} value={u} className="bg-[#0a0a0c]">{u}</option>)}
-                  </select>
+              </form>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="suggestions-step"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full"
+            >
+              <div className="text-center mb-12">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/20 mb-4">
+                  <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Calcul terminé : {calculatedPower.watts} W</span>
                 </div>
+                <h2 className="text-4xl font-black text-white mb-4 tracking-tight">Choisissez votre solution</h2>
+                <p className="text-gray-400 text-sm max-w-md mx-auto">Sélectionnez le vendeur qui vous convient le mieux pour continuer vers les détails.</p>
               </div>
-            </div>
 
-            {(() => {
-              const preset = findAppliancePreset(applianceForm.name);
-              if (!preset) return null;
-              return (
-                <div className="mb-6 text-xs text-gray-400">
-                  Puissance moyenne suggérée : <span className="text-yellow-300 font-bold">{preset.typical_watts} W</span>{' '}
-                  <span className="text-gray-600">(plage {preset.min_watts}–{preset.max_watts} W)</span>
-                </div>
-              );
-            })()}
-
-            {/* Liste des appareils ajoutés */}
-            {applianceListError && <p className="text-red-400 text-xs mb-4 font-medium">{applianceListError}</p>}
-            
-            <div className="space-y-3">
-              <AnimatePresence>
-                {appliances.map((a, i) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-12">
+                {/* Primary Recommendation */}
+                {recommendations?.product && (
                   <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    className="flex items-center justify-between bg-white/5 border border-white/10 rounded-2xl px-6 py-4"
+                    whileHover={{ y: -5 }}
+                    className="glass-card p-8 rounded-[2.5rem] border-yellow-400/30 relative overflow-hidden bg-yellow-400/[0.02]"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center">
-                        <Zap className="w-5 h-5 text-yellow-400" />
+                    <div className="absolute top-0 right-0 px-4 py-1 bg-yellow-400 text-black text-[10px] font-black uppercase tracking-widest rounded-bl-2xl">
+                      Recommandé
+                    </div>
+                    <div className="flex flex-col h-full">
+                      <div className="mb-8">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 block">{recommendations.vendor.name}</span>
+                        <h3 className="text-2xl font-black text-white leading-tight mb-2">{recommendations.product.name}</h3>
+                        <p className="text-gray-400 text-xs line-clamp-2">{recommendations.product.description}</p>
                       </div>
-                      <div>
-                        <p className="font-bold text-white text-sm">{a.name}</p>
-                        <p className="text-xs text-gray-500 uppercase tracking-widest">{a.quantity} × {a.power} {a.unit}</p>
+                      <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
+                        <div>
+                          <p className="text-2xl font-black text-yellow-400">{recommendations.product.price.toLocaleString('fr-FR')} FCFA</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">{recommendations.product.power_rating} kVA</p>
+                        </div>
+                        <button
+                          onClick={() => handleSelectProduct(recommendations.product, recommendations.vendor)}
+                          disabled={isSubmitting}
+                          className="px-6 py-3 rounded-xl bg-yellow-400 text-black font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all flex items-center gap-2"
+                        >
+                          {isSubmitting ? <span className="animate-spin h-4 w-4 border-2 border-black/20 border-t-black rounded-full" /> : 'Choisir'}
+                        </button>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAppliance(i)}
-                      className="p-2 rounded-xl text-gray-500 hover:text-red-500 hover:bg-red-500/10 transition-all"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  </motion.div>
+                )}
+
+                {/* Alternatives */}
+                {recommendations?.alternatives.map((alt, idx) => (
+                  <motion.div
+                    key={idx}
+                    whileHover={{ y: -5 }}
+                    className="glass-card p-8 rounded-[2.5rem] border-white/5 relative overflow-hidden"
+                  >
+                    <div className="flex flex-col h-full">
+                      <div className="mb-8">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 block">{alt.vendor.name}</span>
+                        <h3 className="text-xl font-bold text-white leading-tight mb-2">{alt.product.name}</h3>
+                        <p className="text-gray-400 text-xs line-clamp-2">{alt.product.description}</p>
+                      </div>
+                      <div className="mt-auto pt-6 border-t border-white/5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xl font-bold text-white">{alt.product.price.toLocaleString('fr-FR')} FCFA</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase">{alt.product.power_rating} kVA</p>
+                        </div>
+                        <button
+                          onClick={() => handleSelectProduct(alt.product, alt.vendor)}
+                          disabled={isSubmitting}
+                          className="px-6 py-3 rounded-xl bg-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all"
+                        >
+                          Choisir
+                        </button>
+                      </div>
+                    </div>
                   </motion.div>
                 ))}
-              </AnimatePresence>
-            </div>
-          </motion.div>
+              </div>
 
-          {/* Bouton Final */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="pt-4"
-          >
-            {submitFailed && (
               <button
-                type="button"
-                onClick={handleRetry}
-                disabled={isSubmitting}
-                className="w-full mb-4 py-4 rounded-[2rem] border-2 border-yellow-400/50 text-yellow-400 font-bold flex items-center justify-center gap-2 hover:bg-yellow-400/10 transition-all"
+                onClick={() => setStep('input')}
+                className="text-gray-500 hover:text-white transition-colors text-xs font-black uppercase tracking-widest flex items-center gap-2"
               >
-                <RotateCcw className="w-5 h-5" />
-                Réessayer la connexion
+                <RotateCcw className="w-4 h-4" />
+                Modifier mon calcul
               </button>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex items-center justify-center gap-3 py-5 rounded-[2rem] bg-yellow-400 text-gray-900 font-black text-xl hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 accent-glow"
-            >
-              {isSubmitting ? (
-                 <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                </svg>
-              ) : (
-                <>
-                  <Zap className="w-6 h-6 fill-current" />
-                  Calculer ma puissance
-                  <ChevronRight className="w-6 h-6" />
-                </>
-              )}
-            </button>
-          </motion.div>
-        </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

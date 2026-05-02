@@ -84,16 +84,54 @@ const CalculatePower = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const ALL_LOCATIONS = [
-    'Lomé, Togo',
-    'Agbalépédogan, Lomé',
-    'Adidogomé, Lomé',
-    'Tokoin, Lomé',
-    'Cotonou, Bénin',
-    'Abidjan, Côte d\'Ivoire',
-    'Accra, Ghana',
-    'Ouagadougou, Burkina Faso',
-    'Dakar, Sénégal',
-    'Niamey, Niger',
+    'Ablogamé, Lomé - Togo',
+    'Kégué, Lomé - Togo',
+    'Akodésséwa, Lomé - Togo',
+    'Dékon, Lomé - Togo',
+    'Avédji, Lomé - Togo',
+    'Sagbado, Lomé - Togo',
+    'Djidjolé, Lomé - Togo',
+    'Adakpamé, Lomé - Togo',
+    'Aného - Togo',
+    'Tsévié - Togo',
+    'Kpalimé - Togo',
+    'Atakpamé - Togo',
+    'Sokodé - Togo',
+    'Kara - Togo',
+    'Dapaong - Togo',
+    'Cotonou - Bénin',
+    'Ouidah - Bénin',
+    'Porto-Novo - Bénin',
+    'Accra - Ghana',
+    'Kumasi - Ghana',
+    'Abidjan - Côte d’Ivoire',
+    'Yamoussoukro - Côte d’Ivoire',
+    'Dakar - Sénégal',
+    'Bamako - Mali',
+    'Ouagadougou - Burkina Faso',
+    'Niamey - Niger',
+    'Lagos - Nigeria',
+    'Abuja - Nigeria',
+    'Douala - Cameroun',
+    'Yaoundé - Cameroun',
+    'Libreville - Gabon',
+    'Kinshasa - RDC',
+    'Paris - France',
+    'Marseille - France',
+    'Bruxelles - Belgique',
+    'Genève - Suisse',
+    'Montréal - Canada',
+    'New York - USA',
+    'Washington - USA',
+    'São Paulo - Brésil',
+    'Dubaï - Émirats Arabes Unis',
+    'Casablanca - Maroc',
+    'Tunis - Tunisie',
+    'Alger - Algérie',
+    'Le Caire - Égypte',
+    'Johannesburg - Afrique du Sud',
+    'Nairobi - Kenya',
+    'Addis-Abeba - Éthiopie'
   ];
 
   // ── Appliance list state ─────────────────────────────────────────────────
@@ -368,7 +406,7 @@ const CalculatePower = () => {
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                      className="absolute left-0 right-0 top-full mt-2 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden"
                     >
                       {locationSuggestions.map((loc) => (
                         <button

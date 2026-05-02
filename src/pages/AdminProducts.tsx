@@ -43,6 +43,7 @@ const AdminProducts = () => {
     category: 'Panneaux Solaires',
     price: 0,
     power_rating: 0,
+    unit: 'W',
     is_active: true
   });
 
@@ -233,41 +234,48 @@ const AdminProducts = () => {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden"
+              className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[3rem] p-10 shadow-2xl overflow-hidden"
             >
+              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-400/5 blur-[100px] -mr-32 -mt-32" />
               <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Ajouter un Équipement</h2>
-              <form onSubmit={handleCreateProduct} className="space-y-6">
+              
+              <form onSubmit={handleCreateProduct} className="space-y-6 relative z-10">
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Boutique / Vendeur</label>
                   <select
                     value={newProduct.vendor_id}
                     onChange={e => setNewProduct({...newProduct, vendor_id: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all appearance-none cursor-pointer"
                     required
                   >
                     <option value="" className="bg-[#0A0A0A]">Sélectionner un partenaire...</option>
                     {vendors.map(v => <option key={v.id} value={v.id} className="bg-[#0A0A0A]">{v.name}</option>)}
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nom du Produit</label>
                   <input
                     value={newProduct.name}
                     onChange={e => setNewProduct({...newProduct, name: e.target.value})}
                     placeholder="ex: Panneau Solaire 450W Mono"
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all"
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Catégorie</label>
                     <select
                       value={newProduct.category}
                       onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all appearance-none cursor-pointer"
                     >
                       <option value="Panneaux Solaires" className="bg-[#0A0A0A]">Panneaux Solaires</option>
+                      <option value="Panneaux Eoliens" className="bg-[#0A0A0A]">Panneaux Éoliens</option>
+                      <option value="Générateur Mécanique" className="bg-[#0A0A0A]">Générateur Mécanique</option>
+                      <option value="Générateur Electrique" className="bg-[#0A0A0A]">Générateur Électrique</option>
                       <option value="Onduleurs" className="bg-[#0A0A0A]">Onduleurs</option>
                       <option value="Batteries" className="bg-[#0A0A0A]">Batteries</option>
                       <option value="Régulateurs" className="bg-[#0A0A0A]">Régulateurs</option>
@@ -275,25 +283,40 @@ const AdminProducts = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Puissance (Watts)</label>
-                    <input
-                      type="number"
-                      value={newProduct.power_rating}
-                      onChange={e => setNewProduct({...newProduct, power_rating: Number(e.target.value)})}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
-                    />
+                    <div className="flex items-center justify-between mb-2 ml-1">
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest">Puissance / Capacité</label>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={newProduct.power_rating}
+                        onChange={e => setNewProduct({...newProduct, power_rating: Number(e.target.value)})}
+                        className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all"
+                      />
+                      <select
+                        value={(newProduct as any).unit || 'W'}
+                        onChange={e => setNewProduct({...newProduct, unit: e.target.value} as any)}
+                        className="w-24 bg-white/5 border border-white/10 rounded-2xl px-2 py-4 text-white text-xs font-bold focus:border-cyan-400/50 outline-none transition-all appearance-none cursor-pointer text-center"
+                      >
+                        {['W', 'kW', 'MW', 'Wh', 'kWh', 'MWh', 'V', 'VA', 'kVA', 'MVA', 'A', 'Ah', 'mAh', 'Wc', 'L'].map(u => (
+                          <option key={u} value={u} className="bg-[#0A0A0A]">{u}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
+
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Prix Unitaire (FCFA)</label>
                   <input
                     type="number"
                     value={newProduct.price}
                     onChange={e => setNewProduct({...newProduct, price: Number(e.target.value)})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none transition-all"
                     required
                   />
                 </div>
+
                 <div className="flex gap-4 pt-6">
                   <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
                   <button type="submit" className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 text-xs uppercase tracking-widest">Enregistrer le produit</button>

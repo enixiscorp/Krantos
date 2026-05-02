@@ -86,7 +86,7 @@ const AdminProducts = () => {
       if (error) throw error;
       toast.success('Produit ajouté au catalogue !');
       setShowAddModal(false);
-      setNewProduct({ name: '', vendor_id: '', category: 'Panneaux Solaires', price: 0, power_rating: 0, is_active: true });
+      setNewProduct({ name: '', vendor_id: '', category: 'Panneaux Solaires', price: 0, power_rating: 0, unit: 'W', is_active: true });
       await load();
     } catch (err) {
       toast.error('Erreur lors de la création');

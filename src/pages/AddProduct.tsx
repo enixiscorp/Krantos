@@ -91,7 +91,7 @@ const AddProduct = () => {
         return;
       }
       if (mounted) {
-        setVendorId(userId);
+        setVendorId(vendorData.id);
         setLoading(false);
       }
     };

@@ -15,17 +15,14 @@ import {
   LayoutDashboard,
   LogOut,
   ChevronRight,
-  Shield
+  Shield,
+  Menu,
+  X,
+  Download,
+  BellRing
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
-import { 
-  Menu, 
-  X, 
-  Download,
-  BellRing,
-  Shield
-} from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function AdminLayout() {
@@ -251,7 +248,8 @@ export default function AdminLayout() {
               )}
             </button>
           </div>
-        </motion.aside>
+          </AnimatePresence>
+        </>
       )}
 
       {/* Mobile Overlay */}

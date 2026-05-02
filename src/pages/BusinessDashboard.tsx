@@ -111,8 +111,11 @@ const BusinessDashboard = () => {
   const [vendor, setVendor] = useState<VendorInfo | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
   const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
+  const [allCommissions, setAllCommissions] = useState<CommissionRecord[]>([]);
   const [metrics, setMetrics] = useState<LeadMetrics>({ new: 0, contacted: 0, converted: 0, lost: 0 });
+  const [period, setPeriod] = useState('month');
 
   useEffect(() => {
     let mounted = true;
@@ -161,21 +164,8 @@ const BusinessDashboard = () => {
         isRestrictedNow;
 
       if (blocked) {
-        const reason =
-          vd?.access_block_reason ??
-          (accessStatus === 'pending_validation'
-            ? 'Votre inscription est en attente de validation par un administrateur.'
-            : accessStatus === 'disabled'
-              ? 'Votre accès a été désactivé. Contactez le support.'
-              : accessStatus === 'subscription_expired' || !hasValidContract
-                ? 'Votre abonnement a expiré. Veuillez renouveler votre contrat.'
-                : isRestrictedNow
-                  ? `Accès restreint jusqu’au ${restrictedUntil?.toLocaleDateString('fr-FR')}.`
-                  : 'Accès non autorisé.');
-
-        toast.error(reason);
-        await supabase.auth.signOut();
-        navigate('/business-login', { replace: true });
+        setVendor(vendorData as VendorInfo);
+        setLoading(false);
         return;
       }
 
@@ -192,14 +182,9 @@ const BusinessDashboard = () => {
       if (mounted) {
         setProducts(pRes.data ?? []);
         const fetchedLeads: Lead[] = lRes.data ?? [];
-        setLeads(fetchedLeads);
-        setCommissions(cRes.data ?? []);
-
-        const m: LeadMetrics = { new: 0, contacted: 0, converted: 0, lost: 0 };
-        for (const lead of fetchedLeads) {
-          if (lead.status in m) m[lead.status as LeadStatus]++;
-        }
-        setMetrics(m);
+        setAllLeads(fetchedLeads);
+        const fetchedCommissions: CommissionRecord[] = cRes.data ?? [];
+        setAllCommissions(fetchedCommissions);
         setLoading(false);
       }
     };
@@ -207,6 +192,34 @@ const BusinessDashboard = () => {
     init();
     return () => { mounted = false; };
   }, [navigate]);
+
+  // Handle Filtering
+  useEffect(() => {
+    const now = new Date();
+    let startDate = new Date();
+
+    switch (period) {
+      case 'day': startDate.setHours(now.getHours() - 24); break;
+      case 'week': startDate.setDate(now.getDate() - 7); break;
+      case 'quarter': startDate.setMonth(now.getMonth() - 3); break;
+      case 'semester': startDate.setMonth(now.getMonth() - 6); break;
+      case 'year': startDate.setFullYear(now.getFullYear() - 1); break;
+      case 'month':
+      default: startDate.setMonth(now.getMonth() - 1); break;
+    }
+
+    const filteredLeads = allLeads.filter(l => new Date(l.created_at) >= startDate);
+    const filteredCommissions = allCommissions.filter(c => new Date(c.created_at) >= startDate);
+
+    setLeads(filteredLeads);
+    setCommissions(filteredCommissions);
+
+    const m: LeadMetrics = { new: 0, contacted: 0, converted: 0, lost: 0 };
+    for (const lead of filteredLeads) {
+      if (lead.status in m) m[lead.status as LeadStatus]++;
+    }
+    setMetrics(m);
+  }, [period, allLeads, allCommissions]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -218,6 +231,35 @@ const BusinessDashboard = () => {
     return (
       <div className="min-h-[calc(100vh-64px)] flex items-center justify-center">
         <Loader2 className="w-10 h-10 text-yellow-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // Pending State View
+  if (vendor?.status === 'pending') {
+    return (
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-6">
+        <div className="max-w-md w-full glass-card p-10 rounded-[3rem] border-yellow-400/20 text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-5"><Zap size={120} className="text-yellow-400" /></div>
+          <div className="w-20 h-20 rounded-3xl bg-yellow-400/10 flex items-center justify-center mx-auto mb-8 animate-pulse">
+            <Clock className="w-10 h-10 text-yellow-400" />
+          </div>
+          <h1 className="text-3xl font-black text-white mb-4 tracking-tight">Validation en cours</h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-8">
+            Bonjour <span className="text-white font-bold">{vendor.name}</span>. Votre compte est actuellement en cours de revue par l'équipe Krantos. Vous recevrez un accès complet dès validation.
+          </p>
+          <div className="space-y-3">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-500">
+              Délai moyen constaté : 24h
+            </div>
+            <button 
+              onClick={handleSignOut}
+              className="w-full py-4 rounded-2xl bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all font-bold text-sm"
+            >
+              Retour à l'accueil
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -246,7 +288,33 @@ const BusinessDashboard = () => {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Period Filter */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">Performance sur la période</h2>
+        <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10 overflow-x-auto">
+          {[
+            { id: 'day', label: 'Jour' },
+            { id: 'week', label: 'Semaine' },
+            { id: 'month', label: 'Mois' },
+            { id: 'quarter', label: 'Trimestre' },
+            { id: 'semester', label: 'Semestre' },
+            { id: 'year', label: 'An' },
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                period === p.id 
+                  ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                  : 'text-gray-500 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl w-fit mb-12">
         <button
           onClick={() => setActiveTab('overview')}
@@ -306,14 +374,27 @@ const BusinessDashboard = () => {
                 </div>
                 <div className="space-y-4">
                   {leads.slice(0, 4).map((lead, i) => (
-                    <div key={lead.id} className="glass-card p-5 rounded-3xl border-white/5 flex items-center justify-between hover:border-white/10 transition-colors">
+                    <div key={lead.id} className="glass-card p-5 rounded-3xl border-white/5 flex items-center justify-between hover:border-white/10 transition-colors group/lead">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-sm text-gray-500">
                            {lead.user_name.charAt(0)}
                         </div>
                         <div>
                           <p className="font-bold text-white text-sm">{lead.user_name}</p>
-                          <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
+                            {lead.phone && (
+                              <a 
+                                href={`https://wa.me/${lead.phone.replace(/\D/g, '').length === 8 ? '228' + lead.phone.replace(/\D/g, '') : lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover/lead:opacity-100 shadow-lg shadow-green-500/20"
+                                title="Contacter sur WhatsApp"
+                              >
+                                <Phone size={14} />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">

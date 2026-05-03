@@ -102,6 +102,7 @@ export interface Product {
   description: string | null;
   keywords: string | null;
   is_active: boolean;
+  image_url?: string | null;
   created_at: string;
 }
 

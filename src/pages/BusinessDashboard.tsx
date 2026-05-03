@@ -24,6 +24,7 @@ import {
   Briefcase,
   ChevronRight,
   Calendar,
+  Phone,
   Camera,
   Upload,
   Bell,

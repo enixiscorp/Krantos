@@ -80,21 +80,21 @@ export async function generateReport(
     );
   }
 
-  const rows = (records ?? []) as {
-    lead_id: string | null;
-    commission_rate_applied: number;
-    amount: number | null;
-    created_at: string;
-    leads: { user_name: string } | null;
-  }[];
+  // Handle Supabase returning joined records as an object or array
+  const rows = (records ?? []) as any[];
 
-  const lines: BillingLine[] = rows.map((r) => ({
-    date: new Date(r.created_at),
-    leadId: r.lead_id ?? 'N/A',
-    userName: r.leads?.user_name ?? 'Client Inconnu',
-    rateApplied: r.commission_rate_applied,
-    amount: r.amount ?? 0,
-  }));
+  const lines: BillingLine[] = rows.map((r) => {
+    // Supabase join can return an object or a single-element array
+    const lead = Array.isArray(r.leads) ? r.leads[0] : r.leads;
+    
+    return {
+      date: new Date(r.created_at),
+      leadId: r.lead_id ?? 'N/A',
+      userName: lead?.user_name ?? 'Client Inconnu',
+      rateApplied: r.commission_rate_applied,
+      amount: r.amount ?? 0,
+    };
+  });
 
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
 

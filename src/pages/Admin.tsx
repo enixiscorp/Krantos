@@ -346,23 +346,6 @@ const Admin = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10">
-              {[
-                { id: 'day',      label: 'Jour' },
-                { id: 'week',     label: 'Semaine' },
-                { id: 'month',    label: 'Mois' },
-                { id: 'quarter',  label: 'Trimestre' },
-                { id: 'semester', label: 'Semestre' },
-                { id: 'year',     label: 'An' },
-              ].map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setPeriod(p.id)}
-                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    period === p.id
-                      ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
-                      : 'text-gray-500 hover:text-white hover:bg-white/5'
-                  }`}
             {/* Period Tabs - Scrollable on Mobile */}
             <div className="overflow-x-auto custom-scrollbar-hidden pb-2 sm:pb-0 flex-1 sm:flex-none">
               <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10 min-w-max">

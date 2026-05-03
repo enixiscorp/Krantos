@@ -48,6 +48,7 @@ interface VendorInfo {
   logo_url?: string | null;
   payment_notifications_count: number;
   last_notification_date?: string | null;
+  last_notification_read_at?: string | null;
 }
 
 interface LeadMetrics {
@@ -316,6 +317,26 @@ const BusinessDashboard = () => {
     navigate('/business-login');
   };
 
+  const markNotificationsAsRead = async () => {
+    if (!vendor || !vendor.payment_notifications_count || vendor.payment_notifications_count === 0) return;
+    
+    // Only mark as read if there's a new notification since last read
+    const lastNotif = vendor.last_notification_date ? new Date(vendor.last_notification_date) : null;
+    const lastRead = vendor.last_notification_read_at ? new Date(vendor.last_notification_read_at) : null;
+    
+    if (lastNotif && (!lastRead || lastRead < lastNotif)) {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('vendors')
+        .update({ last_notification_read_at: now })
+        .eq('id', vendor.id);
+      
+      if (!error) {
+        setVendor(prev => prev ? { ...prev, last_notification_read_at: now } : null);
+      }
+    }
+  };
+
   const handleUpdateLeadStatus = async (leadId: string, status: 'contacted' | 'converted' | 'lost') => {
     setUpdatingLeadId(leadId);
     try {
@@ -331,6 +352,7 @@ const BusinessDashboard = () => {
   };
 
   const handleDownloadInvoice = () => {
+    markNotificationsAsRead();
     if (!vendor || commissions.length === 0) {
       toast.error('Aucune donnée de commission disponible.');
       return;
@@ -427,42 +449,50 @@ const BusinessDashboard = () => {
         </div>
         <div className="flex items-center gap-4">
           {/* Notification Bell */}
-          <div className="relative group">
-            <button 
-              className={`p-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all relative ${vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 ? 'animate-bounce text-yellow-400 shadow-lg shadow-yellow-400/20' : ''}`}
-            >
-              <Bell className={vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 ? 'animate-ring' : ''} />
-              {vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 && (
-                <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0c] animate-pulse" />
-              )}
-            </button>
+          {(() => {
+            const hasUnread = vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 && 
+              (!vendor.last_notification_read_at || (vendor.last_notification_date && new Date(vendor.last_notification_read_at) < new Date(vendor.last_notification_date)));
             
-            {/* Popover */}
-            <div className="absolute right-0 top-full mt-4 w-72 glass-card p-6 rounded-3xl border-white/10 shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all z-50">
-               <h3 className="font-black text-xs uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-2">
-                 <Bell size={14} className="text-yellow-400" /> Notifications
-               </h3>
-               {vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 ? (
-                 <div className="space-y-4">
-                    <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-                      <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold text-white mb-1">Rappel de paiement</p>
-                        <p className="text-[10px] text-red-400 leading-tight">Vous avez {vendor.payment_notifications_count} rappel(s) de paiement pour vos commissions. Veuillez régulariser votre solde.</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleDownloadInvoice}
-                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-yellow-500 transition-all"
-                    >
-                      <Download size={14} /> Télécharger Facture
-                    </button>
-                 </div>
-               ) : (
-                 <p className="text-[10px] text-gray-500 font-medium text-center py-4 italic">Aucune nouvelle notification.</p>
-               )}
-            </div>
-          </div>
+            return (
+              <div className="relative group">
+                <button 
+                  onClick={markNotificationsAsRead}
+                  className={`p-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all relative ${hasUnread ? 'animate-bounce text-yellow-400 shadow-lg shadow-yellow-400/20' : ''}`}
+                >
+                  <Bell className={hasUnread ? 'animate-ring' : ''} />
+                  {hasUnread && (
+                    <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0c] animate-pulse" />
+                  )}
+                </button>
+                
+                {/* Popover */}
+                <div className="absolute right-0 top-full mt-4 w-72 glass-card p-6 rounded-3xl border-white/10 shadow-2xl opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all z-50">
+                   <h3 className="font-black text-xs uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-2">
+                     <Bell size={14} className="text-yellow-400" /> Notifications
+                   </h3>
+                   {vendor?.payment_notifications_count && vendor.payment_notifications_count > 0 ? (
+                     <div className="space-y-4">
+                        <div className={`p-3 rounded-xl border flex items-start gap-3 ${hasUnread ? 'bg-red-500/10 border-red-500/20' : 'bg-white/5 border-white/10 opacity-60'}`}>
+                          <AlertTriangle size={16} className={hasUnread ? 'text-red-400' : 'text-gray-500'} />
+                          <div>
+                            <p className={`text-xs font-bold mb-1 ${hasUnread ? 'text-white' : 'text-gray-400'}`}>Rappel de paiement {hasUnread ? '(Nouveau)' : '(Lu)'}</p>
+                            <p className="text-[10px] leading-tight text-gray-500">Vous avez {vendor.payment_notifications_count} rappel(s) de paiement pour vos commissions.</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleDownloadInvoice}
+                          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400 text-black font-bold text-[10px] uppercase tracking-widest hover:bg-yellow-500 transition-all"
+                        >
+                          <Download size={14} /> Télécharger Facture
+                        </button>
+                     </div>
+                   ) : (
+                     <p className="text-[10px] text-gray-500 font-medium text-center py-4 italic">Aucune nouvelle notification.</p>
+                   )}
+                </div>
+              </div>
+            );
+          })()}
 
           <button
             onClick={handleSignOut}

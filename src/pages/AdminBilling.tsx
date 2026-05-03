@@ -210,7 +210,6 @@ const AdminBilling = () => {
                 </div>
                 
                 <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-hide">
-                  {filteredVendors.map(v => (
                     <button
                       key={v.id}
                       onClick={() => setSelectedVendor(v)}
@@ -220,7 +219,18 @@ const AdminBilling = () => {
                           : 'bg-white/5 border-white/5 text-white hover:border-white/20'
                       }`}
                     >
-                      <span className="font-bold text-sm tracking-tight">{v.name}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-sm tracking-tight">{v.name}</span>
+                        {(v as any).payment_notifications_count > 0 && (
+                          <span className={`text-[8px] font-black uppercase mt-1 ${
+                            !(v as any).last_notification_read_at || new Date((v as any).last_notification_read_at) < new Date((v as any).last_notification_date)
+                              ? 'text-red-500'
+                              : 'text-green-500'
+                          }`}>
+                            {(v as any).payment_notifications_count} Rappel(s) · {!(v as any).last_notification_read_at || new Date((v as any).last_notification_read_at) < new Date((v as any).last_notification_date) ? 'Non lu' : 'Lu'}
+                          </span>
+                        )}
+                      </div>
                       {selectedVendor?.id === v.id && <ChevronRight className="w-4 h-4" />}
                     </button>
                   ))}
@@ -308,9 +318,22 @@ const AdminBilling = () => {
                          {report.lines.length} commissions confirmées
                       </p>
                       {report.vendor.payment_notifications_count > 0 && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest">
-                          <AlertTriangle className="w-3 h-3" />
-                          {report.vendor.payment_notifications_count} Rappels envoyés
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest">
+                            <AlertTriangle className="w-3 h-3" />
+                            {report.vendor.payment_notifications_count} Rappels envoyés
+                          </div>
+                          {(() => {
+                            const isRead = (report.vendor as any).last_notification_read_at && 
+                                           new Date((report.vendor as any).last_notification_read_at) >= new Date((report.vendor as any).last_notification_date);
+                            return (
+                              <div className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                                isRead ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-gray-500/10 border-gray-500/20 text-gray-500'
+                              }`}>
+                                {isRead ? 'Lu par le vendeur' : 'Non lu'}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

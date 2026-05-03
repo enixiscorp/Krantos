@@ -129,6 +129,10 @@ const BusinessDashboard = () => {
   const [period, setPeriod] = useState('month');
   const [leadFilter, setLeadFilter] = useState<'all' | 'contacted' | 'converted' | 'lost'>('all');
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  
+  const [chartType, setChartType] = useState<'leads' | 'revenue'>('leads');
+  const [chartData, setChartData] = useState<{ label: string; count: number }[]>([]);
+  const [maxCount, setMaxCount] = useState(1);
 
   const playNotificationSound = () => {
     const audio = new Audio('/sounds/notifications_Krantos.mp3');
@@ -261,7 +265,50 @@ const BusinessDashboard = () => {
       if (lead.status in m) m[lead.status as LeadStatus]++;
     }
     setMetrics(m);
-  }, [period, allLeads, allCommissions]);
+
+    // Generate Chart Data
+    const generateChartData = () => {
+      const dataToGroup = chartType === 'leads' ? filteredLeads : filteredCommissions.filter(c => c.status === 'confirmed');
+      const statsByPeriod: Record<string, number> = {};
+      
+      const now = new Date();
+      let start = new Date(startDate);
+      
+      // Initialize timeline keys to avoid gaps
+      const tempDate = new Date(start);
+      while (tempDate <= now) {
+        let key = "";
+        if (period === 'day') key = tempDate.toISOString().slice(8, 10) + '/' + tempDate.toISOString().slice(5, 7);
+        else if (period === 'week') key = 'W' + Math.ceil(tempDate.getDate() / 7);
+        else key = tempDate.toLocaleString('fr-FR', { month: 'short' });
+        
+        if (!statsByPeriod[key]) statsByPeriod[key] = 0;
+        
+        if (period === 'day') tempDate.setDate(tempDate.getDate() + 1);
+        else if (period === 'week') tempDate.setDate(tempDate.getDate() + 7);
+        else tempDate.setMonth(tempDate.getMonth() + 1);
+        if (Object.keys(statsByPeriod).length > 30) break; // Safety
+      }
+
+      dataToGroup.forEach(item => {
+        const d = new Date(item.created_at);
+        let key = "";
+        if (period === 'day') key = d.toISOString().slice(8, 10) + '/' + d.toISOString().slice(5, 7);
+        else if (period === 'week') key = 'W' + Math.ceil(d.getDate() / 7);
+        else key = d.toLocaleString('fr-FR', { month: 'short' });
+
+        if (statsByPeriod[key] !== undefined) {
+          statsByPeriod[key] += chartType === 'leads' ? 1 : Number((item as any).amount);
+        }
+      });
+
+      const formatted = Object.entries(statsByPeriod).map(([label, count]) => ({ label, count }));
+      setChartData(formatted);
+      setMaxCount(Math.max(...formatted.map(d => d.count), 1));
+    };
+
+    generateChartData();
+  }, [period, chartType, allLeads, allCommissions]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -522,21 +569,23 @@ const BusinessDashboard = () => {
 
             {/* Revenue Banner */}
             {(() => {
-              const totalBalance = allCommissions
+              const periodCommissions = commissions
                 .filter(c => c.status === 'confirmed')
                 .reduce((acc, c) => acc + Number(c.amount), 0);
-              const periodBalance = commissions
-                .filter(c => c.status === 'confirmed')
-                .reduce((acc, c) => acc + Number(c.amount), 0);
-              return totalBalance > 0 ? (
+              
+              const totalSales = allCommissions
+                .filter(c => c.status === 'confirmed' && c.type === 'conversion' && c.commission_rate_applied > 0)
+                .reduce((acc, c) => acc + (Number(c.amount) / (c.commission_rate_applied / 100)), 0);
+
+              return (periodCommissions > 0 || totalSales > 0) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="glass-card p-6 rounded-3xl border-yellow-400/20 bg-yellow-400/[0.03] flex items-center gap-5">
                     <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center">
                       <DollarSign className="w-5 h-5 text-yellow-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-yellow-400">{periodBalance.toLocaleString('fr-FR')} FCFA</p>
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Revenu généré (période)</p>
+                      <p className="text-2xl font-black text-yellow-400">{periodCommissions.toLocaleString('fr-FR')} FCFA</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Commissions Krantos à Payer (période)</p>
                     </div>
                   </div>
                   <div className="glass-card p-6 rounded-3xl border-white/5 flex items-center gap-5">
@@ -544,13 +593,135 @@ const BusinessDashboard = () => {
                       <DollarSign className="w-5 h-5 text-green-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-green-400">{totalBalance.toLocaleString('fr-FR')} FCFA</p>
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Solde total à facturer</p>
+                      <p className="text-2xl font-black text-green-400">{totalSales.toLocaleString('fr-FR')} FCFA</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Solde total des Ventes facturées</p>
                     </div>
                   </div>
                 </div>
               ) : null;
             })()}
+
+            {/* Evolution Curve Section */}
+            <div className="glass-card p-8 rounded-[2.5rem] border-white/5 relative overflow-hidden group/chart">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+                <div>
+                  <h2 className="text-xl font-black text-white mb-1">Courbe d'évolution</h2>
+                  <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">
+                    {chartType === 'leads' ? 'Volume des leads assignés' : 'Revenus de commissions confirmés'}
+                  </p>
+                </div>
+                <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                  <button
+                    onClick={() => setChartType('leads')}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${chartType === 'leads' ? 'bg-yellow-400 text-black' : 'text-gray-500'}`}
+                  >
+                    Leads
+                  </button>
+                  <button
+                    onClick={() => setChartType('revenue')}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${chartType === 'revenue' ? 'bg-yellow-400 text-black' : 'text-gray-500'}`}
+                  >
+                    Revenus
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative h-64 w-full">
+                <AnimatePresence mode="wait">
+                  {chartData.length < 2 ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 font-bold text-sm text-center px-10">
+                      <TrendingUp size={48} className="mb-4 opacity-10" />
+                      <p className="max-w-[200px] leading-relaxed uppercase text-[9px] tracking-[0.2em]">Pas assez de données pour tracer la courbe sur cette période</p>
+                    </div>
+                  ) : (
+                    <motion.div
+                      key={`${chartType}-${period}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="w-full h-full pt-4"
+                    >
+                      <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="vendorChartGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#facc15" stopOpacity="0.3" />
+                            <stop offset="100%" stopColor="#facc15" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        
+                        {/* Grid Lines */}
+                        {[0, 25, 50, 75, 100].map(tick => (
+                          <line 
+                            key={tick}
+                            x1="0" y1={tick} x2="100" y2={tick}
+                            stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"
+                          />
+                        ))}
+
+                        {/* Curve Path */}
+                        <motion.path
+                          initial={{ pathLength: 0, opacity: 0 }}
+                          animate={{ pathLength: 1, opacity: 1 }}
+                          transition={{ duration: 1.5, ease: "easeInOut" }}
+                          d={(() => {
+                            const points = chartData.map((d, i) => {
+                              const x = (i / (chartData.length - 1)) * 100;
+                              const y = 100 - (d.count / maxCount) * 85; 
+                              return `${x},${y}`;
+                            });
+                            return `M ${points.join(' L ')}`;
+                          })()}
+                          fill="none"
+                          stroke="#facc15"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+
+                        {/* Area Fill */}
+                        <motion.path
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.8, duration: 1 }}
+                          d={(() => {
+                            const points = chartData.map((d, i) => {
+                              const x = (i / (chartData.length - 1)) * 100;
+                              const y = 100 - (d.count / maxCount) * 85;
+                              return `${x},${y}`;
+                            });
+                            return `M 0,100 L ${points.join(' L ')} L 100,100 Z`;
+                          })()}
+                          fill="url(#vendorChartGradient)"
+                        />
+
+                        {/* Data Points */}
+                        {chartData.map((d, i) => {
+                          const x = (i / (chartData.length - 1)) * 100;
+                          const y = 100 - (d.count / maxCount) * 85;
+                          return (
+                            <g key={i} className="group/point cursor-pointer">
+                              <circle cx={x} cy={y} r="1" fill="#facc15" />
+                            </g>
+                          );
+                        })}
+                      </svg>
+
+                      {/* X-Axis Labels */}
+                      <div className="absolute -bottom-6 w-full flex justify-between px-2">
+                        {chartData.filter((_, i) => {
+                          if (chartData.length > 10) return i % Math.ceil(chartData.length / 6) === 0;
+                          return true;
+                        }).map((d, i) => (
+                          <span key={i} className="text-[8px] font-black text-gray-600 uppercase tracking-widest">
+                            {d.label}
+                          </span>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
 
             {/* Quick Actions & Recent */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

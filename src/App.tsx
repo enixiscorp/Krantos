@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import AdminRoute from './components/AdminRoute';
+import { NotificationProvider } from './components/NotificationProvider';
 
 const Home = lazy(() => import('./pages/Home'));
 const CalculatePower = lazy(() => import('./pages/CalculatePower'));
@@ -31,7 +32,8 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 function App() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-yellow-400 font-bold">Chargement...</div>}>
+      <NotificationProvider>
+        <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-yellow-400 font-bold">Chargement...</div>}>
         <Routes>
           {/* Front/public site (avec Header) */}
           <Route element={<Layout />}>
@@ -133,6 +135,7 @@ function App() {
           </Route>
         </Routes>
       </Suspense>
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

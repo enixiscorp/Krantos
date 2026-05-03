@@ -18,7 +18,8 @@ import {
   X,
   TrendingUp,
   Percent,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -132,6 +133,40 @@ const AdminCommissions = () => {
   useEffect(() => {
     init();
   }, []);
+
+  const handleExportCSV = () => {
+    if (filteredRecords.length === 0) {
+      toast.error('Aucune donnée à exporter.');
+      return;
+    }
+
+    const headers = ['Date', 'Vendeur', 'Type', 'Montant (FCFA)', 'Taux (%)', 'Statut', 'Notes'];
+    const rows = filteredRecords.map(r => [
+      new Date(r.created_at).toLocaleDateString('fr-FR'),
+      r.vendors?.name || 'Inconnu',
+      r.type === 'conversion' ? 'Vente' : 'Modif. Taux',
+      r.amount,
+      r.commission_rate_applied,
+      STATUS_CONFIG[r.status as CommissionStatus]?.label || r.status,
+      r.notes || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rapport_commissions_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Rapport exporté avec succès !');
+  };
 
   const handleUpdateStatus = async (recordId: string, status: 'confirmed' | 'rejected') => {
     setUpdatingId(recordId);
@@ -253,6 +288,14 @@ const AdminCommissions = () => {
               Vendeurs & Taux
             </button>
           </div>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-white/5 text-white font-bold hover:bg-white/10 transition-all border border-white/10"
+            title="Exporter en CSV"
+          >
+            <Download className="w-5 h-5" />
+            Exporter Rapport
+          </button>
           <button
             onClick={() => setShowRateModal(true)}
             className="flex items-center gap-2 px-6 py-4 rounded-xl bg-yellow-400 text-gray-900 font-bold hover:bg-yellow-500 transition-all accent-glow"

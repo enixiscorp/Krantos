@@ -450,9 +450,9 @@ const Admin = () => {
                     return (
                       <g key={i} className="group/point cursor-pointer">
                         <circle
-                          cx={x} cy={y} r="1.5"
+                          cx={x} cy={y} r="0.8"
                           fill="#facc15"
-                          className="hover:r-3 transition-all"
+                          className="hover:r-2 transition-all"
                         />
                       </g>
                     );
@@ -462,13 +462,23 @@ const Admin = () => {
                 {/* X-Axis Labels */}
                 <div className="absolute -bottom-6 w-full flex justify-between px-2">
                   {chartData.filter((_, i) => {
-                    if (chartData.length > 10) return i % Math.ceil(chartData.length / 6) === 0;
+                    if (chartData.length > 12) return i % Math.ceil(chartData.length / 6) === 0;
+                    if (chartData.length > 7) return i % 2 === 0;
                     return true;
-                  }).map((d, i) => (
-                    <span key={i} className="text-[9px] font-black text-gray-600 uppercase tracking-widest">
-                      {d.label.split('-').reverse()[0]}
-                    </span>
-                  ))}
+                  }).map((d, i) => {
+                    let label = d.label;
+                    if (period === 'month') {
+                      const date = new Date(d.label + '-01');
+                      label = date.toLocaleString('fr-FR', { month: 'short' });
+                    } else if (period === 'day') {
+                      label = d.label.split('-').slice(1).reverse().join('/');
+                    }
+                    return (
+                      <span key={i} className="text-[8px] font-black text-gray-600 uppercase tracking-widest">
+                        {label}
+                      </span>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}

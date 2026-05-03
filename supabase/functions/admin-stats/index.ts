@@ -68,32 +68,17 @@ Deno.serve(async (req) => {
         step = "quarter";
       } else if (period === "semester") {
         startDate.setMonth(now.getMonth() - 23); // 2 years
-        step = "quarter"; // We'll group by quarter or semester
+        step = "quarter";
       } else if (period === "year") {
         startDate.setFullYear(now.getFullYear() - 4);
         step = "year";
       }
 
-      const table = type === "leads" ? "leads" : "commission_records";
-      let query = adminClient
-        .from(table)
-        .select(type === "leads" ? "status, created_at, vendor_id" : "amount, created_at, vendor_id")
-        .gte("created_at", startDate.toISOString())
-        .order("created_at", { ascending: true });
-      
-      if (type === "revenue") {
-        query = query.eq("status", "confirmed");
-      }
-      
-      if (vendorId) {
-        query = query.eq("vendor_id", vendorId);
-      }
-
-      const { data: rows } = await query;
-      
-      // Initialize timeline
+      // Initialize timeline FIRST to ensure all points exist
       const statsByPeriod: Record<string, number> = {};
       const current = new Date(startDate);
+      current.setHours(0, 0, 0, 0); // Normalize to start of day
+      
       while (current <= now) {
         let key = "";
         if (step === "day") key = current.toISOString().slice(0, 10);
@@ -109,13 +94,36 @@ Deno.serve(async (req) => {
         else if (step === "quarter") key = `${current.getFullYear()}-Q${Math.floor(current.getMonth() / 3) + 1}`;
         else if (step === "year") key = `${current.getFullYear()}`;
         
-        if (key && !statsByPeriod[key]) statsByPeriod[key] = 0;
+        if (key) statsByPeriod[key] = 0;
         
         if (step === "day") current.setDate(current.getDate() + 1);
         else if (step === "week") current.setDate(current.getDate() + 7);
         else if (step === "month") current.setMonth(current.getMonth() + 1);
         else if (step === "quarter") current.setMonth(current.getMonth() + 3);
         else if (step === "year") current.setFullYear(current.getFullYear() + 1);
+        
+        // Safety break to prevent infinite loops
+        if (Object.keys(statsByPeriod).length > 100) break;
+      }
+
+      const table = type === "leads" ? "leads" : "commission_records";
+      let query = adminClient
+        .from(table)
+        .select(type === "leads" ? "status, created_at, vendor_id" : "amount, created_at, vendor_id")
+        .gte("created_at", startDate.toISOString())
+        .order("created_at", { ascending: true });
+      
+      if (type === "revenue") {
+        query = query.eq("status", "confirmed");
+      }
+      
+      if (vendorId && vendorId !== "all") {
+        query = query.eq("vendor_id", vendorId);
+      }
+
+      const { data: rows, error: queryError } = await query;
+      if (queryError) {
+        console.error(`Stats Query Error (${type}):`, queryError);
       }
 
       // Populate data
@@ -138,7 +146,7 @@ Deno.serve(async (req) => {
         else if (step === "quarter") key = `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
         else if (step === "year") key = `${d.getFullYear()}`;
 
-        if (statsByPeriod[key] !== undefined) {
+        if (key && statsByPeriod[key] !== undefined) {
           if (type === "leads") {
             statsByPeriod[key]++;
             totalValue++;

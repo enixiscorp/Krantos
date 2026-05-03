@@ -332,6 +332,11 @@ const Results = () => {
                 src={product.image_url} 
                 alt={product.name} 
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).parentElement?.classList.add('bg-black/40');
+                }}
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-gray-800">

@@ -188,9 +188,14 @@ const AddProduct = () => {
         setUploadingImage(true);
         const ext = imageFile.name.split('.').pop();
         const path = `${vendorId}/${productId}.${ext}`;
-        await supabase.storage.from('product-images').upload(path, imageFile, { upsert: true });
+        await supabase.storage.from('product-images').upload(path, imageFile, { 
+          upsert: true,
+          cacheControl: '3600'
+        });
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-        await supabase.from('products').update({ image_url: urlData.publicUrl }).eq('id', productId);
+        // Add timestamp as cache-buster to avoid stale cache
+        const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        await supabase.from('products').update({ image_url: finalUrl }).eq('id', productId);
         setUploadingImage(false);
       }
 

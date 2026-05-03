@@ -26,7 +26,7 @@ type ProductRow = {
   price: number | null;
   vendor_id: string;
   is_active: boolean | null;
-  created_at: string;
+  image_url: string | null;
   vendors?: { name: string };
 };
 
@@ -48,8 +48,13 @@ const AdminProducts = () => {
     price: 0,
     power_rating: 0,
     unit: 'W',
-    is_active: true
+    is_active: true,
+    image_url: ''
   });
+  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -108,11 +113,27 @@ const AdminProducts = () => {
       const { data, error } = await supabase
         .from('products')
         .insert([payload])
-        .select();
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Erreur Supabase:', error);
-        throw new Error(error.message);
+      if (error) throw error;
+
+      // Image Upload if provided
+      if (imageFile && data) {
+        setUploading(true);
+        const ext = imageFile.name.split('.').pop();
+        const path = `${data.vendor_id}/${data.id}.${ext}`;
+        
+        await supabase.storage.from('product-images').upload(path, imageFile, { 
+          upsert: true,
+          cacheControl: '3600'
+        });
+        
+        const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
+        // Add timestamp as cache-buster
+        const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        
+        await supabase.from('products').update({ image_url: finalUrl }).eq('id', data.id);
       }
 
       console.log('Succès enregistrement:', data);
@@ -282,11 +303,20 @@ const AdminProducts = () => {
                 className="glass-card p-8 rounded-[2.5rem] border-white/5 hover:border-cyan-400/30 transition-all group relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 blur-3xl -mr-16 -mt-16 group-hover:bg-cyan-400/10 transition-all" />
-                <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-cyan-400/10 group-hover:text-cyan-400 transition-all">
-                    <Zap size={24} className="text-gray-500 group-hover:text-cyan-400" />
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${p.is_active ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'}`}>
+                <div className="aspect-video bg-black/40 relative overflow-hidden mb-6 rounded-2xl border border-white/5 group">
+                  {p.image_url ? (
+                    <img 
+                      src={p.image_url} 
+                      alt={p.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-800">
+                      <Zap size={32} className="opacity-10" />
+                    </div>
+                  )}
+                  <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${p.is_active ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'} backdrop-blur-md`}>
                     {p.is_active ? 'En ligne' : 'Masqué'}
                   </div>
                 </div>
@@ -411,6 +441,38 @@ const AdminProducts = () => {
                         ))}
                       </select>
                     </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Visuel du Produit (Optionnel)</label>
+                  <div 
+                    onClick={() => document.getElementById('new-product-img')?.click()}
+                    className="w-full aspect-video bg-white/5 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden"
+                  >
+                    {imagePreview ? (
+                      <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
+                    ) : (
+                      <>
+                        <ImageIcon className="w-8 h-8 text-gray-700 mb-2" />
+                        <span className="text-[10px] font-bold text-gray-600 uppercase">Cliquer pour uploader</span>
+                      </>
+                    )}
+                    <input 
+                      id="new-product-img" 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setImageFile(file);
+                          const reader = new FileReader();
+                          reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
                   </div>
                 </div>
 

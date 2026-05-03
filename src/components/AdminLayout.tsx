@@ -170,7 +170,7 @@ export default function AdminLayout() {
               <Shield className="text-black w-5 h-5" />
             </div>
             <AnimatePresence>
-              {isExpanded && (
+              {(isExpanded || isMobileMenuOpen) && (
                 <motion.span
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -193,18 +193,18 @@ export default function AdminLayout() {
                   to={item.path}
                   className={`flex items-center gap-4 p-3 rounded-2xl transition-all relative group/item ${
                     isActive 
-                      ? 'bg-yellow-400 text-black font-bold' 
+                      ? 'bg-yellow-400 text-black font-black' 
                       : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <div className="shrink-0">{item.icon}</div>
+                  <div className={`shrink-0 ${isActive ? 'text-black' : ''}`}>{item.icon}</div>
                   <AnimatePresence>
-                    {isExpanded && (
+                    {(isExpanded || isMobileMenuOpen) && (
                       <motion.span
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        className="whitespace-nowrap text-sm"
+                        className={`whitespace-nowrap text-sm ${isActive ? 'text-black font-black' : ''}`}
                       >
                         {item.title}
                       </motion.span>

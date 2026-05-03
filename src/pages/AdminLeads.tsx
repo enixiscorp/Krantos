@@ -121,38 +121,67 @@ const AdminLeads = () => {
   }, [navigate]);
 
   const createAutoCommission = async (lead: LeadWithVendor, newStatus: LeadStatus) => {
-    if (!lead.vendor_id || !lead.recommended_product_id) return;
+    if (!lead.vendor_id) {
+      console.warn('createAutoCommission: No vendor_id for lead', lead.id);
+      return;
+    }
+    if (!lead.recommended_product_id) {
+      console.warn('createAutoCommission: No recommended_product_id for lead', lead.id);
+      return;
+    }
 
-    // Check if a commission already exists for this lead
-    const { data: existing } = await supabase
-      .from('commission_records')
-      .select('id')
-      .eq('lead_id', lead.id)
-      .maybeSingle();
-    
-    if (existing) return;
+    try {
+      // Check if a commission already exists for this lead
+      const { data: existing } = await supabase
+        .from('commission_records')
+        .select('id')
+        .eq('lead_id', lead.id)
+        .maybeSingle();
+      
+      if (existing) {
+        console.log('createAutoCommission: Commission already exists for lead', lead.id);
+        return;
+      }
 
-    // Fetch vendor's commission rate
-    const { data: vendor } = await supabase
-      .from('vendors')
-      .select('commission_rate')
-      .eq('id', lead.vendor_id)
-      .single();
-    
-    const vendorRate = vendor?.commission_rate || 0;
-    if (vendorRate === 0) return;
+      // Fetch vendor's commission rate and product price to be double sure
+      const [vendorRes, productRes] = await Promise.all([
+        supabase.from('vendors').select('commission_rate, name').eq('id', lead.vendor_id).single(),
+        supabase.from('products').select('price, name').eq('id', lead.recommended_product_id).single()
+      ]);
+      
+      const vendorRate = vendorRes.data?.commission_rate || 0;
+      const productPrice = productRes.data?.price || 0;
+      const productName = productRes.data?.name || 'Produit inconnu';
 
-    const commissionAmount = ((lead.product_price || 0) * vendorRate) / 100;
-    
-    await supabase.from('commission_records').insert({
-      vendor_id: lead.vendor_id,
-      lead_id: lead.id,
-      commission_rate_applied: vendorRate,
-      amount: commissionAmount,
-      status: 'confirmed',
-      type: 'conversion',
-      notes: `Commission auto Admin (${newStatus}) — Produit: ${lead.product_name} — Prix: ${lead.product_price?.toLocaleString()} FCFA`,
-    });
+      if (vendorRate === 0) {
+        toast.error(`Le vendeur ${vendorRes.data?.name || ''} n'a pas de taux de commission configuré.`);
+        return;
+      }
+
+      if (productPrice === 0) {
+        toast.error(`Le produit ${productName} n'a pas de prix défini.`);
+        return;
+      }
+
+      const commissionAmount = (productPrice * vendorRate) / 100;
+      
+      const { error: insError } = await supabase.from('commission_records').insert({
+        vendor_id: lead.vendor_id,
+        lead_id: lead.id,
+        commission_rate_applied: vendorRate,
+        amount: commissionAmount,
+        status: 'confirmed',
+        type: 'conversion',
+        notes: `Commission auto (${newStatus}) — ${productName} (${productPrice.toLocaleString()} FCFA)`,
+      });
+
+      if (insError) throw insError;
+      
+      toast.success(`Commission de ${commissionAmount.toLocaleString()} FCFA enregistrée.`);
+    } catch (err) {
+      console.error('Error creating auto commission:', err);
+      toast.error('Erreur lors de la création de la commission.');
+    }
   };
 
   const handleUpdateStatus = async (leadId: string, status: LeadStatus) => {

@@ -210,6 +210,7 @@ const AdminBilling = () => {
                 </div>
                 
                 <div className="max-h-[200px] overflow-y-auto space-y-2 pr-2 scrollbar-hide">
+                  {filteredVendors.map(v => (
                     <button
                       key={v.id}
                       onClick={() => setSelectedVendor(v)}

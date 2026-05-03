@@ -187,7 +187,7 @@ export function exportToPDF(report: BillingReport): void {
   doc.setFont('helvetica', 'bold');
   doc.text('DATE', 20, y + 8);
   doc.text('DESCRIPTION / LEAD', 60, y + 8);
-  doc.text('TAUX', 130, y + 8);
+  doc.text('TAUX (%)', 130, y + 8);
   doc.text('MONTANT', pageWidth - 20, y + 8, { align: 'right' });
   y += 12;
 
@@ -226,6 +226,10 @@ export function exportToPDF(report: BillingReport): void {
 
   // --- Footer ---
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.text('* Les commissions sont calculées selon le taux en vigueur au moment de la conversion du lead.', 14, pageHeight - 30);
+  
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.text('Merci de régler cette facture sous 7 jours pour éviter toute suspension de service.', pageWidth / 2, pageHeight - 20, { align: 'center' });

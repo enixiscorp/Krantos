@@ -197,6 +197,9 @@ const AdminCommissions = () => {
 
     setLoading(true);
     try {
+      const vendor = vendors.find(v => v.id === selectedVendorId);
+      const oldRate = vendor?.commission_rate || 0;
+
       const { error: uvError } = await supabase
         .from('vendors')
         .update({ commission_rate: rate })
@@ -211,7 +214,7 @@ const AdminCommissions = () => {
           commission_rate_applied: rate,
           status: 'rate_change',
           type: 'rate_change',
-          notes: `Taux modifié à ${rate}% par l'administrateur.`
+          notes: `Changement de taux : ${oldRate}% → ${rate}%. Effectif immédiatement pour les nouveaux leads.`
         });
 
       toast.success('Taux mis à jour avec succès.');
@@ -514,6 +517,18 @@ const AdminCommissions = () => {
                     {vendors.map(v => <option key={v.id} value={v.id} className="bg-[#0a0a0c]">{v.name}</option>)}
                   </select>
                 </div>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between mb-6">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Actuel</p>
+                    <p className="text-2xl font-black text-white/30">{vendors.find(v => v.id === selectedVendorId)?.commission_rate || 0}%</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-yellow-400/20" />
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-yellow-500 uppercase tracking-widest mb-1">Nouveau</p>
+                    <p className="text-2xl font-black text-yellow-400">{newRate || '0'}%</p>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Nouveau Taux (%)</label>
                   <input

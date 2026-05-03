@@ -78,24 +78,26 @@ Deno.serve(async (req) => {
     const { data: totalRevenueData } = await adminClient.from("commission_records").select("amount").eq("status", "confirmed");
     const totalRevenue = totalRevenueData?.reduce((s, r) => s + Number(r.amount || 0), 0) || 0;
 
-    // ── Trends: variation vs 100 target ─────────────────────────────────
-    // Rule: variation = (current / 100) * 100 expressed as a percentage of the goal (100)
-    // If previous period = 0 and current > 0: +100%
-    // Otherwise: ((current - previous) / Math.max(1, previous)) * 100
+    // ── Trends: variation calculation ──────────────────────────────────
+    // Standard percentage growth: ((curr - prev) / prev) * 100
+    // If prev is 0 and curr > 0, we show +100% (starting from 0)
     function calculateTrend(curr: number, prev: number): { val: string; up: boolean } {
       if (prev === 0 && curr === 0) return { val: "0%", up: true };
-      if (prev === 0) return { val: `+${(curr / 100 * 100).toFixed(2)}%`, up: true };
+      if (prev === 0 && curr > 0) return { val: "+100%", up: true };
+      if (prev > 0 && curr === 0) return { val: "-100%", up: false };
+      
       const diff = ((curr - prev) / prev) * 100;
-      return { val: `${diff >= 0 ? "+" : ""}${diff.toFixed(2)}%`, up: diff >= 0 };
+      const formattedDiff = Math.abs(diff) < 0.1 ? "0%" : `${diff >= 0 ? "+" : ""}${diff.toFixed(1)}%`;
+      return { val: formattedDiff, up: diff >= 0 };
     }
 
-    // Conversion rate per period
-    const currConvRate  = (currentLeads || 0) > 0 ? ((currentConverted || 0) / (currentLeads || 1)) * 100 : 0;
-    const prevConvRate  = (previousLeads || 0) > 0 ? ((previousConverted || 0) / (previousLeads || 1)) * 100 : 0;
+    // Conversion rate per period (ensure we use percentage base)
+    const currConvRate  = (currentLeads || 0) > 0 ? (currentConverted || 0) / currentLeads : 0;
+    const prevConvRate  = (previousLeads || 0) > 0 ? (previousConverted || 0) / previousLeads : 0;
 
     const vendorTrend     = calculateTrend(currentVendors  || 0, previousVendors   || 0);
     const leadTrend       = calculateTrend(currentLeads    || 0, previousLeads     || 0);
-    const conversionTrend = calculateTrend(currConvRate, prevConvRate);
+    const conversionTrend = calculateTrend(currConvRate * 100, prevConvRate * 100);
     const revenueTrend    = calculateTrend(currentRevenue, previousRevenue);
 
     // ── Goals (period-aware) ──────────────────────────────────────────────

@@ -268,8 +268,8 @@ export default function AdminLayout() {
       </AnimatePresence>
 
       {/* Main Content Area */}
-      <main className={`flex-1 h-screen overflow-y-auto relative z-10 scroll-smooth pt-16 lg:pt-0`}>
-        <div className="p-4 md:p-8">
+      <main className={`flex-1 h-screen overflow-y-auto relative z-10 scroll-smooth pt-16 lg:pt-0 pb-10 lg:pb-0`}>
+        <div className="p-4 md:p-10 max-w-[1600px] mx-auto">
           <Outlet />
         </div>
       </main>

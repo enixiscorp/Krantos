@@ -181,10 +181,10 @@ const Admin = () => {
       {/* Top Header with Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h1 className="text-5xl font-black text-white tracking-tighter mb-2">
+          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter mb-2 leading-none">
             Vue d'ensemble <span className="text-yellow-400">Plateforme</span>
           </h1>
-          <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Système de gestion centrale v2.4.0</p>
+          <p className="text-gray-500 font-bold uppercase tracking-widest text-[8px] md:text-[10px]">Système de gestion centrale v2.4.0</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -248,8 +248,8 @@ const Admin = () => {
         )}
       </AnimatePresence>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Grid - Responsive Stacking */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {[
           {
             label: 'Vendeurs Totaux',
@@ -306,8 +306,8 @@ const Admin = () => {
         })}
       </div>
 
-      {/* Main Chart Section */}
-      <div className="glass-card p-8 rounded-[3rem] border-white/5 relative overflow-hidden">
+      {/* Main Chart Section - Fully Responsive */}
+      <div className="glass-card p-4 sm:p-8 rounded-[2rem] sm:rounded-[3rem] border-white/5 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 relative z-10">
           <div>
             <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
@@ -363,45 +363,137 @@ const Admin = () => {
                       ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
                       : 'text-gray-500 hover:text-white hover:bg-white/5'
                   }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+            {/* Period Tabs - Scrollable on Mobile */}
+            <div className="overflow-x-auto custom-scrollbar-hidden pb-2 sm:pb-0 flex-1 sm:flex-none">
+              <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10 min-w-max">
+                {[
+                  { id: 'day',      label: 'Jour' },
+                  { id: 'week',     label: 'Semaine' },
+                  { id: 'month',    label: 'Mois' },
+                  { id: 'quarter',  label: 'Trimestre' },
+                  { id: 'semester', label: 'Semestre' },
+                  { id: 'year',     label: 'An' },
+                ].map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPeriod(p.id)}
+                    className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                      period === p.id
+                        ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
+                        : 'text-gray-500 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="relative h-64 flex items-end gap-2 lg:gap-4 px-2 overflow-x-auto custom-scrollbar pb-4">
-          <AnimatePresence mode="popLayout">
-            {!chartData || chartData.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center text-gray-600 font-bold text-sm">
-                En attente de nouvelles interactions...
+        {/* Dynamic Curve Chart (SVG) */}
+        <div className="relative h-72 w-full">
+          <AnimatePresence mode="wait">
+            {(!chartData || chartData.length < 2) ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 font-bold text-sm text-center px-10">
+                <TrendingUp size={48} className="mb-4 opacity-10" />
+                <p className="max-w-[200px] leading-relaxed uppercase text-[9px] tracking-[0.2em]">Données insuffisantes pour tracer la courbe d'évolution</p>
               </div>
             ) : (
-              chartData?.map((d, i) => (
-                <motion.div
-                  key={d.label}
-                  initial={{ opacity: 0, scaleY: 0 }}
-                  animate={{ opacity: 1, scaleY: 1 }}
-                  exit={{ opacity: 0, scaleY: 0 }}
-                  transition={{ delay: i * 0.03, duration: 0.5 }}
-                  className="flex-1 min-w-[30px] flex flex-col items-center gap-3 group"
-                >
-                  <div className="relative w-full flex flex-col justify-end h-48">
-                    <motion.div
-                      className="w-full bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-xl group-hover:from-yellow-300 group-hover:to-white transition-all shadow-lg shadow-yellow-400/10 relative"
-                      style={{ height: `${(d.count / maxCount) * 100}%` }}
-                    >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl pointer-events-none whitespace-nowrap">
-                        {chartType === 'revenue' ? `${d.count.toLocaleString()} FCFA` : d.count}
-                      </div>
-                    </motion.div>
-                  </div>
-                  <span className="text-[9px] font-black text-gray-500 group-hover:text-white transition-colors uppercase whitespace-nowrap rotate-45 lg:rotate-0 origin-left mt-2">
-                    {d.label.split('-').reverse()[0]}
-                  </span>
-                </motion.div>
-              ))
+              <motion.div
+                key={`${chartType}-${period}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full h-full"
+              >
+                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#facc15" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#facc15" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  
+                  {/* Grid Lines */}
+                  {[0, 0.25, 0.5, 0.75, 1].map(tick => (
+                    <line 
+                      key={tick}
+                      x1="0" y1={`${tick * 100}%`} x2="100%" y2={`${tick * 100}%`}
+                      stroke="rgba(255,255,255,0.03)" strokeWidth="1"
+                    />
+                  ))}
+
+                  {/* Curve Path */}
+                  <motion.path
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                    d={(() => {
+                      const points = chartData.map((d, i) => {
+                        const x = (i / (chartData.length - 1)) * 100;
+                        const y = 100 - (d.count / maxCount) * 85; // 85% range to leave room for labels
+                        return `${x}% ${y}%`;
+                      });
+                      return `M ${points.join(' L ')}`;
+                    })()}
+                    fill="none"
+                    stroke="#facc15"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Area Fill */}
+                  <motion.path
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8, duration: 1 }}
+                    d={(() => {
+                      const points = chartData.map((d, i) => {
+                        const x = (i / (chartData.length - 1)) * 100;
+                        const y = 100 - (d.count / maxCount) * 85;
+                        return `${x}% ${y}%`;
+                      });
+                      return `M 0% 100% L ${points.join(' L ')} L 100% 100% Z`;
+                    })()}
+                    fill="url(#chartGradient)"
+                  />
+
+                  {/* Data Points */}
+                  {chartData.map((d, i) => {
+                    const x = (i / (chartData.length - 1)) * 100;
+                    const y = 100 - (d.count / maxCount) * 85;
+                    return (
+                      <g key={i} className="group/point cursor-pointer">
+                        <circle
+                          cx={`${x}%`} cy={`${y}%`} r="4"
+                          fill="#facc15"
+                          className="group-hover/point:r-6 transition-all"
+                        />
+                        <foreignObject x={`${x}%`} y={`${y}%`} width="1" height="1" className="overflow-visible pointer-events-none">
+                          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/point:opacity-100 transition-all bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl whitespace-nowrap z-50">
+                            {chartType === 'revenue' ? `${d.count.toLocaleString()} FCFA` : d.count}
+                          </div>
+                        </foreignObject>
+                      </g>
+                    );
+                  })}
+                </svg>
+
+                {/* X-Axis Labels */}
+                <div className="absolute -bottom-6 w-full flex justify-between px-2">
+                  {chartData.filter((_, i) => {
+                    // Filter labels to avoid overlap on mobile
+                    if (chartData.length > 10) return i % Math.ceil(chartData.length / 6) === 0;
+                    return true;
+                  }).map((d, i) => (
+                    <span key={i} className="text-[9px] font-black text-gray-600 uppercase tracking-widest">
+                      {d.label.split('-').reverse()[0]}
+                    </span>
+                  ))}
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

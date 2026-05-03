@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 export interface BillingLine {
   date: Date;
   leadId: string;
+  userName: string; // New
   rateApplied: number;
   amount: number;
 }
@@ -63,10 +64,10 @@ export async function generateReport(
   const eDate = new Date(endDate);
   eDate.setHours(23, 59, 59, 999);
 
-  // Fetch confirmed conversion commission records for the period
+  // Fetch confirmed conversion commission records for the period, joining with leads
   const { data: records, error: recordsError } = await supabase
     .from('commission_records')
-    .select('lead_id, commission_rate_applied, amount, created_at')
+    .select('lead_id, commission_rate_applied, amount, created_at, leads!lead_id(user_name)')
     .eq('vendor_id', vendorId)
     .eq('status', 'confirmed')
     .eq('type', 'conversion')
@@ -84,11 +85,13 @@ export async function generateReport(
     commission_rate_applied: number;
     amount: number | null;
     created_at: string;
+    leads: { user_name: string } | null;
   }[];
 
   const lines: BillingLine[] = rows.map((r) => ({
     date: new Date(r.created_at),
-    leadId: r.lead_id ?? '',
+    leadId: r.lead_id ?? 'N/A',
+    userName: r.leads?.user_name ?? 'Client Inconnu',
     rateApplied: r.commission_rate_applied,
     amount: r.amount ?? 0,
   }));
@@ -185,14 +188,20 @@ export function exportToPDF(report: BillingReport): void {
   doc.rect(14, y, pageWidth - 28, 12, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
   doc.text('DATE', 20, y + 8);
-  doc.text('DESCRIPTION / LEAD', 60, y + 8);
-  doc.text('TAUX (%)', 130, y + 8);
+  doc.text('ID LEAD', 45, y + 8);
+  doc.text('DESCRIPTION / CLIENT', 75, y + 8);
+  doc.text('TAUX (%)', 140, y + 8);
   doc.text('MONTANT', pageWidth - 20, y + 8, { align: 'right' });
   y += 12;
 
   // --- Table Rows ---
   doc.setFont('helvetica', 'normal');
+  const formatAmount = (amt: number) => {
+    return amt.toLocaleString('fr-FR').replace(/[\s\u00A0]/g, '.');
+  };
+
   for (const line of report.lines) {
     if (y > 250) {
       doc.addPage();
@@ -203,11 +212,13 @@ export function exportToPDF(report: BillingReport): void {
     
     y += 10;
     doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.setFontSize(8);
     doc.text(line.date.toLocaleDateString('fr-FR'), 20, y);
     doc.setTextColor(255, 255, 255);
-    doc.text(`Vente Lead #${line.leadId.slice(0, 8)}`, 60, y);
-    doc.text(`${line.rateApplied}%`, 130, y);
-    doc.text(`${line.amount.toLocaleString('fr-FR')} FCFA`, pageWidth - 20, y, { align: 'right' });
+    doc.text(`#${line.leadId.slice(0, 8)}`, 45, y);
+    doc.text(`Vente Lead - ${line.userName}`, 75, y);
+    doc.text(`${line.rateApplied}%`, 140, y);
+    doc.text(`${formatAmount(line.amount)} FCFA`, pageWidth - 20, y, { align: 'right' });
     
     doc.setDrawColor(255, 255, 255, 0.05);
     doc.line(14, y + 4, pageWidth - 14, y + 4);
@@ -216,13 +227,13 @@ export function exportToPDF(report: BillingReport): void {
   // --- Totals ---
   y += 20;
   doc.setFillColor(yellowAccent[0], yellowAccent[1], yellowAccent[2]);
-  doc.rect(pageWidth - 80, y, 66, 20, 'F');
+  doc.rect(pageWidth - 85, y, 71, 20, 'F');
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(10);
-  doc.text('TOTAL À PAYER', pageWidth - 74, y + 7);
+  doc.setFontSize(9);
+  doc.text('TOTAL À PAYER', pageWidth - 79, y + 7);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${report.total.toLocaleString('fr-FR')} FCFA`, pageWidth - 74, y + 15);
+  doc.text(`${formatAmount(report.total)} FCFA`, pageWidth - 79, y + 15);
 
   // --- Footer ---
   doc.setTextColor(textGray[0], textGray[1], textGray[2]);

@@ -63,6 +63,8 @@ interface CommissionRecord {
   status: string;
   type: string;
   created_at: string;
+  lead_id?: string;
+  leads?: { user_name: string } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +217,7 @@ const BusinessDashboard = () => {
       const [pRes, lRes, cRes] = await Promise.all([
         supabase.from('products').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
         supabase.from('leads').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
-        supabase.from('commission_records').select('*').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
+        supabase.from('commission_records').select('*, leads!lead_id(user_name)').eq('vendor_id', vendorData.id).order('created_at', { ascending: false }),
       ]);
 
       if (mounted) {
@@ -286,7 +288,7 @@ const BusinessDashboard = () => {
       return;
     }
 
-    const headers = ['Date', 'Type', 'Montant (FCFA)', 'Taux (%)', 'Statut', 'Notes'];
+    const headers = ['Date', 'ID LEAD', 'Client', 'Description', 'Montant (FCFA)', 'Taux (%)', 'Statut'];
     const confirmedComms = allCommissions.filter(c => c.status === 'confirmed');
     
     if (confirmedComms.length === 0) {
@@ -294,13 +296,16 @@ const BusinessDashboard = () => {
       return;
     }
 
+    const formatAmount = (amt: number) => amt.toLocaleString('fr-FR').replace(/[\s\u00A0]/g, '.');
+
     const rows = confirmedComms.map(c => [
       new Date(c.created_at).toLocaleDateString('fr-FR'),
-      c.type === 'conversion' ? 'Vente' : 'Ajustement',
-      c.amount,
+      c.lead_id?.slice(0, 8) ?? 'N/A',
+      c.leads?.user_name ?? 'N/A',
+      `Vente Lead - ${c.leads?.user_name ?? 'Client'}`,
+      formatAmount(Number(c.amount)),
       c.commission_rate_applied,
-      'Confirmé',
-      ''
+      'Confirmé'
     ]);
 
     const csvContent = [
@@ -756,12 +761,12 @@ const BusinessDashboard = () => {
                                  <DollarSign className={`w-5 h-5 ${cfg.color}`} />
                               </div>
                               <div>
-                                 <p className="text-sm font-bold text-white uppercase tracking-tight">
-                                    {c.type === 'conversion' ? 'Vente confirmée' : 'Modification Taux'}
+                               <p className="text-sm font-bold text-white uppercase tracking-tight">
+                                    {c.type === 'conversion' ? `Vente Lead - ${c.leads?.user_name ?? 'Client'}` : 'Modification Taux'}
                                  </p>
                                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-2">
                                     <Calendar className="w-3 h-3" />
-                                    {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                                    {new Date(c.created_at).toLocaleDateString('fr-FR')} {c.lead_id && `· ID: #${c.lead_id.slice(0, 8)}`}
                                  </p>
                               </div>
                            </div>

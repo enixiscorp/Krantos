@@ -18,6 +18,8 @@ import {
   Search,
   ChevronRight,
   TrendingUp,
+  Bell,
+  AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Vendor } from '../lib/supabase';
@@ -104,6 +106,34 @@ const AdminBilling = () => {
       }
     } catch (err) {
       toast.error('Erreur lors de la génération du rapport.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleNotifyVendor = async () => {
+    if (!report) return;
+    
+    setIsGenerating(true);
+    try {
+      const { error } = await supabase.rpc('notify_vendor_payment', {
+        v_id: report.vendor.id
+      });
+
+      if (error) throw error;
+
+      toast.success(`Notification envoyée à ${report.vendor.name}.`);
+      
+      // Refresh report to show updated count
+      const rep = await generateReport(
+        report.vendor.id,
+        report.period.start,
+        report.period.end
+      );
+      setReport(rep);
+    } catch (err) {
+      toast.error('Erreur lors de l’envoi de la notification.');
+      console.error(err);
     } finally {
       setIsGenerating(false);
     }
@@ -273,9 +303,17 @@ const AdminBilling = () => {
                        <span className="text-5xl font-black text-white">{report.total.toLocaleString('fr-FR')}</span>
                        <span className="text-xl font-bold text-gray-500">FCFA</span>
                     </div>
-                    <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">
-                       {report.lines.length} commissions confirmées
-                    </p>
+                    <div className="flex items-center gap-4">
+                      <p className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">
+                         {report.lines.length} commissions confirmées
+                      </p>
+                      {report.vendor.payment_notifications_count > 0 && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] font-black uppercase tracking-widest">
+                          <AlertTriangle className="w-3 h-3" />
+                          {report.vendor.payment_notifications_count} Rappels envoyés
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-4">
@@ -296,13 +334,23 @@ const AdminBilling = () => {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleDownloadPDF}
-                    className="w-full h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 accent-glow shadow-2xl shadow-yellow-400/20"
-                  >
-                    <Download className="w-5 h-5" />
-                    Télécharger le PDF
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={handleDownloadPDF}
+                      className="h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-sm hover:bg-yellow-500 transition-all flex items-center justify-center gap-2 accent-glow"
+                    >
+                      <Download className="w-5 h-5" />
+                      Télécharger PDF
+                    </button>
+                    <button
+                      onClick={handleNotifyVendor}
+                      disabled={isGenerating}
+                      className="h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-black text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                    >
+                      {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Bell className="w-5 h-5" />}
+                      Envoyer Rappel
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}

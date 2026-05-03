@@ -22,6 +22,7 @@ export interface VendorInfo {
   name: string;
   email: string | null;
   phone: string;
+  payment_notifications_count: number;
 }
 
 export interface BillingReport {
@@ -48,7 +49,7 @@ export async function generateReport(
   // Fetch vendor info
   const { data: vendor, error: vendorError } = await supabase
     .from('vendors')
-    .select('id, name, email, phone')
+    .select('id, name, email, phone, payment_notifications_count')
     .eq('id', vendorId)
     .single();
 
@@ -58,6 +59,10 @@ export async function generateReport(
     );
   }
 
+  // Set end date to end of day
+  const eDate = new Date(endDate);
+  eDate.setHours(23, 59, 59, 999);
+
   // Fetch confirmed conversion commission records for the period
   const { data: records, error: recordsError } = await supabase
     .from('commission_records')
@@ -66,7 +71,7 @@ export async function generateReport(
     .eq('status', 'confirmed')
     .eq('type', 'conversion')
     .gte('created_at', startDate.toISOString())
-    .lte('created_at', endDate.toISOString());
+    .lte('created_at', eDate.toISOString());
 
   if (recordsError) {
     throw new Error(
@@ -95,6 +100,7 @@ export async function generateReport(
     name: vendor.name,
     email: vendor.email ?? null,
     phone: vendor.phone,
+    payment_notifications_count: vendor.payment_notifications_count || 0
   };
 
   return {
@@ -111,82 +117,120 @@ export async function generateReport(
  */
 export function exportToPDF(report: BillingReport): void {
   const doc = new jsPDF();
-
   const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 20;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  // Colors
+  const darkBg = [18, 18, 20];
+  const yellowAccent = [254, 208, 30];
+  const textGray = [150, 150, 150];
 
-  // --- Header ---
-  doc.setFontSize(20);
+  // --- Background ---
+  doc.setFillColor(darkBg[0], darkBg[1], darkBg[2]);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+  let y = 30;
+
+  // --- Header / Logo ---
+  doc.setTextColor(yellowAccent[0], yellowAccent[1], yellowAccent[2]);
+  doc.setFontSize(32);
   doc.setFont('helvetica', 'bold');
-  doc.text('Krantos', pageWidth / 2, y, { align: 'center' });
-  y += 8;
-
+  doc.text('KRANTOS', 14, y);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.text('PLATEFORME DE GESTION ÉNERGÉTIQUE', 14, y + 6);
+  
+  doc.setTextColor(yellowAccent[0], yellowAccent[1], yellowAccent[2]);
   doc.setFontSize(14);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Rapport de Facturation', pageWidth / 2, y, { align: 'center' });
-  y += 12;
+  doc.text('FACTURE DE COMMISSIONS', pageWidth - 14, y, { align: 'right' });
+  y += 25;
 
   // --- Vendor info ---
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Informations Vendeur', 14, y);
-  y += 6;
-
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Nom : ${report.vendor.name}`, 14, y);
-  y += 5;
-  doc.text(`Téléphone : ${report.vendor.phone}`, 14, y);
-  y += 5;
-  if (report.vendor.email) {
-    doc.text(`Email : ${report.vendor.email}`, 14, y);
-    y += 5;
-  }
-
-  // --- Period ---
-  y += 3;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Période', 14, y);
-  y += 6;
-  doc.setFont('helvetica', 'normal');
-  doc.text(
-    `Du ${report.period.start.toLocaleDateString('fr-FR')} au ${report.period.end.toLocaleDateString('fr-FR')}`,
-    14,
-    y
-  );
+  doc.setDrawColor(255, 255, 255, 0.1);
+  doc.line(14, y, pageWidth - 14, y);
   y += 10;
 
-  // --- Commission table header ---
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.setFillColor(230, 230, 230);
-  doc.rect(14, y - 4, pageWidth - 28, 8, 'F');
-  doc.text('Date', 16, y);
-  doc.text('Lead ID', 50, y);
-  doc.text('Taux (%)', 110, y);
-  doc.text('Montant (FCFA)', 150, y);
-  y += 8;
-
-  // --- Commission table rows ---
+  doc.setTextColor(255, 255, 255);
+  doc.text(' DESTINATAIRE', 14, y);
+  
   doc.setFont('helvetica', 'normal');
-  for (const line of report.lines) {
-    if (y > 270) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(line.date.toLocaleDateString('fr-FR'), 16, y);
-    doc.text(line.leadId.substring(0, 20), 50, y);
-    doc.text(`${line.rateApplied}%`, 110, y);
-    doc.text(line.amount.toFixed(2), 150, y);
-    y += 6;
+  doc.setFontSize(10);
+  y += 8;
+  doc.text(report.vendor.name.toUpperCase(), 14, y);
+  y += 5;
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(`Tél: ${report.vendor.phone}`, 14, y);
+  if (report.vendor.email) {
+    y += 5;
+    doc.text(`Email: ${report.vendor.email}`, 14, y);
   }
 
-  // --- Total ---
-  y += 4;
+  // --- Invoice info ---
+  const invoiceY = y - 13;
+  doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.line(14, y, pageWidth - 14, y);
-  y += 6;
-  doc.text(`Total : ${report.total.toFixed(2)} FCFA`, pageWidth - 14, y, { align: 'right' });
+  doc.text('DÉTAILS', pageWidth - 14, invoiceY, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 14, invoiceY + 5, { align: 'right' });
+  doc.text(`Période: ${report.period.start.toLocaleDateString('fr-FR')} - ${report.period.end.toLocaleDateString('fr-FR')}`, pageWidth - 14, invoiceY + 10, { align: 'right' });
 
-  // --- Download ---
+  y += 20;
+
+  // --- Table Header ---
+  doc.setFillColor(30, 30, 35);
+  doc.rect(14, y, pageWidth - 28, 12, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('DATE', 20, y + 8);
+  doc.text('DESCRIPTION / LEAD', 60, y + 8);
+  doc.text('TAUX', 130, y + 8);
+  doc.text('MONTANT', pageWidth - 20, y + 8, { align: 'right' });
+  y += 12;
+
+  // --- Table Rows ---
+  doc.setFont('helvetica', 'normal');
+  for (const line of report.lines) {
+    if (y > 250) {
+      doc.addPage();
+      doc.setFillColor(darkBg[0], darkBg[1], darkBg[2]);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+      y = 30;
+    }
+    
+    y += 10;
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text(line.date.toLocaleDateString('fr-FR'), 20, y);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Vente Lead #${line.leadId.slice(0, 8)}`, 60, y);
+    doc.text(`${line.rateApplied}%`, 130, y);
+    doc.text(`${line.amount.toLocaleString('fr-FR')} FCFA`, pageWidth - 20, y, { align: 'right' });
+    
+    doc.setDrawColor(255, 255, 255, 0.05);
+    doc.line(14, y + 4, pageWidth - 14, y + 4);
+  }
+
+  // --- Totals ---
+  y += 20;
+  doc.setFillColor(yellowAccent[0], yellowAccent[1], yellowAccent[2]);
+  doc.rect(pageWidth - 80, y, 66, 20, 'F');
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.text('TOTAL À PAYER', pageWidth - 74, y + 7);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${report.total.toLocaleString('fr-FR')} FCFA`, pageWidth - 74, y + 15);
+
+  // --- Footer ---
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Merci de régler cette facture sous 7 jours pour éviter toute suspension de service.', pageWidth / 2, pageHeight - 20, { align: 'center' });
+  doc.text('Krantos Pro - Système de Gestion Centrale v2.4', pageWidth / 2, pageHeight - 15, { align: 'center' });
+
   const fileName = `facture_${report.vendor.name.replace(/\s+/g, '_')}_${report.period.start.toISOString().slice(0, 10)}.pdf`;
   doc.save(fileName);
 }

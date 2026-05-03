@@ -120,6 +120,8 @@ const BusinessDashboard = () => {
   const [allCommissions, setAllCommissions] = useState<CommissionRecord[]>([]);
   const [metrics, setMetrics] = useState<LeadMetrics>({ new: 0, contacted: 0, converted: 0, lost: 0 });
   const [period, setPeriod] = useState('month');
+  const [leadFilter, setLeadFilter] = useState<'all' | 'contacted' | 'converted' | 'lost'>('all');
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -229,6 +231,20 @@ const BusinessDashboard = () => {
     await supabase.auth.signOut();
     toast.success('Déconnecté.');
     navigate('/business-login');
+  };
+
+  const handleUpdateLeadStatus = async (leadId: string, status: 'contacted' | 'converted' | 'lost') => {
+    setUpdatingLeadId(leadId);
+    try {
+      const { error } = await supabase.from('leads').update({ status }).eq('id', leadId);
+      if (error) throw error;
+      setAllLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
+      toast.success(`Lead marqué comme ${status === 'converted' ? 'Converti' : 'Perdu'}.`);
+    } catch (err: any) {
+      toast.error('Erreur : ' + err.message);
+    } finally {
+      setUpdatingLeadId(null);
+    }
   };
 
   if (loading) {
@@ -370,46 +386,99 @@ const BusinessDashboard = () => {
             {/* Quick Actions & Recent */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
+                {/* Lead filter tabs */}
                 <div className="flex items-center justify-between px-2">
-                   <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">Leads récents</h2>
-                   <Link to="/leads" className="text-xs font-bold text-yellow-400 hover:underline flex items-center gap-1">
-                      Voir tout <ChevronRight className="w-3 h-3" />
-                   </Link>
+                  <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">Mes Leads</h2>
+                  <Link to="/leads" className="text-xs font-bold text-yellow-400 hover:underline flex items-center gap-1">
+                    Voir tout <ChevronRight className="w-3 h-3" />
+                  </Link>
                 </div>
-                <div className="space-y-4">
-                  {leads.slice(0, 4).map((lead, i) => (
-                    <div key={lead.id} className="glass-card p-5 rounded-3xl border-white/5 flex items-center justify-between hover:border-white/10 transition-colors group/lead">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-sm text-gray-500">
-                           {lead.user_name.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-white text-sm">{lead.user_name}</p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
-                            {lead.user_phone && (
-                              <a 
-                                href={`https://wa.me/${lead.user_phone.replace(/\D/g, '').length === 8 ? '228' + lead.user_phone.replace(/\D/g, '') : lead.user_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover/lead:opacity-100 shadow-lg shadow-green-500/20"
-                                title="Contacter sur WhatsApp"
-                              >
-                                <Phone size={14} />
-                              </a>
-                            )}
+                <div className="flex gap-2 flex-wrap">
+                  {(['all', 'contacted', 'converted', 'lost'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setLeadFilter(f)}
+                      className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                        leadFilter === f
+                          ? 'bg-yellow-400 text-black border-yellow-400'
+                          : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {f === 'all' ? `Tous (${leads.length})` :
+                       f === 'contacted' ? `Contacté (${leads.filter(l => l.status === 'contacted').length})` :
+                       f === 'converted' ? `Converti (${leads.filter(l => l.status === 'converted').length})` :
+                       `Perdu (${leads.filter(l => l.status === 'lost').length})`}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  {leads
+                    .filter(l => leadFilter === 'all' || l.status === leadFilter)
+                    .slice(0, 6)
+                    .map((lead) => {
+                      const cfg = LEAD_STATUS_CONFIG[lead.status as LeadStatus];
+                      const isUpdating = updatingLeadId === lead.id;
+                      return (
+                        <div key={lead.id} className="glass-card p-4 rounded-3xl border-white/5 hover:border-white/10 transition-colors group/lead">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center font-bold text-sm text-gray-500 flex-shrink-0">
+                                {lead.user_name.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-white text-sm truncate">{lead.user_name}</p>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{lead.location}</p>
+                                  <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border ${cfg?.bg} ${cfg?.color}`}>
+                                    {cfg?.label}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <p className="text-xs font-black text-white hidden md:block">{lead.total_power_needed.toFixed(1)} kVA</p>
+                              {isUpdating ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
+                              ) : (
+                                <>
+                                  {lead.user_phone && (
+                                    <a
+                                      href={`https://wa.me/${lead.user_phone.replace(/\D/g,'').length === 8 ? '228' + lead.user_phone.replace(/\D/g,'') : lead.user_phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, suite à votre simulation sur Krantos, je suis disponible pour vous accompagner.`)}`}
+                                      target="_blank" rel="noopener noreferrer"
+                                      className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"
+                                      title="WhatsApp"
+                                    >
+                                      <Phone size={13} />
+                                    </a>
+                                  )}
+                                  {lead.status !== 'converted' && (
+                                    <button
+                                      onClick={() => handleUpdateLeadStatus(lead.id, 'converted')}
+                                      className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest px-2"
+                                      title="Marquer converti"
+                                    >
+                                      ✓
+                                    </button>
+                                  )}
+                                  {lead.status !== 'lost' && lead.status !== 'converted' && (
+                                    <button
+                                      onClick={() => handleUpdateLeadStatus(lead.id, 'lost')}
+                                      className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest px-2"
+                                      title="Marquer perdu"
+                                    >
+                                      ✗
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                         <p className="text-sm font-black text-white">{lead.total_power_needed.toFixed(1)} kVA</p>
-                         <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.bg} ${LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.color}`}>
-                            {LEAD_STATUS_CONFIG[lead.status as LeadStatus]?.label}
-                         </span>
-                      </div>
-                    </div>
-                  ))}
-                  {leads.length === 0 && <p className="text-center py-10 text-gray-600 italic">Aucun lead pour le moment.</p>}
+                      );
+                  })}
+                  {leads.filter(l => leadFilter === 'all' || l.status === leadFilter).length === 0 && (
+                    <p className="text-center py-10 text-gray-600 italic text-sm">Aucun lead dans cette catégorie.</p>
+                  )}
                 </div>
               </div>
 

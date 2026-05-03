@@ -38,6 +38,9 @@ const formatWhatsApp = (phone: string) => {
 
 interface LeadWithVendor extends Lead {
   vendor_name: string | null;
+  vendor_phone: string | null;
+  product_name: string | null;
+  product_price: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,24 +82,32 @@ const AdminLeads = () => {
         return;
       }
 
+      // Fetch leads with joined vendor and product data
       const [leadsResult, vendorsResult] = await Promise.all([
-        supabase.from('leads').select('*').order('created_at', { ascending: false }),
-        supabase.from('vendors').select('id, name').eq('status', 'active'),
+        supabase
+          .from('leads')
+          .select(`
+            *,
+            vendors:vendor_id ( id, name, phone ),
+            products:recommended_product_id ( id, name, price )
+          `)
+          .order('created_at', { ascending: false }),
+        supabase.from('vendors').select('id, name').order('name'),
       ]);
 
       if (leadsResult.error) {
         toast.error('Erreur lors du chargement des leads.');
+        console.error(leadsResult.error);
       } else if (mounted) {
         const vData = vendorsResult.data ?? [];
         setVendors(vData);
-        
-        const vendorMap = new Map<string, string>(
-          vData.map((v: { id: string; name: string }) => [v.id, v.name])
-        );
 
-        const enriched: LeadWithVendor[] = (leadsResult.data ?? []).map((lead: Lead) => ({
+        const enriched: LeadWithVendor[] = (leadsResult.data ?? []).map((lead: any) => ({
           ...lead,
-          vendor_name: lead.vendor_id ? (vendorMap.get(lead.vendor_id) ?? null) : null,
+          vendor_name: lead.vendors?.name ?? null,
+          vendor_phone: lead.vendors?.phone ?? null,
+          product_name: lead.products?.name ?? null,
+          product_price: lead.products?.price ?? null,
         }));
 
         setLeads(enriched);
@@ -366,26 +377,23 @@ const AdminLeads = () => {
 
             {/* Modal Content */}
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
+              {/* Left column */}
+              <div className="space-y-5">
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Informations de contact</label>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 text-white font-bold group">
-                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-yellow-400 group-hover:text-gray-900 transition-all">
-                        <Phone className="w-4 h-4" />
-                      </div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Contact Client</label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
+                      <div className="w-9 h-9 rounded-xl bg-yellow-400/10 flex items-center justify-center"><Phone className="w-4 h-4 text-yellow-400" /></div>
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">Téléphone</p>
-                        <a href={`tel:${selectedLead.user_phone}`} className="hover:text-yellow-400 transition-colors">{selectedLead.user_phone}</a>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Téléphone</p>
+                        <a href={`tel:${selectedLead.user_phone}`} className="text-white font-bold text-sm hover:text-yellow-400">{selectedLead.user_phone}</a>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-white font-bold group">
-                      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-yellow-400 group-hover:text-gray-900 transition-all">
-                        <MapPin className="w-4 h-4" />
-                      </div>
+                    <div className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
+                      <div className="w-9 h-9 rounded-xl bg-yellow-400/10 flex items-center justify-center"><MapPin className="w-4 h-4 text-yellow-400" /></div>
                       <div>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-0.5">Localisation</p>
-                        <p>{selectedLead.location}</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-widest">Localisation</p>
+                        <p className="text-white font-bold text-sm">{selectedLead.location}</p>
                       </div>
                     </div>
                   </div>
@@ -393,40 +401,76 @@ const AdminLeads = () => {
 
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Vendeur Assigné</label>
-                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
-                    <Building2 className="w-6 h-6 text-yellow-400" />
+                  <div className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-400/10 flex items-center justify-center"><Building2 className="w-4 h-4 text-cyan-400" /></div>
                     <div>
-                      <p className="text-white font-black uppercase tracking-tight text-sm">{selectedLead.vendor_name || 'Non assigné'}</p>
-                      <p className="text-[9px] text-gray-500 font-bold uppercase">Partenaire Krantos</p>
+                      <p className="text-white font-black text-sm">{selectedLead.vendor_name || 'Non assigné'}</p>
+                      {selectedLead.vendor_phone && (
+                        <a
+                          href={`https://wa.me/${selectedLead.vendor_phone.replace(/\D/g,'')}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="text-[10px] text-green-400 hover:underline font-bold"
+                        >
+                          WhatsApp vendeur →
+                        </a>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Changer le statut</label>
+                  <select
+                    value={selectedLead.status}
+                    onChange={e => { handleUpdateStatus(selectedLead.id, e.target.value as LeadStatus); setSelectedLead({...selectedLead, status: e.target.value as LeadStatus}); }}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-yellow-400/50 appearance-none"
+                  >
+                    {Object.entries(STATUS_CONFIG).map(([id, s]) => (
+                      <option key={id} value={id} className="bg-zinc-900">{s.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div className="space-y-6">
+              {/* Right column */}
+              <div className="space-y-5">
                 <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Besoins Énergétiques</label>
-                  <div className="bg-yellow-400/10 border border-yellow-400/20 p-6 rounded-3xl text-center">
-                    <Zap className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                    <p className="text-3xl font-black text-white">{selectedLead.total_power_needed.toFixed(1)} <span className="text-lg">kVA</span></p>
-                    <p className="text-[10px] text-yellow-400/60 font-black uppercase tracking-widest mt-1">Puissance Calculée</p>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Puissance Calculée</label>
+                  <div className="bg-yellow-400/10 border border-yellow-400/20 p-5 rounded-2xl text-center">
+                    <Zap className="w-7 h-7 text-yellow-400 mx-auto mb-1" />
+                    <p className="text-3xl font-black text-white">{selectedLead.total_power_needed.toFixed(2)} <span className="text-base">kVA</span></p>
+                    <p className="text-[10px] text-yellow-400/60 font-black uppercase tracking-widest mt-1">
+                      ≈ {(selectedLead.total_power_needed).toFixed(2)} kW
+                    </p>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Détails techniques</label>
-                  <div className="bg-white/5 p-5 rounded-2xl border border-white/5 space-y-3">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500 font-bold uppercase tracking-widest">ID Lead</span>
-                      <span className="text-white font-mono">{selectedLead.id.slice(0, 12)}...</span>
+                {selectedLead.product_name && (
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Produit Choisi</label>
+                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                      <p className="text-white font-black text-sm">{selectedLead.product_name}</p>
+                      {selectedLead.product_price && (
+                        <p className="text-yellow-400 font-black">{Number(selectedLead.product_price).toLocaleString('fr-FR')} FCFA</p>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center text-xs">
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">Informations</label>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2 text-xs">
+                    <div className="flex justify-between">
                       <span className="text-gray-500 font-bold uppercase tracking-widest">Date</span>
                       <span className="text-white font-bold">{new Date(selectedLead.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
+                    <div className="flex justify-between">
                       <span className="text-gray-500 font-bold uppercase tracking-widest">Source</span>
                       <span className="text-white font-bold">Calculateur Web</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-bold uppercase tracking-widest">ID</span>
+                      <span className="text-white font-mono">{selectedLead.id.slice(0, 10)}…</span>
                     </div>
                   </div>
                 </div>
@@ -434,16 +478,29 @@ const AdminLeads = () => {
             </div>
 
             {/* Modal Actions */}
-            <div className="p-8 bg-white/[0.02] border-t border-white/5 flex gap-4">
-              <button 
-                onClick={() => handleUpdateStatus(selectedLead.id, 'converted')}
-                className="flex-1 bg-green-500 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95 shadow-lg shadow-green-500/10"
+            <div className="p-8 bg-white/[0.02] border-t border-white/5 flex gap-3 flex-wrap">
+              <a
+                href={`https://wa.me/${formatWhatsApp(selectedLead.user_phone)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex-1 min-w-[140px] bg-[#00D95F] text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-[#00c456] transition-all text-center flex items-center justify-center gap-2"
               >
-                Marquer comme Converti
+                <MessageSquare className="w-4 h-4" /> WhatsApp Client
+              </a>
+              <button 
+                onClick={() => { handleUpdateStatus(selectedLead.id, 'converted'); setSelectedLead({...selectedLead, status: 'converted'}); }}
+                className="flex-1 min-w-[140px] bg-green-500 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95"
+              >
+                Converti ✓
+              </button>
+              <button 
+                onClick={() => { handleUpdateStatus(selectedLead.id, 'lost'); setSelectedLead({...selectedLead, status: 'lost'}); }}
+                className="flex-1 min-w-[100px] bg-red-500/20 text-red-400 font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-red-500/30 transition-all active:scale-95 border border-red-500/20"
+              >
+                Perdu ✗
               </button>
               <button 
                 onClick={() => setSelectedLead(null)}
-                className="px-8 bg-white/5 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-white/10 transition-all active:scale-95 border border-white/10"
+                className="px-6 bg-white/5 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-white/10 transition-all border border-white/10"
               >
                 Fermer
               </button>

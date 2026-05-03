@@ -388,9 +388,9 @@ const Admin = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="w-full h-full"
+                className="w-full h-full pt-4"
               >
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#facc15" stopOpacity="0.3" />
@@ -399,14 +399,14 @@ const Admin = () => {
                   </defs>
                   
                   {/* Grid Lines */}
-                  {[0, 0.25, 0.5, 0.75, 1].map(tick => (
+                  {[0, 25, 50, 75, 100].map(tick => (
                     <line 
                       key={tick}
-                      x1="0" y1={`${tick * 100}%`} x2="100%" y2={`${tick * 100}%`}
-                      stroke="rgba(255,255,255,0.03)" strokeWidth="1"
+                      x1="0" y1={tick} x2="100" y2={tick}
+                      stroke="rgba(255,255,255,0.03)" strokeWidth="0.5"
                     />
                   ))}
-
+ 
                   {/* Curve Path */}
                   <motion.path
                     initial={{ pathLength: 0, opacity: 0 }}
@@ -415,18 +415,18 @@ const Admin = () => {
                     d={(() => {
                       const points = chartData.map((d, i) => {
                         const x = (i / (chartData.length - 1)) * 100;
-                        const y = 100 - (d.count / maxCount) * 85; // 85% range to leave room for labels
-                        return `${x}% ${y}%`;
+                        const y = 100 - (d.count / maxCount) * 85; 
+                        return `${x},${y}`;
                       });
                       return `M ${points.join(' L ')}`;
                     })()}
                     fill="none"
                     stroke="#facc15"
-                    strokeWidth="3"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-
+ 
                   {/* Area Fill */}
                   <motion.path
                     initial={{ opacity: 0 }}
@@ -436,13 +436,13 @@ const Admin = () => {
                       const points = chartData.map((d, i) => {
                         const x = (i / (chartData.length - 1)) * 100;
                         const y = 100 - (d.count / maxCount) * 85;
-                        return `${x}% ${y}%`;
+                        return `${x},${y}`;
                       });
-                      return `M 0% 100% L ${points.join(' L ')} L 100% 100% Z`;
+                      return `M 0,100 L ${points.join(' L ')} L 100,100 Z`;
                     })()}
                     fill="url(#chartGradient)"
                   />
-
+ 
                   {/* Data Points */}
                   {chartData.map((d, i) => {
                     const x = (i / (chartData.length - 1)) * 100;
@@ -450,24 +450,18 @@ const Admin = () => {
                     return (
                       <g key={i} className="group/point cursor-pointer">
                         <circle
-                          cx={`${x}%`} cy={`${y}%`} r="4"
+                          cx={x} cy={y} r="1.5"
                           fill="#facc15"
-                          className="group-hover/point:r-6 transition-all"
+                          className="hover:r-3 transition-all"
                         />
-                        <foreignObject x={`${x}%`} y={`${y}%`} width="1" height="1" className="overflow-visible pointer-events-none">
-                          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover/point:opacity-100 transition-all bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl whitespace-nowrap z-50">
-                            {chartType === 'revenue' ? `${d.count.toLocaleString()} FCFA` : d.count}
-                          </div>
-                        </foreignObject>
                       </g>
                     );
                   })}
                 </svg>
-
+ 
                 {/* X-Axis Labels */}
                 <div className="absolute -bottom-6 w-full flex justify-between px-2">
                   {chartData.filter((_, i) => {
-                    // Filter labels to avoid overlap on mobile
                     if (chartData.length > 10) return i % Math.ceil(chartData.length / 6) === 0;
                     return true;
                   }).map((d, i) => (

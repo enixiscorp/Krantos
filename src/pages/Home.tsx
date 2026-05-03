@@ -9,11 +9,23 @@ const Home = () => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-yellow-400/10 blur-[120px] rounded-full pointer-events-none" />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 pt-20 pb-16 flex flex-col items-center text-center">
-        {/* Badge */}
+        {/* Slogan */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="mb-4"
+        >
+          <span className="text-sm font-black text-gray-500 uppercase tracking-[0.3em]">
+            Krantos — Powering Africa's Energy Decisions
+          </span>
+        </motion.div>
+
+        {/* Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
           className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/20 mb-8"
         >
           <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />

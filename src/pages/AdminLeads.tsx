@@ -120,9 +120,46 @@ const AdminLeads = () => {
     return () => { mounted = false; };
   }, [navigate]);
 
+  const createAutoCommission = async (lead: LeadWithVendor, newStatus: LeadStatus) => {
+    if (!lead.vendor_id || !lead.recommended_product_id) return;
+
+    // Check if a commission already exists for this lead
+    const { data: existing } = await supabase
+      .from('commission_records')
+      .select('id')
+      .eq('lead_id', lead.id)
+      .maybeSingle();
+    
+    if (existing) return;
+
+    // Fetch vendor's commission rate
+    const { data: vendor } = await supabase
+      .from('vendors')
+      .select('commission_rate')
+      .eq('id', lead.vendor_id)
+      .single();
+    
+    const vendorRate = vendor?.commission_rate || 0;
+    if (vendorRate === 0) return;
+
+    const commissionAmount = ((lead.product_price || 0) * vendorRate) / 100;
+    
+    await supabase.from('commission_records').insert({
+      vendor_id: lead.vendor_id,
+      lead_id: lead.id,
+      commission_rate_applied: vendorRate,
+      amount: commissionAmount,
+      status: 'confirmed',
+      type: 'conversion',
+      notes: `Commission auto Admin (${newStatus}) — Produit: ${lead.product_name} — Prix: ${lead.product_price?.toLocaleString()} FCFA`,
+    });
+  };
+
   const handleUpdateStatus = async (leadId: string, status: LeadStatus) => {
     setUpdatingId(leadId);
     try {
+      const lead = leads.find(l => l.id === leadId);
+
       const { error } = await supabase
         .from('leads')
         .update({ status })
@@ -132,6 +169,10 @@ const AdminLeads = () => {
       
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
       toast.success(`Statut du lead mis à jour.`);
+
+      if (lead && (status === 'contacted' || status === 'converted')) {
+        await createAutoCommission(lead, status);
+      }
     } catch (err) {
       toast.error('Erreur lors de la mise à jour.');
       console.error(err);

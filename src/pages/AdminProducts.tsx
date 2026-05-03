@@ -12,7 +12,9 @@ import {
   Zap,
   Building2,
   Tag,
-  Save
+  Save,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -173,6 +175,17 @@ const AdminProducts = () => {
     }
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase.from('products').update({ is_active: !currentStatus }).eq('id', id);
+      if (error) throw error;
+      toast.success(currentStatus ? 'Produit masqué.' : 'Produit activé.');
+      await load();
+    } catch (err: any) {
+      toast.error(`Erreur : ${err.message}`);
+    }
+  };
+
   const filteredProducts = rows.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (p.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -296,6 +309,9 @@ const AdminProducts = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button onClick={() => handleToggleActive(p.id, p.is_active || false)} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition-all" title={p.is_active ? 'Masquer' : 'Afficher'}>
+                      {p.is_active ? <Eye size={18} /> : <EyeOff size={18} />}
+                    </button>
                     <button onClick={() => handleDeleteProduct(p.id)} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all" title="Supprimer">
                       <X size={18} />
                     </button>

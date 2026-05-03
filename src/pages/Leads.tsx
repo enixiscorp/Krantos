@@ -81,8 +81,8 @@ const Leads = () => {
       // 1. Fetch vendor rate
       const { data: vendorData } = await supabase
         .from('vendors')
-        .select('commission_rate, status')
-        .eq('id', userId)
+        .select('id, commission_rate, status')
+        .eq('profile_id', userId)
         .single();
 
       if (!vendorData || vendorData.status !== 'active') {
@@ -96,7 +96,7 @@ const Leads = () => {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .eq('vendor_id', userId)
+        .eq('vendor_id', vendorData.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -215,7 +215,14 @@ const Leads = () => {
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Retour Dashboard
           </Link>
-          <h1 className="text-4xl font-black text-white mb-2">Mes Leads</h1>
+          <div className="flex items-center gap-4 mb-2">
+            <h1 className="text-4xl font-black text-white">Mes Leads</h1>
+            {vendorRate > 0 && (
+              <span className="px-3 py-1 rounded-full bg-yellow-400/10 text-yellow-400 text-xs font-black uppercase tracking-widest border border-yellow-400/20">
+                Commission : {vendorRate}%
+              </span>
+            )}
+          </div>
           <p className="text-gray-500 text-lg">Suivez et convertissez vos prospects Krantos.</p>
         </div>
       </div>

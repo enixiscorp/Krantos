@@ -22,8 +22,13 @@ import {
   Plus,
   DollarSign,
   Info,
+  Edit2,
+  Trash2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import type { Product } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -57,6 +62,9 @@ const AddProduct = () => {
   const [submitting, setSubmitting] = useState(false);
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -92,6 +100,16 @@ const AddProduct = () => {
       }
       if (mounted) {
         setVendorId(vendorData.id);
+        
+        // Fetch products
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('*')
+          .eq('vendor_id', vendorData.id)
+          .order('created_at', { ascending: false });
+          
+        if (productsData) setProducts(productsData);
+
         setLoading(false);
       }
     };
@@ -132,41 +150,101 @@ const AddProduct = () => {
     if (!validate() || !vendorId) return;
     setSubmitting(true);
     try {
-      const { data: product, error: insertError } = await supabase
-        .from('products')
-        .insert({
-          vendor_id: vendorId,
-          name: form.name.trim(),
-          category: form.category,
-          power_rating: parseFloat(form.power_rating),
-          price: parseFloat(form.price),
-          description: form.description.trim() || null,
-          keywords: form.keywords.trim() || null,
-          is_active: true,
-        })
-        .select('id')
-        .single();
+      let productId = editingProductId;
 
-      if (insertError || !product) throw insertError;
+      if (editingProductId) {
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({
+            name: form.name.trim(),
+            category: form.category,
+            power_rating: parseFloat(form.power_rating),
+            price: parseFloat(form.price),
+            description: form.description.trim() || null,
+            keywords: form.keywords.trim() || null,
+          })
+          .eq('id', editingProductId);
+        if (updateError) throw updateError;
+      } else {
+        const { data: newProduct, error: insertError } = await supabase
+          .from('products')
+          .insert({
+            vendor_id: vendorId,
+            name: form.name.trim(),
+            category: form.category,
+            power_rating: parseFloat(form.power_rating),
+            price: parseFloat(form.price),
+            description: form.description.trim() || null,
+            keywords: form.keywords.trim() || null,
+            is_active: true,
+          })
+          .select('id')
+          .single();
+        if (insertError || !newProduct) throw insertError;
+        productId = newProduct.id;
+      }
 
-      if (imageFile) {
+      if (imageFile && productId) {
         setUploadingImage(true);
         const ext = imageFile.name.split('.').pop();
-        const path = `${vendorId}/${product.id}.${ext}`;
+        const path = `${vendorId}/${productId}.${ext}`;
         await supabase.storage.from('product-images').upload(path, imageFile, { upsert: true });
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-        await supabase.from('products').update({ image_url: urlData.publicUrl }).eq('id', product.id);
+        await supabase.from('products').update({ image_url: urlData.publicUrl }).eq('id', productId);
         setUploadingImage(false);
       }
 
+      // Refresh products
+      const { data: updatedProducts } = await supabase.from('products').select('*').eq('vendor_id', vendorId).order('created_at', { ascending: false });
+      if (updatedProducts) setProducts(updatedProducts);
+
       setSuccess(true);
-      toast.success('Produit ajouté !');
+      toast.success(editingProductId ? 'Produit mis à jour !' : 'Produit ajouté !');
       setForm({ name: '', category: '', power_rating: '', price: '', description: '', keywords: '' });
       setImagePreview(null); setImageFile(null);
+      setEditingProductId(null);
     } catch (err) {
       toast.error('Erreur lors de l’ajout.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (product: Product) => {
+    setEditingProductId(product.id);
+    setForm({
+      name: product.name,
+      category: product.category,
+      power_rating: product.power_rating.toString(),
+      price: product.price.toString(),
+      description: product.description || '',
+      keywords: product.keywords || '',
+    });
+    setImagePreview(product.image_url || null);
+    setImageFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return;
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      setProducts(products.filter(p => p.id !== id));
+      toast.success('Produit supprimé.');
+    } catch (err) {
+      toast.error('Erreur lors de la suppression.');
+    }
+  };
+
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase.from('products').update({ is_active: !currentStatus }).eq('id', id);
+      if (error) throw error;
+      setProducts(products.map(p => p.id === id ? { ...p, is_active: !currentStatus } : p));
+      toast.success(currentStatus ? 'Produit masqué.' : 'Produit activé.');
+    } catch (err) {
+      toast.error('Erreur lors de la modification.');
     }
   };
 
@@ -184,7 +262,7 @@ const AddProduct = () => {
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           Retour Dashboard
         </Link>
-        <h1 className="text-4xl font-black text-white mb-2">Ajouter un produit</h1>
+        <h1 className="text-4xl font-black text-white mb-2">{editingProductId ? 'Modifier le produit' : 'Ajouter un produit'}</h1>
         <p className="text-gray-500 text-lg">Publiez vos équipements pour qu'ils soient recommandés aux clients.</p>
       </div>
 
@@ -321,10 +399,90 @@ const AddProduct = () => {
              className="w-full h-16 rounded-[1.5rem] bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all flex items-center justify-center gap-3 accent-glow shadow-2xl shadow-yellow-400/20"
            >
              {submitting || uploadingImage ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6" />}
-             Publier le produit
+             {editingProductId ? 'Enregistrer les modifications' : 'Publier le produit'}
            </button>
+           
+           {editingProductId && (
+             <button
+               type="button"
+               onClick={() => {
+                 setEditingProductId(null);
+                 setForm({ name: '', category: '', power_rating: '', price: '', description: '', keywords: '' });
+                 setImagePreview(null);
+                 setImageFile(null);
+               }}
+               className="w-full mt-4 py-4 rounded-[1.5rem] bg-white/5 text-gray-400 font-bold hover:bg-white/10 transition-all"
+             >
+               Annuler la modification
+             </button>
+           )}
         </div>
       </form>
+
+      {/* Products List */}
+      <div className="mt-20">
+        <h2 className="text-2xl font-black text-white mb-8">Mes Produits ({products.length})</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {products.map((product) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className={`glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col transition-all ${!product.is_active ? 'opacity-50 grayscale' : 'hover:border-white/10'}`}
+            >
+              <div className="aspect-video bg-black/20 relative">
+                {product.image_url ? (
+                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon className="w-10 h-10 text-white/10" />
+                  </div>
+                )}
+                <div className="absolute top-4 right-4 flex gap-2">
+                  <button 
+                    onClick={() => handleToggleActive(product.id, product.is_active)}
+                    className="p-2 rounded-xl bg-black/60 text-white hover:bg-white/20 transition-all"
+                    title={product.is_active ? 'Masquer' : 'Afficher'}
+                  >
+                    {product.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
+                  <button 
+                    onClick={() => handleEdit(product)}
+                    className="p-2 rounded-xl bg-black/60 text-white hover:bg-blue-500 transition-all"
+                    title="Modifier"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(product.id)}
+                    className="p-2 rounded-xl bg-black/60 text-white hover:bg-red-500 transition-all"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 flex flex-col flex-1">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="font-bold text-white text-lg leading-tight mb-1">{product.name}</h3>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{product.category}</p>
+                  </div>
+                </div>
+                <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/5">
+                  <span className="text-yellow-400 font-black">{product.price.toLocaleString('fr-FR')} FCFA</span>
+                  <span className="text-xs text-gray-400 font-bold">{product.power_rating} kVA</span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+          {products.length === 0 && (
+            <div className="col-span-full py-12 text-center text-gray-600 font-bold text-sm">
+              Vous n'avez pas encore ajouté de produit.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

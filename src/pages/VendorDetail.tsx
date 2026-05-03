@@ -148,43 +148,55 @@ const VendorDetail = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="glass-card p-8 rounded-[2rem] border-white/5 hover:border-white/10 transition-all flex flex-col group"
+              className="glass-card rounded-[2rem] border-white/5 hover:border-white/10 transition-all flex flex-col group overflow-hidden"
             >
-               <div className="flex items-start justify-between mb-8">
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-all">
-                     <Package className="w-7 h-7 text-gray-600 group-hover:text-yellow-400" />
-                  </div>
-                  <div className="text-right">
-                     <p className="text-xl font-black text-white">{product.price.toLocaleString('fr-FR')} <span className="text-[10px] text-yellow-400 ml-1">FCFA</span></p>
-                  </div>
+               <div className="aspect-video bg-black/20 relative overflow-hidden">
+                 {product.image_url ? (
+                   <img 
+                    src={product.image_url} 
+                    alt={product.name} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                   />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center">
+                     <Package className="w-10 h-10 text-white/5" />
+                   </div>
+                 )}
+                 <div className="absolute top-4 right-4">
+                    <span className="px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
+                       {product.price.toLocaleString('fr-FR')} FCFA
+                    </span>
+                 </div>
                </div>
 
-               <div className="mb-8">
-                  <h3 className="text-lg font-black text-white mb-2 leading-tight group-hover:text-yellow-400 transition-colors">{product.name}</h3>
-                  <div className="flex items-center gap-3">
-                     <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[8px] font-black uppercase tracking-widest text-gray-600 border border-white/5 flex items-center gap-1.5">
-                        <Tag className="w-3 h-3" />
-                        {product.category}
-                     </span>
-                     <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[8px] font-black uppercase tracking-widest text-gray-600 border border-white/5 flex items-center gap-1.5">
-                        <Zap className="w-3 h-3 text-yellow-400" />
-                        {product.power_rating} kVA
-                     </span>
-                  </div>
-               </div>
+                <div className="p-8 pt-6 flex flex-col flex-1">
+                   <div className="mb-8">
+                      <h3 className="text-lg font-black text-white mb-2 leading-tight group-hover:text-yellow-400 transition-colors">{product.name}</h3>
+                      <div className="flex items-center gap-3">
+                         <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[8px] font-black uppercase tracking-widest text-gray-600 border border-white/5 flex items-center gap-1.5">
+                            <Tag className="w-3 h-3" />
+                            {product.category}
+                         </span>
+                         <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[8px] font-black uppercase tracking-widest text-gray-600 border border-white/5 flex items-center gap-1.5">
+                            <Zap className="w-3 h-3 text-yellow-400" />
+                            {product.power_rating} kVA
+                         </span>
+                      </div>
+                   </div>
 
-               {product.description && (
-                 <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6 line-clamp-3">
-                    {product.description}
-                 </p>
-               )}
+                   {product.description && (
+                     <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6 line-clamp-3">
+                        {product.description}
+                     </p>
+                   )}
 
-               <div className="mt-auto pt-6 border-t border-white/5">
-                  <button className="w-full py-3 rounded-xl bg-white/5 text-xs font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all">
-                     Voir l'offre
-                  </button>
-               </div>
-            </motion.div>
+                   <div className="mt-auto pt-6 border-t border-white/5">
+                      <button className="w-full py-3 rounded-xl bg-white/5 text-xs font-black text-white uppercase tracking-widest hover:bg-white/10 transition-all">
+                         Voir l'offre
+                      </button>
+                   </div>
+                </div>
+             </motion.div>
           ))}
           {products.length === 0 && (
             <div className="lg:col-span-3 py-20 text-center glass-card rounded-[3rem] border-white/5">

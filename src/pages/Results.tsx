@@ -319,41 +319,79 @@ const Results = () => {
         </p>
       </motion.div>
 
-      {/* Main Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+      {/* Main Solution Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="glass-card p-10 rounded-[2.5rem] flex flex-col justify-center border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent h-full min-h-[220px]"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card rounded-[3rem] border-white/5 overflow-hidden group"
         >
-          <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-6 block">Puissance estimée</span>
-          <div className="flex items-baseline gap-2 mb-2">
-            <span className="text-6xl font-black text-white leading-none tracking-tighter">{totalWatts.toFixed(0)}</span>
-            <span className="text-2xl font-bold text-gray-600">W</span>
+          <div className="aspect-square bg-black/20 relative overflow-hidden">
+            {product?.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name} 
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-800">
+                <Sparkles className="w-20 h-20 mb-4 opacity-10" />
+                <p className="text-xs font-black uppercase tracking-widest opacity-20">Visuel non disponible</p>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+            <div className="absolute bottom-8 left-8 right-8">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-1 rounded-lg bg-yellow-400 text-black text-[9px] font-black uppercase tracking-widest">
+                  Solution Idéale
+                </span>
+                <span className="text-[10px] text-white/60 font-bold uppercase tracking-widest">
+                  {product?.category}
+                </span>
+              </div>
+              <h3 className="text-2xl font-black text-white">{product?.name}</h3>
+            </div>
           </div>
-          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-60">
-            ≈ {(totalWatts / 1000).toFixed(2)} kW / {totalKVA.toFixed(2)} kVA
-          </p>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="glass-card p-10 rounded-[2.5rem] flex flex-col justify-center border-yellow-400/30 accent-glow bg-yellow-400/[0.03] shadow-[0_0_50px_-12px_rgba(250,204,21,0.15)] h-full min-h-[220px]"
-        >
-          <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-6 block">Prix de la solution</span>
-          <div className="flex items-baseline gap-2 mb-2">
-            <motion.span 
-              animate={{ opacity: [1, 0.7, 1], scale: [1, 1.02, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="text-6xl font-black text-yellow-400 leading-none tracking-tighter"
-            >
-              {product ? formatPrice(product.price) : "—"}
-            </motion.span>
-            <span className="text-2xl font-bold text-yellow-400/60 uppercase">FCFA</span>
-          </div>
-          <p className="text-xs text-gray-500 font-bold tracking-wide uppercase opacity-80 italic">Vendu par {vendor?.name || "Partenaire Krantos"}</p>
-        </motion.div>
+        <div className="flex flex-col gap-6">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex-1 glass-card p-10 rounded-[2.5rem] flex flex-col justify-center border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent"
+          >
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 block">Puissance Estimée</span>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-5xl font-black text-white leading-none tracking-tighter">{totalWatts.toFixed(0)}</span>
+              <span className="text-xl font-bold text-gray-600">W</span>
+            </div>
+            <p className="text-[10px] text-gray-500 font-bold tracking-wide uppercase opacity-60">
+              ≈ {(totalWatts / 1000).toFixed(2)} kW / {totalKVA.toFixed(2)} kVA
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="flex-1 glass-card p-10 rounded-[2.5rem] flex flex-col justify-center border-yellow-400/30 accent-glow bg-yellow-400/[0.03] shadow-[0_0_50px_-12px_rgba(250,204,21,0.15)]"
+          >
+            <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-4 block">Prix de l'équipement</span>
+            <div className="flex items-baseline gap-2 mb-2">
+              <motion.span 
+                animate={{ opacity: [1, 0.7, 1], scale: [1, 1.02, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="text-5xl font-black text-yellow-400 leading-none tracking-tighter"
+              >
+                {product ? formatPrice(product.price) : "—"}
+              </motion.span>
+              <span className="text-xl font-bold text-yellow-400/60 uppercase">FCFA</span>
+            </div>
+            <p className="text-[10px] text-gray-500 font-bold tracking-wide uppercase opacity-80">
+              Disponible chez <span className="text-white font-black">{vendor?.name || "un partenaire"}</span>
+            </p>
+          </motion.div>
+        </div>
       </div>
 
       {/* Main Actions Bar */}

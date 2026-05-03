@@ -29,24 +29,14 @@ import { supabase } from '../lib/supabase';
 type CommissionStatus = 'pending_verification' | 'confirmed' | 'rejected' | 'rate_change';
 type CommissionType = 'conversion' | 'rate_change';
 
-interface CommissionRecord {
-  id: string;
-  vendor_id: string;
-  lead_id: string | null;
-  commission_rate_applied: number;
-  amount: number;
-  status: CommissionStatus;
-  type: CommissionType;
-  notes: string | null;
-  created_at: string;
-  vendors?: { name: string };
-}
-
 interface VendorWithRate {
   id: string;
   name: string;
   category: string;
   commission_rate: number;
+  status: string;
+  created_at: string;
+  old_rate?: number; // Optional: if we want to show history
 }
 
 // ---------------------------------------------------------------------------
@@ -94,9 +84,9 @@ const AdminCommissions = () => {
   const [records, setRecords] = useState<CommissionRecord[]>([]);
   const [vendors, setVendors] = useState<VendorWithRate[]>([]);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'records' | 'vendors'>('records');
+  const [activeTab, setActiveTab] = useState<'vendors' | 'records'>('vendors');
 
   // Rate change modal state
   const [showRateModal, setShowRateModal] = useState(false);
@@ -118,7 +108,7 @@ const AdminCommissions = () => {
 
     const { data: venData } = await supabase
       .from('vendors')
-      .select('id, name, category, commission_rate')
+      .select('id, name, category, commission_rate, status, created_at')
       .order('name');
 
     setRecords(recData || []);
@@ -186,11 +176,28 @@ const AdminCommissions = () => {
     }
   };
 
-  const filteredRecords = records.filter(r => {
-    const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
-    const matchesSearch = (r.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (r.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
+  const filteredVendors = vendors.filter(v => {
+    const matchesSearch = v.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          v.category.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterStatus === 'all') return matchesSearch;
+    
+    if (filterStatus === 'pending') return v.status === 'pending' && matchesSearch;
+    if (filterStatus === 'confirmed') return v.status === 'active' && matchesSearch;
+    
+    if (filterStatus === 'rejected') {
+      // Logic: Pending for more than 1 week
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      return v.status === 'pending' && new Date(v.created_at) < oneWeekAgo && matchesSearch;
+    }
+    
+    if (filterStatus === 'rate_change') {
+      // In this tab, we show vendors who had at least one rate change in records
+      return records.some(r => r.vendor_id === v.id && r.type === 'rate_change') && matchesSearch;
+    }
+    
+    return matchesSearch;
   });
 
   if (loading && records.length === 0) {
@@ -251,22 +258,44 @@ const AdminCommissions = () => {
           />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
-          {(['all', 'pending_verification', 'confirmed', 'rejected', 'rate_change'] as const).map(s => {
-            const label = s === 'all' ? 'Tous' : STATUS_CONFIG[s as CommissionStatus].label;
-            return (
-              <button
-                key={s}
-                onClick={() => setFilterStatus(s)}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
-                  filterStatus === s 
-                    ? 'bg-yellow-400 text-gray-900 border-yellow-400' 
-                    : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
+          {activeTab === 'vendors' ? (
+            (['all', 'pending', 'confirmed', 'rejected', 'rate_change'] as const).map(s => {
+              const label = s === 'all' ? 'Tous' : 
+                            s === 'pending' ? 'En attente' :
+                            s === 'confirmed' ? 'Confirmé' :
+                            s === 'rejected' ? 'Rejeté' : 'Modif. Taux';
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    filterStatus === s 
+                      ? 'bg-yellow-400 text-gray-900 border-yellow-400' 
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })
+          ) : (
+            (['all', 'pending_verification', 'confirmed', 'rejected', 'rate_change'] as const).map(s => {
+              const label = s === 'all' ? 'Tous' : STATUS_CONFIG[s as CommissionStatus].label;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    filterStatus === s 
+                      ? 'bg-yellow-400 text-gray-900 border-yellow-400' 
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -345,34 +374,59 @@ const AdminCommissions = () => {
           )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {vendors.map((v, i) => (
-              <motion.div
-                key={v.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.03 }}
-                className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between hover:border-yellow-400/20 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center">
-                    <Percent className="w-6 h-6 text-yellow-400" />
+            {filteredVendors.map((v, i) => {
+              // For rate_change filter, try to find the previous rate
+              let oldRate: number | null = null;
+              if (filterStatus === 'rate_change') {
+                 const changeRecord = records.find(r => r.vendor_id === v.id && r.type === 'rate_change');
+                 // This is a simplification: usually we'd need the record before the latest one
+                 // But for now let's just indicate there was a change
+              }
+
+              return (
+                <motion.div
+                  key={v.id}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03 }}
+                  className="glass-card p-6 rounded-3xl border-white/5 flex items-center justify-between hover:border-yellow-400/20 transition-all group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center group-hover:bg-yellow-400 group-hover:text-black transition-all">
+                      <Percent className="w-6 h-6 text-yellow-400 group-hover:text-black" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-white uppercase text-xs tracking-tight">{v.name}</h3>
+                        {v.status === 'pending' && (
+                          <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Nouveau</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest leading-none">{v.category}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-white uppercase text-xs tracking-tight">{v.name}</h3>
-                    <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{v.category}</p>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 justify-end mb-1">
+                       {filterStatus === 'rate_change' && (
+                         <span className="text-[10px] font-bold text-gray-600 line-through">?%</span>
+                       )}
+                       <p className="text-2xl font-black text-white">{v.commission_rate || 0}%</p>
+                    </div>
+                    <button 
+                      onClick={() => { setSelectedVendorId(v.id); setNewRate((v.commission_rate || 0).toString()); setShowRateModal(true); }}
+                      className="text-[9px] font-black text-yellow-400 uppercase hover:underline"
+                    >
+                      Ajuster Taux
+                    </button>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-black text-white">{v.commission_rate || 0}%</p>
-                  <button 
-                    onClick={() => { setSelectedVendorId(v.id); setNewRate((v.commission_rate || 0).toString()); setShowRateModal(true); }}
-                    className="text-[9px] font-black text-yellow-400 uppercase hover:underline"
-                  >
-                    Modifier
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
+            {filteredVendors.length === 0 && (
+              <div className="col-span-full py-12 text-center text-gray-600 font-bold text-sm">
+                 Aucun profil correspondant aux critères.
+              </div>
+            )}
           </div>
         )}
       </div>

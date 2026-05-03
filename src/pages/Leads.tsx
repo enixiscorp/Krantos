@@ -61,7 +61,10 @@ const Leads = () => {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // Conversion Modal
+  // Commission tracking (no manual modal needed)
+  const [vendorDbId, setVendorDbId] = useState<string | null>(null);
+
+  // Conversion Modal (kept for 'converted' status extra info)
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertingLead, setConvertingLead] = useState<Lead | null>(null);
   const [saleAmount, setSaleAmount] = useState('');
@@ -90,7 +93,10 @@ const Leads = () => {
         navigate('/business-login', { replace: true });
         return;
       }
-      if (mounted) setVendorRate(vendorData.commission_rate);
+      if (mounted) {
+        setVendorRate(vendorData.commission_rate);
+        setVendorDbId(vendorData.id);
+      }
 
       // 2. Fetch leads
       const { data, error } = await supabase
@@ -116,19 +122,42 @@ const Leads = () => {
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleUpdateStatus = async (leadId: string, newStatus: LeadStatus) => {
-    if (newStatus === 'converted') {
-      const lead = leads.find(l => l.id === leadId);
-      if (lead) {
-        setConvertingLead(lead);
-        setShowConvertModal(true);
-        setOpenDropdown(null);
-        return;
-      }
-    }
+  // Auto-create commission record when lead becomes 'contacted' or 'converted'
+  const createAutoCommission = async (lead: Lead, newStatus: LeadStatus) => {
+    if (!vendorDbId || !lead.recommended_product_id) return;
+    // Check if a commission already exists for this lead
+    const { data: existing } = await supabase
+      .from('commission_records')
+      .select('id')
+      .eq('lead_id', lead.id)
+      .maybeSingle();
+    if (existing) return; // already recorded
 
+    // Fetch product price
+    const { data: product } = await supabase
+      .from('products')
+      .select('price, name')
+      .eq('id', lead.recommended_product_id)
+      .single();
+    if (!product || !product.price) return;
+
+    const commissionAmount = (product.price * vendorRate) / 100;
+    await supabase.from('commission_records').insert({
+      vendor_id: vendorDbId,
+      lead_id: lead.id,
+      commission_rate_applied: vendorRate,
+      amount: commissionAmount,
+      status: 'confirmed',
+      type: 'conversion',
+      notes: `Commission auto (${newStatus}) — Produit: ${product.name} — Prix: ${product.price.toLocaleString()} FCFA`,
+    });
+  };
+
+  const handleUpdateStatus = async (leadId: string, newStatus: LeadStatus) => {
     setUpdatingId(leadId);
     setOpenDropdown(null);
+
+    const lead = leads.find(l => l.id === leadId);
 
     const { error } = await supabase
       .from('leads')
@@ -140,6 +169,10 @@ const Leads = () => {
     } else {
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
       toast.success('Statut mis à jour.');
+      // Auto-create commission for 'contacted' and 'converted'
+      if (lead && (newStatus === 'contacted' || newStatus === 'converted')) {
+        await createAutoCommission(lead, newStatus);
+      }
     }
     setUpdatingId(null);
   };

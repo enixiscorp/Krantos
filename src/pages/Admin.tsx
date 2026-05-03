@@ -21,7 +21,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
-import { getStatsLeads } from '../services/statsService';
+import { getStatsLeads, getStatsRevenue } from '../services/statsService';
 import { supabase } from '../lib/supabase';
 
 const Admin = () => {
@@ -35,6 +35,7 @@ const Admin = () => {
   const [period, setPeriod] = useState('month');
   const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [statsLoading, setStatsLoading] = useState(false);
+  const [chartType, setChartType] = useState<'leads' | 'revenue'>('leads');
 
   // Settings & PWA
   const [showSettings, setShowSettings] = useState(false);
@@ -118,10 +119,15 @@ const Admin = () => {
     const fetchStats = async () => {
       setStatsLoading(true);
       try {
-        const res = await getStatsLeads({ 
+        const params = { 
           period, 
-          vendor_id: selectedVendor === 'all' ? undefined : selectedVendor 
-        });
+          vendor_id: selectedVendor === 'all' ? undefined : (selectedVendor || undefined)
+        };
+        
+        const res = chartType === 'leads' 
+          ? await getStatsLeads(params)
+          : await getStatsRevenue(params);
+
         if (mounted) {
           setChartData(res.chart_data);
         }
@@ -133,7 +139,7 @@ const Admin = () => {
     };
     fetchStats();
     return () => { mounted = false; };
-  }, [period, selectedVendor]);
+  }, [period, selectedVendor, chartType]);
 
   const handleInstallPWA = () => {
     if (!installPrompt) {
@@ -308,7 +314,21 @@ const Admin = () => {
               Flux d'Acquisition
               {statsLoading && <Loader2 size={16} className="animate-spin text-yellow-400" />}
             </h2>
-            <p className="text-sm text-gray-500 font-medium">Analyse comparative des performances sur la période.</p>
+            <div className="flex items-center gap-4 mt-1">
+              <button 
+                onClick={() => setChartType('leads')}
+                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${chartType === 'leads' ? 'text-yellow-400' : 'text-gray-600 hover:text-gray-400'}`}
+              >
+                Volume Leads
+              </button>
+              <div className="w-1 h-1 rounded-full bg-white/10" />
+              <button 
+                onClick={() => setChartType('revenue')}
+                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${chartType === 'revenue' ? 'text-yellow-400' : 'text-gray-600 hover:text-gray-400'}`}
+              >
+                Flux Revenus
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -372,8 +392,8 @@ const Admin = () => {
                       className="w-full bg-gradient-to-t from-yellow-400 to-yellow-300 rounded-t-xl group-hover:from-yellow-300 group-hover:to-white transition-all shadow-lg shadow-yellow-400/10 relative"
                       style={{ height: `${(d.count / maxCount) * 100}%` }}
                     >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl pointer-events-none">
-                        {d.count}
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-black px-2 py-1 rounded text-[10px] font-black shadow-xl pointer-events-none whitespace-nowrap">
+                        {chartType === 'revenue' ? `${d.count.toLocaleString()} FCFA` : d.count}
                       </div>
                     </motion.div>
                   </div>

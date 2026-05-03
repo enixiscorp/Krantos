@@ -97,6 +97,27 @@ const SUBSCRIPTION_LABELS: Record<string, string> = {
   premium: 'Premium',
 };
 
+const SUBSCRIPTION_BENEFITS: Record<string, { leads: string; access: string; priority: string; features: string[] }> = {
+  free: {
+    leads: '2 leads gratuits',
+    access: 'Accès limité (14 jours)',
+    priority: 'Pas de priorité',
+    features: ['Simulation de puissance', 'Profil public basique']
+  },
+  basic: {
+    leads: '10 - 35 leads inclus',
+    access: 'Accès standard (1-3 mois)',
+    priority: 'Priorité standard',
+    features: ['Gestion des produits', 'Dashboard analytique', 'Support email']
+  },
+  premium: {
+    leads: '80 - 180 leads inclus',
+    access: 'Accès illimité (6-12 mois)',
+    priority: 'Haute priorité',
+    features: ['Dashboard avancé', 'Support prioritaire', 'Mise en avant premium', 'Statistiques détaillées']
+  }
+};
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -508,6 +529,51 @@ const AdminVendors = () => {
                           <Calendar className="w-4 h-4 text-yellow-400" />
                           Inscrit le {new Date(selectedVendor.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Objectives Section */}
+                <div className="mb-10 p-6 rounded-[2rem] bg-yellow-400/5 border border-yellow-400/20 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                    <ShieldCheck size={80} className="text-yellow-400" />
+                  </div>
+                  <div className="relative z-10">
+                    <h4 className="text-xs font-black text-yellow-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Zap size={14} />
+                      Objectifs & Avantages de l'abonnement
+                    </h4>
+                    
+                    {(() => {
+                      const benefits = SUBSCRIPTION_BENEFITS[selectedVendor.subscription_type] || SUBSCRIPTION_BENEFITS.free;
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                          <div className="p-3 rounded-xl bg-black/20 border border-white/5">
+                            <p className="text-[8px] text-gray-500 uppercase font-black mb-1">Capacité Leads</p>
+                            <p className="text-xs font-bold text-white">{benefits.leads}</p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-black/20 border border-white/5">
+                            <p className="text-[8px] text-gray-500 uppercase font-black mb-1">Durée / Accès</p>
+                            <p className="text-xs font-bold text-white">{benefits.access}</p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-black/20 border border-white/5">
+                            <p className="text-[8px] text-gray-500 uppercase font-black mb-1">Niveau Priorité</p>
+                            <p className="text-xs font-bold text-white">{benefits.priority}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    <div className="space-y-2">
+                      <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Fonctionnalités incluses :</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        {(SUBSCRIPTION_BENEFITS[selectedVendor.subscription_type] || SUBSCRIPTION_BENEFITS.free).features.map((f, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-[10px] text-gray-400">
+                            <div className="w-1 h-1 rounded-full bg-yellow-400" />
+                            {f}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

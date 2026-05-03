@@ -412,6 +412,38 @@ const BusinessDashboard = () => {
               })}
             </div>
 
+            {/* Revenue Banner */}
+            {(() => {
+              const totalBalance = allCommissions
+                .filter(c => c.status === 'confirmed')
+                .reduce((acc, c) => acc + Number(c.amount), 0);
+              const periodBalance = commissions
+                .filter(c => c.status === 'confirmed')
+                .reduce((acc, c) => acc + Number(c.amount), 0);
+              return totalBalance > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="glass-card p-6 rounded-3xl border-yellow-400/20 bg-yellow-400/[0.03] flex items-center gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-yellow-400/10 flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-yellow-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-yellow-400">{periodBalance.toLocaleString('fr-FR')} FCFA</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Revenu généré (période)</p>
+                    </div>
+                  </div>
+                  <div className="glass-card p-6 rounded-3xl border-white/5 flex items-center gap-5">
+                    <div className="w-12 h-12 rounded-2xl bg-green-400/10 flex items-center justify-center">
+                      <DollarSign className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-black text-green-400">{totalBalance.toLocaleString('fr-FR')} FCFA</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Solde total à facturer</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null;
+            })()}
+
             {/* Quick Actions & Recent */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">

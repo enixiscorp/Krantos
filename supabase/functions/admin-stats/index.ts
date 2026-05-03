@@ -115,6 +115,63 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (type === "revenue") {
+      let query = adminClient
+        .from("commission_records")
+        .select("amount, created_at, vendor_id")
+        .eq("status", "confirmed")
+        .order("created_at", { ascending: true });
+      
+      if (vendorId) {
+        query = query.eq("vendor_id", vendorId);
+      }
+
+      const { data: records } = await query;
+      const total = records?.reduce((acc, r) => acc + Number(r.amount), 0) || 0;
+      
+      const statsByPeriod: Record<string, number> = {};
+      
+      for (const r of records ?? []) {
+        const d = new Date((r as { created_at: string }).created_at);
+        let key = "";
+        
+        if (period === "day") {
+          key = d.toISOString().slice(0, 10);
+        } else if (period === "week") {
+          const tempDate = new Date(d.getTime());
+          tempDate.setHours(0, 0, 0, 0);
+          tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
+          const week1 = new Date(tempDate.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+          key = `${tempDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+        } else if (period === "month") {
+          key = d.toISOString().slice(0, 7);
+        } else if (period === "quarter") {
+          const q = Math.floor(d.getMonth() / 3) + 1;
+          key = `${d.getFullYear()}-Q${q}`;
+        } else if (period === "year") {
+          key = `${d.getFullYear()}`;
+        }
+
+        statsByPeriod[key] = (statsByPeriod[key] ?? 0) + Number((r as { amount: number }).amount);
+      }
+
+      const chart_data = Object.entries(statsByPeriod)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([label, count]) => ({ label, count }));
+
+      await logAdminAction({
+        actorId: user.id,
+        actorRole: adminRole,
+        action: `admin.stats.revenue.${period}`,
+      });
+
+      return jsonResponse(200, {
+        total_revenue: total,
+        chart_data,
+      });
+    }
+
     if (type === "products") {
       const { count: total } = await adminClient
         .from("products")

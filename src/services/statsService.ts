@@ -51,3 +51,14 @@ export async function getStatsProducts() {
     most_demanded: unknown[];
   }>('admin-stats', sp);
 }
+
+export async function getStatsRevenue(params?: { period?: string; vendor_id?: string }) {
+  const sp = new URLSearchParams({ type: 'revenue' });
+  if (params?.period) sp.set('period', params.period);
+  if (params?.vendor_id) sp.set('vendor_id', params.vendor_id);
+  
+  return getFunction<{
+    total_revenue: number;
+    chart_data: Array<{ label: string; count: number }>;
+  }>('admin-stats', sp);
+}

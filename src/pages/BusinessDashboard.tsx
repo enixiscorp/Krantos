@@ -123,6 +123,35 @@ const BusinessDashboard = () => {
   const [leadFilter, setLeadFilter] = useState<'all' | 'contacted' | 'converted' | 'lost'>('all');
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
+  const playNotificationSound = () => {
+    const audio = new Audio('/sounds/notifications_Krantos.mp3');
+    audio.play().catch(e => console.warn('Sound play prevented by browser:', e));
+  };
+
+  useEffect(() => {
+    if (!vendor?.id) return;
+    
+    const channel = supabase.channel(`vendor_${vendor.id}_notifications`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'leads', filter: `vendor_id=eq.${vendor.id}` },
+        (payload) => {
+          playNotificationSound();
+          toast.success(`Nouveau lead assigné : ${payload.new.user_name}`, {
+            icon: '🔔',
+            duration: 10000,
+          });
+          // Update the local state
+          setAllLeads(prev => [payload.new as Lead, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [vendor?.id]);
+
   useEffect(() => {
     let mounted = true;
 

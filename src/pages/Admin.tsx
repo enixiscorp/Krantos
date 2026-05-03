@@ -41,6 +41,36 @@ const Admin = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
 
+  const playNotificationSound = () => {
+    if (!notificationsEnabled) return;
+    const audio = new Audio('/sounds/notifications_Krantos.mp3');
+    audio.play().catch(e => console.warn('Sound play prevented by browser:', e));
+  };
+
+  useEffect(() => {
+    // Realtime Notifications for Admin
+    const channel = supabase.channel('admin_notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+        playNotificationSound();
+        toast.success(`Nouveau lead : ${payload.new.user_name} (${payload.new.total_power_needed} W)`, {
+          icon: '🔔',
+          duration: 10000,
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendors' }, (payload) => {
+        playNotificationSound();
+        toast.info(`Nouveau vendeur inscrit : ${payload.new.name}`, {
+          icon: '🏪',
+          duration: 10000,
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [notificationsEnabled]);
+
   useEffect(() => {
     // PWA Install Prompt Listener
     const handler = (e: any) => {

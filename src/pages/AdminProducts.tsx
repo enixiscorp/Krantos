@@ -14,7 +14,8 @@ import {
   Tag,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -146,7 +147,8 @@ const AdminProducts = () => {
         price: 0, 
         power_rating: 0, 
         unit: 'W', 
-        is_active: true 
+        is_active: true,
+        image_url: ''
       });
       
       await load();

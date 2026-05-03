@@ -29,6 +29,19 @@ import { supabase } from '../lib/supabase';
 type CommissionStatus = 'pending_verification' | 'confirmed' | 'rejected' | 'rate_change';
 type CommissionType = 'conversion' | 'rate_change';
 
+interface CommissionRecord {
+  id: string;
+  vendor_id: string;
+  lead_id: string | null;
+  commission_rate_applied: number;
+  amount: number;
+  status: CommissionStatus;
+  type: CommissionType;
+  notes: string | null;
+  created_at: string;
+  vendors?: { name: string };
+}
+
 interface VendorWithRate {
   id: string;
   name: string;
@@ -186,18 +199,23 @@ const AdminCommissions = () => {
     if (filterStatus === 'confirmed') return v.status === 'active' && matchesSearch;
     
     if (filterStatus === 'rejected') {
-      // Logic: Pending for more than 1 week
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       return v.status === 'pending' && new Date(v.created_at) < oneWeekAgo && matchesSearch;
     }
     
     if (filterStatus === 'rate_change') {
-      // In this tab, we show vendors who had at least one rate change in records
       return records.some(r => r.vendor_id === v.id && r.type === 'rate_change') && matchesSearch;
     }
     
     return matchesSearch;
+  });
+
+  const filteredRecords = records.filter(r => {
+    const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
+    const matchesSearch = (r.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (r.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesStatus && matchesSearch;
   });
 
   if (loading && records.length === 0) {
@@ -308,7 +326,7 @@ const AdminCommissions = () => {
               <p className="text-gray-500 font-bold">Aucune commission trouvée.</p>
             </div>
           ) : (
-            filteredRecords.map((rec, i) => (
+            filteredRecords.map((rec: CommissionRecord, i: number) => (
               <motion.div
                 key={rec.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -318,15 +336,15 @@ const AdminCommissions = () => {
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${STATUS_CONFIG[rec.status].bg}`}>
-                      <DollarSign className={`w-7 h-7 ${STATUS_CONFIG[rec.status].color}`} />
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${STATUS_CONFIG[rec.status as CommissionStatus].bg}`}>
+                      <DollarSign className={`w-7 h-7 ${STATUS_CONFIG[rec.status as CommissionStatus].color}`} />
                     </div>
                     <div>
                       <div className="flex items-center gap-3 mb-1">
                         <h3 className="font-bold text-white uppercase tracking-tight">{rec.vendors?.name || 'Vendeur Inconnu'}</h3>
-                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${STATUS_CONFIG[rec.status].bg} ${STATUS_CONFIG[rec.status].color} flex items-center gap-1`}>
-                          {STATUS_CONFIG[rec.status].icon}
-                          {STATUS_CONFIG[rec.status].label}
+                        <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest border ${STATUS_CONFIG[rec.status as CommissionStatus].bg} ${STATUS_CONFIG[rec.status as CommissionStatus].color} flex items-center gap-1`}>
+                          {STATUS_CONFIG[rec.status as CommissionStatus].icon}
+                          {STATUS_CONFIG[rec.status as CommissionStatus].label}
                         </span>
                       </div>
                       <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-none">

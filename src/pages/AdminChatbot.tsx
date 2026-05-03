@@ -15,7 +15,8 @@ import {
   Settings2,
   Zap,
   Search,
-  ChevronRight
+  ChevronRight,
+  TrendingUp
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 

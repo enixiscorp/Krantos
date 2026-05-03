@@ -26,6 +26,10 @@ interface ChatbotConfig {
   suggestions: { question: string; answer: string }[];
   ai_enabled: boolean;
   ai_context: string;
+  address?: string;
+  delivery_info?: string;
+  consumption_info?: string;
+  usage_info?: string;
 }
 
 const AdminChatbot = () => {
@@ -92,7 +96,11 @@ const AdminChatbot = () => {
         welcome_message: "Bonjour ! Je suis l'assistant de {vendor_name}. Comment puis-je vous aider ?",
         suggestions: [],
         ai_enabled: false,
-        ai_context: ""
+        ai_context: "",
+        address: "",
+        delivery_info: "",
+        consumption_info: "",
+        usage_info: ""
       });
     }
     setLoading(false);
@@ -130,6 +138,10 @@ const AdminChatbot = () => {
         suggestions: config.suggestions,
         ai_enabled: config.ai_enabled,
         ai_context: config.ai_context,
+        address: config.address,
+        delivery_info: config.delivery_info,
+        consumption_info: config.consumption_info,
+        usage_info: config.usage_info,
         updated_at: new Date().toISOString()
       };
 
@@ -348,7 +360,7 @@ const AdminChatbot = () => {
 
               <div className="glass-card p-8 rounded-[2.5rem] border-white/5 space-y-6">
                 <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                  <Settings2 size={14} className="text-purple-400" />
+                  <Bot size={14} className="text-purple-400" />
                   Contexte IA (Personnalité)
                 </h4>
                 <textarea
@@ -359,6 +371,64 @@ const AdminChatbot = () => {
                 />
                 <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest italic">Visible uniquement par le modèle génératif.</p>
               </div>
+            </div>
+
+            {/* Keyword Knowledge Base */}
+            <div className="glass-card p-10 rounded-[3rem] border-white/5 bg-gradient-to-br from-yellow-400/[0.02] to-transparent">
+               <h3 className="text-2xl font-black text-white tracking-tight mb-8">Base de Connaissance par <span className="text-yellow-400">Mots-Clés</span></h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                       <Search size={14} className="text-yellow-400" />
+                       Adresse de la Boutique (Mot-clé: Boutique/Adresse)
+                    </label>
+                    <textarea
+                      value={config.address || ''}
+                      onChange={(e) => setConfig({ ...config, address: e.target.value })}
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm focus:border-yellow-400/50 outline-none transition-all resize-none"
+                      placeholder="Ex: Rue 12, Quartier Plateau, Abidjan. Ouvert de 8h à 18h."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                       <Zap size={14} className="text-yellow-400" />
+                       Infos Livraison (Mot-clé: Livraison/Boutique)
+                    </label>
+                    <textarea
+                      value={config.delivery_info || ''}
+                      onChange={(e) => setConfig({ ...config, delivery_info: e.target.value })}
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm focus:border-yellow-400/50 outline-none transition-all resize-none"
+                      placeholder="Ex: Livraison gratuite à domicile sous 24h à Abidjan."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                       <TrendingUp size={14} className="text-yellow-400" />
+                       Détails Consommation (Mot-clé: Consommation)
+                    </label>
+                    <textarea
+                      value={config.consumption_info || ''}
+                      onChange={(e) => setConfig({ ...config, consumption_info: e.target.value })}
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm focus:border-yellow-400/50 outline-none transition-all resize-none"
+                      placeholder="Ex: Ce kit est optimisé pour une décharge lente et une recharge solaire rapide."
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                       <Settings2 size={14} className="text-yellow-400" />
+                       Guide d'Usage/Appareils (Mot-clé: Usage)
+                    </label>
+                    <textarea
+                      value={config.usage_info || ''}
+                      onChange={(e) => setConfig({ ...config, usage_info: e.target.value })}
+                      className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm focus:border-yellow-400/50 outline-none transition-all resize-none"
+                      placeholder="Ex: Peut supporter un frigo, TV, et 10 ampoules simultanément."
+                    />
+                  </div>
+               </div>
             </div>
 
             {/* FAQ Suggestions */}

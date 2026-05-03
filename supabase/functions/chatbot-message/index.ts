@@ -32,7 +32,39 @@ Deno.serve(async (req) => {
 
     if (!vendor) return jsonResponse(404, { error: "Vendor not found" });
 
-    // 2. Try static suggestions first (exact match)
+    // 2. Check for Keywords (Priority)
+    const lowerMsg = message.toLowerCase();
+    let keywordResponse = "";
+    const suggestions = config?.suggestions?.map((s: any) => s.question).slice(0, 3) || [];
+
+    if (lowerMsg.includes("prix") || lowerMsg.includes("coûte") || lowerMsg.includes("combien")) {
+      const { data: p } = product_id ? await adminClient.from("products").select("name, price").eq("id", product_id).single() : { data: null };
+      if (p) {
+        keywordResponse = `Le prix de ${p.name} est de ${Number(p.price).toLocaleString('fr-FR')} FCFA.`;
+      } else {
+        keywordResponse = `Le prix dépend du modèle choisi. Quel produit vous intéresse en particulier ?`;
+      }
+    } else if (lowerMsg.includes("consommation") || lowerMsg.includes("énergie") || lowerMsg.includes("recharge")) {
+      keywordResponse = config?.consumption_info || "Ce produit est conçu pour une efficacité énergétique optimale. Souhaitez-vous plus de détails techniques ?";
+    } else if (lowerMsg.includes("usage") || lowerMsg.includes("appareil") || lowerMsg.includes("connecter") || lowerMsg.includes("alimenter")) {
+      keywordResponse = config?.usage_info || "Cet équipement peut alimenter vos appareils essentiels selon sa puissance. De quels appareils disposez-vous ?";
+    } else if (lowerMsg.includes("boutique") || lowerMsg.includes("adresse") || lowerMsg.includes("situé") || lowerMsg.includes("livraison") || lowerMsg.includes("livrer")) {
+      const addr = config?.address ? `Notre boutique est située ici : ${config.address}.` : "";
+      const deliv = config?.delivery_info ? ` Concernant la livraison : ${config.delivery_info}` : "";
+      keywordResponse = `${addr}${deliv}` || `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte et nos conditions de livraison.`;
+    }
+
+    // If a keyword match is found and AI is NOT mandatory or keyword is enough, return it
+    // But better: use it as context for AI if enabled, or return directly if not
+    if (keywordResponse && !config?.ai_enabled) {
+      return jsonResponse(200, {
+        response: keywordResponse,
+        suggestions: suggestions,
+        source: "static"
+      });
+    }
+
+    // 3. Try static suggestions first (exact match)
     const staticMatch = config?.suggestions?.find((s: any) => 
       s.question.toLowerCase().trim() === message.toLowerCase().trim()
     );
@@ -40,30 +72,38 @@ Deno.serve(async (req) => {
     if (staticMatch) {
       return jsonResponse(200, {
         response: staticMatch.answer,
-        suggestions: config.suggestions.map((s: any) => s.question).slice(0, 3),
+        suggestions: suggestions,
         source: "static"
       });
     }
 
-    // 3. AI Mode (if enabled and key present)
+    // 4. AI Mode (if enabled and key present)
     if (config?.ai_enabled && GEMINI_API_KEY) {
       // Fetch Product context if exists
       let productContext = "";
       if (product_id) {
         const { data: p } = await adminClient.from("products").select("*").eq("id", product_id).single();
         if (p) {
-          productContext = `Tu réponds pour le produit: ${p.name}. Prix: ${p.price} FCFA. Puissance: ${p.power_rating} kVA. Description: ${p.description}.`;
+          productContext = `Produit actuel: ${p.name}. Prix: ${p.price} FCFA. Puissance: ${p.power_rating} kVA. Description: ${p.description}.`;
         }
       }
 
       const systemPrompt = `
         Tu es l'assistant virtuel IA de ${vendor.name}, une entreprise dans le secteur ${vendor.category}.
         Ton but est d'aider le client et de l'orienter vers l'achat ou le contact WhatsApp.
-        Contexte du vendeur: ${config.ai_context || "Expert et professionnel"}.
+        
+        BASE DE CONNAISSANCE CRITIQUE (Priorité haute):
+        - Adresse/Boutique: ${config.address || "Non spécifiée"}
+        - Livraison: ${config.delivery_info || "Non spécifiée"}
+        - Consommation: ${config.consumption_info || "Non spécifiée"}
+        - Usage/Appareils: ${config.usage_info || "Non spécifiée"}
+        
         ${productContext}
+        Contexte additionnel: ${config.ai_context || "Expert et professionnel"}.
+
         Instructions:
-        - Sois concis et amical.
-        - Réponds en français.
+        - Si l'utilisateur pose une question sur un mot-clé ci-dessus, utilise EXCLUSIVEMENT les informations de la BASE DE CONNAISSANCE CRITIQUE.
+        - Sois concis et amical. Réponds en français.
         - Termine ta réponse par un format JSON contenant ta réponse et 2-3 suggestions de questions courtes pour le client.
         Format attendu: {"answer": "votre texte ici", "next_questions": ["question 1?", "question 2?"]}
       `;
@@ -91,10 +131,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4. Fallback (Static Welcome or default)
+    // 5. Fallback (Static Welcome or default)
     return jsonResponse(200, {
-      response: config?.welcome_message.replace("{vendor_name}", vendor.name) || `Bonjour, bienvenue chez ${vendor.name}. Comment puis-je vous aider ?`,
-      suggestions: config?.suggestions?.map((s: any) => s.question).slice(0, 3) || [],
+      response: keywordResponse || config?.welcome_message.replace("{vendor_name}", vendor.name) || `Bonjour, bienvenue chez ${vendor.name}. Comment puis-je vous aider ?`,
+      suggestions: suggestions,
       source: "fallback"
     });
 

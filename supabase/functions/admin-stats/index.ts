@@ -49,111 +49,106 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (type === "leads") {
+    if (type === "leads" || type === "revenue") {
+      const now = new Date();
+      let startDate = new Date();
+      let step: "day" | "week" | "month" | "quarter" | "year" = "day";
+
+      if (period === "day") {
+        startDate.setDate(now.getDate() - 29);
+        step = "day";
+      } else if (period === "week") {
+        startDate.setDate(now.getDate() - (7 * 11));
+        step = "week";
+      } else if (period === "month") {
+        startDate.setMonth(now.getMonth() - 11);
+        step = "month";
+      } else if (period === "quarter") {
+        startDate.setMonth(now.getMonth() - 23); // 2 years
+        step = "quarter";
+      } else if (period === "semester") {
+        startDate.setMonth(now.getMonth() - 23); // 2 years
+        step = "quarter"; // We'll group by quarter or semester
+      } else if (period === "year") {
+        startDate.setFullYear(now.getFullYear() - 4);
+        step = "year";
+      }
+
+      const table = type === "leads" ? "leads" : "commission_records";
       let query = adminClient
-        .from("leads")
-        .select("status, created_at, vendor_id")
+        .from(table)
+        .select(type === "leads" ? "status, created_at, vendor_id" : "amount, created_at, vendor_id")
+        .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: true });
+      
+      if (type === "revenue") {
+        query = query.eq("status", "confirmed");
+      }
       
       if (vendorId) {
         query = query.eq("vendor_id", vendorId);
       }
 
-      const { data: leads } = await query;
-      const total = leads?.length ?? 0;
-      let converted = 0;
+      const { data: rows } = await query;
       
+      // Initialize timeline
       const statsByPeriod: Record<string, number> = {};
-      
-      for (const l of leads ?? []) {
-        const st = (l as { status: string }).status;
-        if (st === "converted") converted++;
-        
-        const d = new Date((l as { created_at: string }).created_at);
+      const current = new Date(startDate);
+      while (current <= now) {
         let key = "";
-        
-        if (period === "day") {
-          key = d.toISOString().slice(0, 10);
-        } else if (period === "week") {
-          // ISO Week key: YYYY-Www
-          const tempDate = new Date(d.getTime());
-          tempDate.setHours(0, 0, 0, 0);
-          tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
-          const week1 = new Date(tempDate.getFullYear(), 0, 4);
-          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-          key = `${tempDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
-        } else if (period === "month") {
-          key = d.toISOString().slice(0, 7);
-        } else if (period === "quarter") {
-          const q = Math.floor(d.getMonth() / 3) + 1;
-          key = `${d.getFullYear()}-Q${q}`;
-        } else if (period === "year") {
-          key = `${d.getFullYear()}`;
+        if (step === "day") key = current.toISOString().slice(0, 10);
+        else if (step === "week") {
+          const d = new Date(current);
+          d.setHours(0,0,0,0);
+          d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+          const week1 = new Date(d.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+          key = `${d.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
         }
-
-        statsByPeriod[key] = (statsByPeriod[key] ?? 0) + 1;
+        else if (step === "month") key = current.toISOString().slice(0, 7);
+        else if (step === "quarter") key = `${current.getFullYear()}-Q${Math.floor(current.getMonth() / 3) + 1}`;
+        else if (step === "year") key = `${current.getFullYear()}`;
+        
+        if (key && !statsByPeriod[key]) statsByPeriod[key] = 0;
+        
+        if (step === "day") current.setDate(current.getDate() + 1);
+        else if (step === "week") current.setDate(current.getDate() + 7);
+        else if (step === "month") current.setMonth(current.getMonth() + 1);
+        else if (step === "quarter") current.setMonth(current.getMonth() + 3);
+        else if (step === "year") current.setFullYear(current.getFullYear() + 1);
       }
 
-      const chart_data = Object.entries(statsByPeriod)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([label, count]) => ({ label, count }));
+      // Populate data
+      let totalValue = 0;
+      let convertedCount = 0;
 
-      const conversion_rate = total > 0
-        ? Math.round((converted / total) * 1000) / 10
-        : 0;
-
-      await logAdminAction({
-        actorId: user.id,
-        actorRole: adminRole,
-        action: `admin.stats.leads.${period}`,
-      });
-
-      return jsonResponse(200, {
-        total_leads: total,
-        chart_data,
-        conversion_rate,
-      });
-    }
-
-    if (type === "revenue") {
-      let query = adminClient
-        .from("commission_records")
-        .select("amount, created_at, vendor_id")
-        .eq("status", "confirmed")
-        .order("created_at", { ascending: true });
-      
-      if (vendorId) {
-        query = query.eq("vendor_id", vendorId);
-      }
-
-      const { data: records } = await query;
-      const total = records?.reduce((acc, r) => acc + Number(r.amount), 0) || 0;
-      
-      const statsByPeriod: Record<string, number> = {};
-      
-      for (const r of records ?? []) {
+      for (const r of rows ?? []) {
         const d = new Date((r as { created_at: string }).created_at);
         let key = "";
-        
-        if (period === "day") {
-          key = d.toISOString().slice(0, 10);
-        } else if (period === "week") {
-          const tempDate = new Date(d.getTime());
-          tempDate.setHours(0, 0, 0, 0);
-          tempDate.setDate(tempDate.getDate() + 3 - (tempDate.getDay() + 6) % 7);
-          const week1 = new Date(tempDate.getFullYear(), 0, 4);
-          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-          key = `${tempDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
-        } else if (period === "month") {
-          key = d.toISOString().slice(0, 7);
-        } else if (period === "quarter") {
-          const q = Math.floor(d.getMonth() / 3) + 1;
-          key = `${d.getFullYear()}-Q${q}`;
-        } else if (period === "year") {
-          key = `${d.getFullYear()}`;
+        if (step === "day") key = d.toISOString().slice(0, 10);
+        else if (step === "week") {
+          const temp = new Date(d);
+          temp.setHours(0,0,0,0);
+          temp.setDate(temp.getDate() + 3 - (temp.getDay() + 6) % 7);
+          const week1 = new Date(temp.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((temp.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+          key = `${temp.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
         }
+        else if (step === "month") key = d.toISOString().slice(0, 7);
+        else if (step === "quarter") key = `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+        else if (step === "year") key = `${d.getFullYear()}`;
 
-        statsByPeriod[key] = (statsByPeriod[key] ?? 0) + Number((r as { amount: number }).amount);
+        if (statsByPeriod[key] !== undefined) {
+          if (type === "leads") {
+            statsByPeriod[key]++;
+            totalValue++;
+            if ((r as { status: string }).status === "converted") convertedCount++;
+          } else {
+            const amt = Number((r as { amount: number }).amount);
+            statsByPeriod[key] += amt;
+            totalValue += amt;
+          }
+        }
       }
 
       const chart_data = Object.entries(statsByPeriod)
@@ -163,13 +158,18 @@ Deno.serve(async (req) => {
       await logAdminAction({
         actorId: user.id,
         actorRole: adminRole,
-        action: `admin.stats.revenue.${period}`,
+        action: `admin.stats.${type}.${period}`,
       });
 
-      return jsonResponse(200, {
-        total_revenue: total,
-        chart_data,
-      });
+      const response: Record<string, any> = { chart_data };
+      if (type === "leads") {
+        response.total_leads = totalValue;
+        response.conversion_rate = totalValue > 0 ? Math.round((convertedCount / totalValue) * 1000) / 10 : 0;
+      } else {
+        response.total_revenue = totalValue;
+      }
+
+      return jsonResponse(200, response);
     }
 
     if (type === "products") {

@@ -347,32 +347,11 @@ const CalculatePower = () => {
                   </div>
                   {/* ... (Existing form inputs) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                    <div className="relative group">
-                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Prénom</label>
-                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.firstName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                        <User className="w-4 h-4 text-gray-500" />
-                        <input type="text" value={userForm.firstName} placeholder="Votre prénom" onChange={(e) => { setUserForm(f => ({ ...f, firstName: e.target.value })); if (userErrors.firstName) setUserErrors(err => ({ ...err, firstName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Nom</label>
-                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.lastName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                        <User className="w-4 h-4 text-gray-500" />
-                        <input type="text" value={userForm.lastName} placeholder="Votre nom" onChange={(e) => { setUserForm(f => ({ ...f, lastName: e.target.value })); if (userErrors.lastName) setUserErrors(err => ({ ...err, lastName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <label htmlFor="phone" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Téléphone</label>
-                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.phone ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
-                        <Phone className="w-4 h-4 text-gray-500" />
-                        <input id="phone" type="tel" value={userForm.phone} placeholder="+228..." onChange={(e) => { setUserForm(f => ({ ...f, phone: e.target.value })); if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
-                      </div>
-                    </div>
-                    <div className={`relative group ${showSuggestions ? 'z-[200]' : ''}`}>
+                    <div className={`relative group md:col-span-2 ${showSuggestions ? 'z-[50]' : ''}`}>
                       <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Localisation</label>
                       <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
                         <MapPin className="w-4 h-4 text-gray-500" />
-                        <input id="location" type="text" value={userForm.location} placeholder="Lomé, Togo" autoComplete="off" onChange={(e) => { const val = e.target.value; setUserForm(f => ({ ...f, location: val })); if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined })); if (val.length >= 2) { const matches = ALL_LOCATIONS.filter(l => l.toLowerCase().includes(val.toLowerCase())); setLocationSuggestions(matches); setShowSuggestions(matches.length > 0); } else { setShowSuggestions(false); } }} onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
+                        <input id="location" type="text" value={userForm.location} placeholder="Rechercher votre ville..." autoComplete="off" onChange={(e) => { const val = e.target.value; setUserForm(f => ({ ...f, location: val })); if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined })); if (val.length >= 2) { const matches = ALL_LOCATIONS.filter(l => l.toLowerCase().includes(val.toLowerCase())); setLocationSuggestions(matches); setShowSuggestions(matches.length > 0); } else { setShowSuggestions(false); } }} onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
                       </div>
                       <AnimatePresence>
                         {showSuggestions && (
@@ -391,6 +370,28 @@ const CalculatePower = () => {
                           </motion.div>
                         )}
                       </AnimatePresence>
+                    </div>
+
+                    <div className="relative group">
+                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Prénom</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.firstName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <User className="w-4 h-4 text-gray-500" />
+                        <input type="text" value={userForm.firstName} placeholder="Votre prénom" onChange={(e) => { setUserForm(f => ({ ...f, firstName: e.target.value })); if (userErrors.firstName) setUserErrors(err => ({ ...err, firstName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
+                      </div>
+                    </div>
+                    <div className="relative group">
+                      <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Nom</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.lastName ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <User className="w-4 h-4 text-gray-500" />
+                        <input type="text" value={userForm.lastName} placeholder="Votre nom" onChange={(e) => { setUserForm(f => ({ ...f, lastName: e.target.value })); if (userErrors.lastName) setUserErrors(err => ({ ...err, lastName: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm font-medium" />
+                      </div>
+                    </div>
+                    <div className="relative group md:col-span-2">
+                      <label htmlFor="phone" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Téléphone</label>
+                      <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.phone ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <input id="phone" type="tel" value={userForm.phone} placeholder="+228..." onChange={(e) => { setUserForm(f => ({ ...f, phone: e.target.value })); if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
+                      </div>
                     </div>
                   </div>
                 </div>

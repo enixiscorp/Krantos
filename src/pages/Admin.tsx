@@ -32,7 +32,7 @@ const Admin = () => {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   
   // Filters
-  const [period, setPeriod] = useState('day');
+  const [period, setPeriod] = useState('month');
   const [selectedVendor, setSelectedVendor] = useState<string>('');
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -215,10 +215,34 @@ const Admin = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Vendeurs Totaux', value: dashboard.total_vendors, icon: <Users className="text-blue-400" />, trend: trends.vendors },
-          { label: 'Leads Générés', value: dashboard.total_leads, icon: <TrendingUp className="text-yellow-400" />, trend: trends.leads },
-          { label: 'Conversion', value: `${dashboard.conversion_rate}%`, icon: <TrendingUp className="text-purple-400" />, trend: trends.conversion },
-          { label: 'Revenus Est.', value: `${dashboard.total_revenue.toLocaleString()} FCFA`, icon: <DollarSign className="text-green-400" />, trend: trends.revenue },
+          {
+            label: 'Vendeurs Totaux',
+            value: dashboard.total_vendors,
+            sub: `${dashboard.active_vendors} actifs`,
+            icon: <Users className="text-blue-400" />,
+            trend: trends.vendors
+          },
+          {
+            label: 'Leads (Période)',
+            value: dashboard.total_leads,
+            sub: `${dashboard.total_leads_all ?? dashboard.total_leads} au total`,
+            icon: <TrendingUp className="text-yellow-400" />,
+            trend: trends.leads
+          },
+          {
+            label: 'Taux Conversion',
+            value: `${dashboard.conversion_rate.toFixed(1)}%`,
+            sub: 'Leads convertîs / total',
+            icon: <TrendingUp className="text-purple-400" />,
+            trend: trends.conversion
+          },
+          {
+            label: 'Revenus Période',
+            value: `${(dashboard.total_revenue ?? 0).toLocaleString('fr-FR')} FCFA`,
+            sub: `Total: ${(dashboard.total_revenue_all ?? dashboard.total_revenue ?? 0).toLocaleString('fr-FR')} FCFA`,
+            icon: <DollarSign className="text-green-400" />,
+            trend: trends.revenue
+          },
         ].map((stat, i) => {
           const trend = stat.trend;
           return (
@@ -233,13 +257,14 @@ const Admin = () => {
                 <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors">
                   {stat.icon}
                 </div>
-                <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${trend.up ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                  {trend.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-                  {trend.val}
+                <div className={`flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-full ${trend?.up ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                  {trend?.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                  {trend?.val ?? '0%'}
                 </div>
               </div>
-              <p className="text-4xl font-black text-white tracking-tighter mb-1">{stat.value}</p>
+              <p className="text-3xl font-black text-white tracking-tighter mb-0.5">{stat.value}</p>
               <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{stat.label}</p>
+              <p className="text-[9px] text-gray-600 font-medium mt-1">{stat.sub}</p>
             </motion.div>
           );
         })}
@@ -272,17 +297,24 @@ const Admin = () => {
             </div>
 
             <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/10">
-              {['day', 'week', 'month', 'quarter', 'year'].map(pId => (
+              {[
+                { id: 'day',      label: 'Jour' },
+                { id: 'week',     label: 'Semaine' },
+                { id: 'month',    label: 'Mois' },
+                { id: 'quarter',  label: 'Trimestre' },
+                { id: 'semester', label: 'Semestre' },
+                { id: 'year',     label: 'An' },
+              ].map(p => (
                 <button
-                  key={pId}
-                  onClick={() => setPeriod(pId)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    period === pId 
-                      ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                  key={p.id}
+                  onClick={() => setPeriod(p.id)}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    period === p.id
+                      ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
                       : 'text-gray-500 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {pId === 'day' ? 'Jour' : pId === 'week' ? 'Semaine' : pId === 'month' ? 'Mois' : pId === 'quarter' ? 'Trimestre' : 'An'}
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -351,9 +383,24 @@ const Admin = () => {
             <h4 className="font-black text-white mb-6 uppercase tracking-widest text-[10px]">Pipeline de conversion</h4>
             <div className="space-y-6">
               {[
-                { label: 'Acquisition Vendeurs', progress: dashboard.goals.acquisition, color: 'bg-blue-400', sub: 'Objectif: 100/mois' },
-                { label: 'Taux de Validation', progress: dashboard.goals.validation, color: 'bg-green-400', sub: 'Délai moyen: 4h' },
-                { label: 'Revenus Premium', progress: dashboard.goals.premium, color: 'bg-purple-400', sub: 'Abonnements annuels' },
+                {
+                  label: 'Acquisition Vendeurs',
+                  progress: dashboard.goals.acquisition,
+                  color: 'bg-blue-400',
+                  sub: `${dashboard.goals.acquisition_count ?? 0} / ${dashboard.goals.acquisition_target ?? 100} vendeurs cette période`,
+                },
+                {
+                  label: 'Taux de Validation',
+                  progress: dashboard.goals.validation,
+                  color: 'bg-green-400',
+                  sub: `${dashboard.active_vendors} actifs sur ${dashboard.total_vendors} inscrits`,
+                },
+                {
+                  label: 'Revenus Premium',
+                  progress: dashboard.goals.premium,
+                  color: 'bg-purple-400',
+                  sub: `${(dashboard.goals.revenue_current ?? 0).toLocaleString('fr-FR')} / ${(dashboard.goals.revenue_target ?? 1000000).toLocaleString('fr-FR')} FCFA`,
+                },
               ].map(goal => (
                 <div key={goal.label} className="space-y-3">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
@@ -364,7 +411,13 @@ const Admin = () => {
                     <span className="text-yellow-400">{goal.progress}%</span>
                   </div>
                   <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${goal.progress}%` }} className={`h-full ${goal.color}`} />
+                    <motion.div
+                      key={`${goal.label}-${period}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${goal.progress}%` }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      className={`h-full ${goal.color}`}
+                    />
                   </div>
                 </div>
               ))}
@@ -399,36 +452,61 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Recent Activity Full Width */}
+      {/* Recent Leads Journal */}
       <div className="glass-card p-8 rounded-[3rem] border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
         <div className="flex items-center justify-between mb-8 px-2">
-          <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Journal d'activité Lead</h3>
+          <div>
+            <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Journal d'activité Lead</h3>
+            <p className="text-[10px] text-gray-600 mt-1">Leads reçus sur la période sélectionnée</p>
+          </div>
           <Link to="/admin/leads" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Flux complet</Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {dashboard?.recent_leads?.slice(0, 8).map((l) => (
-            <div key={l.id} className="p-5 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-6 group hover:border-white/10 hover:bg-white/[0.04] transition-all">
-              <div className="flex justify-between items-start">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 text-xs font-black">
-                  {l.user_name.slice(0, 2).toUpperCase()}
+        {(dashboard?.recent_leads?.length ?? 0) === 0 ? (
+          <div className="text-center py-12 text-gray-600">
+            <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm font-bold uppercase tracking-widest">Aucun lead sur cette période</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {dashboard?.recent_leads?.slice(0, 8).map((l) => {
+              const statusColors: Record<string, string> = {
+                new: 'text-blue-400',
+                contacted: 'text-yellow-400',
+                converted: 'text-green-400',
+                lost: 'text-red-400',
+              };
+              const statusLabels: Record<string, string> = {
+                new: 'Nouveau',
+                contacted: 'Contacté',
+                converted: 'Converti',
+                lost: 'Perdu',
+              };
+              return (
+                <div key={l.id} className="p-5 rounded-2xl bg-white/5 border border-white/5 flex flex-col justify-between gap-4 group hover:border-white/10 hover:bg-white/[0.04] transition-all">
+                  <div className="flex justify-between items-start">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 text-xs font-black">
+                      {l.user_name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="px-2 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-[10px] font-black uppercase">
+                      {l.total_power_needed.toFixed(2)} kVA
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-white font-bold group-hover:text-yellow-400 transition-colors truncate">{l.user_name}</p>
+                    {l.location && <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">{l.location}</p>}
+                    <p className="text-[10px] text-gray-600 mt-1">
+                      {new Date(l.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-3 border-t border-white/5">
+                    <span className={statusColors[l.status] ?? 'text-gray-500'}>{statusLabels[l.status] ?? l.status}</span>
+                    <Link to="/admin/leads" className="text-yellow-400/50 hover:text-yellow-400 transition-colors">#ID-{l.id.slice(0, 4)}</Link>
+                  </div>
                 </div>
-                <div className="px-2 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-[10px] font-black uppercase">
-                  {l.total_power_needed} W
-                </div>
-              </div>
-              <div>
-                <p className="text-white font-bold group-hover:text-yellow-400 transition-colors truncate">{l.user_name}</p>
-                <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">
-                  {new Date(l.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest pt-4 border-t border-white/5">
-                <span className={l.status === 'converted' ? 'text-green-400' : 'text-gray-600'}>{l.status}</span>
-                <span className="text-blue-400/50">#ID-{l.id.slice(0, 4)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -34,8 +34,10 @@ export interface AdminDashboardPayload {
   pending_vendors: number;
   total_products: number;
   total_leads: number;
+  total_leads_all: number;
   conversion_rate: number;
   total_revenue: number;
+  total_revenue_all: number;
   trends: {
     vendors: { val: string; up: boolean };
     leads: { val: string; up: boolean };
@@ -46,6 +48,10 @@ export interface AdminDashboardPayload {
     acquisition: number;
     validation: number;
     premium: number;
+    acquisition_count: number;
+    acquisition_target: number;
+    revenue_current: number;
+    revenue_target: number;
   };
   top_vendors: Array<{
     vendor_id: string;
@@ -58,8 +64,11 @@ export interface AdminDashboardPayload {
   recent_leads: Array<{
     id: string;
     user_name: string;
+    user_phone?: string;
+    location?: string;
     status: string;
     total_power_needed: number;
+    vendor_id?: string;
     created_at: string;
   }>;
 }

@@ -20,7 +20,8 @@ import {
   Loader2,
   ChevronDown,
   Mail,
-  Zap
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 

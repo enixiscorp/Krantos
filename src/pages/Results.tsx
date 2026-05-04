@@ -515,7 +515,7 @@ const Results = () => {
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none focus:border-yellow-400/50 transition-all placeholder:text-gray-600"
             />
             <button
-              onClick={handleChatSend}
+              onClick={() => handleChatSend()}
               disabled={chatLoading}
               className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-yellow-400 text-gray-950 flex items-center justify-center hover:bg-yellow-500 transition-all disabled:opacity-50"
             >

@@ -96,10 +96,10 @@ const CustomSelect = ({ value, options, onChange, className = "" }: CustomSelect
           <>
             <div className="fixed inset-0 z-[110]" onClick={() => setIsOpen(false)} />
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[120] overflow-hidden backdrop-blur-xl max-h-60 overflow-y-auto scrollbar-hide"
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute left-0 right-0 bottom-full mb-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-[120] overflow-hidden backdrop-blur-xl max-h-60 overflow-y-auto scrollbar-hide"
             >
               {options.map((opt) => (
                 <button

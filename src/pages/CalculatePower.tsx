@@ -3,11 +3,11 @@
 // Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 14.4
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOff } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 import type { ApplianceInput, PowerUnit } from '../lib/supabase';
@@ -240,6 +240,51 @@ const CalculatePower = () => {
     alternatives: { product: any; vendor: any }[];
   } | null>(null);
   const [calculatedPower, setCalculatedPower] = useState({ watts: 0, kva: 0 });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('Vous êtes de nouveau en ligne. Synchronisation...');
+      syncOfflineLeads();
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('Connexion perdue. Vos données seront sauvegardées localement.');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const syncOfflineLeads = async () => {
+    const queue = JSON.parse(localStorage.getItem('krantos_offline_leads') || '[]');
+    if (queue.length === 0) return;
+
+    for (const item of queue) {
+      try {
+        const { data: leadData, error: leadError } = await supabase
+          .from('leads')
+          .insert(item.lead)
+          .select('id')
+          .single();
+
+        if (leadError) throw leadError;
+
+        const apps = item.appliances.map((a: any) => ({ ...a, lead_id: leadData.id }));
+        await supabase.from('appliances_input').insert(apps);
+      } catch (err) {
+        console.error('Failed to sync offline lead:', err);
+      }
+    }
+
+    localStorage.removeItem('krantos_offline_leads');
+    toast.success(`${queue.length} demande(s) synchronisée(s).`);
+  };
 
   // ── User form validation ─────────────────────────────────────────────────
   const validateUserForm = (): boolean => {
@@ -293,6 +338,47 @@ const CalculatePower = () => {
   ) => {
     setIsSubmitting(true);
     setSubmitFailed(false);
+
+    if (!isOnline) {
+      const offlineQueue = JSON.parse(localStorage.getItem('krantos_offline_leads') || '[]');
+      offlineQueue.push({
+        lead: {
+          user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
+          user_phone: userForm.phone.trim(),
+          location: userForm.location.trim(),
+          total_power_needed: totalKVA,
+          recommended_product_id: product?.id ?? null,
+          vendor_id: vendor?.id ?? null,
+          status: 'new',
+        },
+        appliances: appliances.map(a => ({
+          appliance_name: a.name,
+          quantity: a.quantity,
+          power: a.power,
+          unit: a.unit,
+          power_in_watts: a.unit === 'A' ? a.power * 220 : a.power
+        }))
+      });
+      localStorage.setItem('krantos_offline_leads', JSON.stringify(offlineQueue));
+      
+      toast.info("Mode Hors-ligne : Votre demande sera envoyée dès votre retour en ligne.");
+      
+      navigate('/results', {
+        state: {
+          totalWatts,
+          totalKVA,
+          product,
+          vendor,
+          leadId: 'offline-' + Date.now(),
+          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
+          userPhone: userForm.phone.trim(),
+          location: userForm.location.trim(),
+          appliances,
+        },
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const { data: leadData, error: leadError } = await supabase
@@ -355,9 +441,7 @@ const CalculatePower = () => {
       const message = err instanceof Error ? err.message : 'Erreur inconnue.';
       console.error('Lead recording failed:', message);
       
-      // We still want to show the results even if recording the lead fails!
-      // This is crucial for user experience.
-      toast.warning("Votre résultat est prêt, mais nous n'avons pas pu enregistrer votre contact. Veuillez contacter le vendeur directement.");
+      toast.warning("Une erreur est survenue lors de l'enregistrement. Veuillez contacter le vendeur directement.");
       
       navigate('/results', {
         state: {
@@ -365,7 +449,7 @@ const CalculatePower = () => {
           totalKVA,
           product,
           vendor,
-          leadId: 'offline-' + Date.now(), // Fallback ID
+          leadId: 'error-' + Date.now(),
           userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
           userPhone: userForm.phone.trim(),
           location: userForm.location.trim(),

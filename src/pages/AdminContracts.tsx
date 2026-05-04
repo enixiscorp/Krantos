@@ -80,6 +80,8 @@ const AdminContracts = () => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [renewalEndDate, setRenewalEndDate] = useState('');
+  const [upgradeRequests, setUpgradeRequests] = useState<any[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -91,17 +93,32 @@ const AdminContracts = () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-        .order('contract_end_date', { ascending: true });
+      const [vRes, rRes] = await Promise.all([
+        supabase
+          .from('vendors')
+          .select('*')
+          .order('contract_end_date', { ascending: true }),
+        supabase
+          .from('subscription_requests')
+          .select('*, vendors(name)')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+      ]);
 
-      if (error) {
+      if (vRes.error) {
         toast.error('Erreur lors du chargement des contrats.');
       } else if (mounted) {
-        setVendors(data ?? []);
+        setVendors(vRes.data ?? []);
       }
-      if (mounted) setLoading(false);
+
+      if (rRes.data && mounted) {
+        setUpgradeRequests(rRes.data);
+      }
+      
+      if (mounted) {
+        setLoading(false);
+        setLoadingRequests(false);
+      }
     };
 
     init();
@@ -158,6 +175,36 @@ const AdminContracts = () => {
     setUpdatingId(null);
   };
 
+  const handleApproveUpgrade = async (requestId: string) => {
+    try {
+      const { error } = await supabase.rpc('approve_subscription_request', { request_id: requestId });
+      if (error) throw error;
+      
+      toast.success('Upgrade approuvé et appliqué.');
+      setUpgradeRequests(prev => prev.filter(r => r.id !== requestId));
+      // Refresh vendors
+      const { data } = await supabase.from('vendors').select('*').order('contract_end_date', { ascending: true });
+      setVendors(data || []);
+    } catch (err: any) {
+      toast.error('Erreur : ' + err.message);
+    }
+  };
+
+  const handleRejectUpgrade = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('subscription_requests')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+      
+      if (error) throw error;
+      toast.success('Demande rejetée.');
+      setUpgradeRequests(prev => prev.filter(r => r.id !== requestId));
+    } catch (err: any) {
+      toast.error('Erreur lors du rejet.');
+    }
+  };
+
   // ---------------------------------------------------------------------------
   // Filters
   // ---------------------------------------------------------------------------
@@ -196,6 +243,13 @@ const AdminContracts = () => {
           <h1 className="text-4xl font-black text-white mb-2">Contrats</h1>
           <p className="text-gray-500 text-lg">Suivi du cycle de vie et renouvellements.</p>
         </div>
+
+        {upgradeRequests.length > 0 && (
+          <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 px-6 py-3 rounded-2xl animate-pulse">
+            <Zap className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-black text-blue-400 uppercase tracking-widest">{upgradeRequests.length} Demandes d'upgrade en attente</span>
+          </div>
+        )}
       </div>
 
       {/* Stats Quick View */}
@@ -227,6 +281,44 @@ const AdminContracts = () => {
           className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-yellow-400/50"
         />
       </div>
+
+      {/* Upgrade Requests Section */}
+      {upgradeRequests.length > 0 && (
+        <div className="mb-12">
+          <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em] mb-6 ml-2">Demandes d'Upgrade</h2>
+          <div className="grid gap-4">
+            {upgradeRequests.map(req => (
+              <div key={req.id} className="glass-card p-6 rounded-3xl border-blue-500/20 bg-blue-500/[0.02] flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black">
+                    {req.vendors?.name?.charAt(0) || 'V'}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white uppercase tracking-tight">{req.vendors?.name}</h4>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+                      Upgrade vers <span className="text-blue-400">{req.requested_tier}</span> ({req.requested_period})
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleApproveUpgrade(req.id)}
+                    className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Approuver
+                  </button>
+                  <button
+                    onClick={() => handleRejectUpgrade(req.id)}
+                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                  >
+                    Rejeter
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* List */}
       <div className="space-y-4">

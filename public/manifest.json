@@ -1,0 +1,17 @@
+{
+  "name": "Krantos - Énergie Renouvelable",
+  "short_name": "Krantos",
+  "description": "Plateforme premium de solutions énergétiques renouvelables.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#FACC15",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

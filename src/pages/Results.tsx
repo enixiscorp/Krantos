@@ -81,6 +81,7 @@ const Results = () => {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatSuggestions, setChatSuggestions] = useState<string[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -121,24 +122,33 @@ const Results = () => {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const handleChatSend = async () => {
-    if (!chatInput.trim() || chatLoading || !product) return;
-    const msg = chatInput.trim();
+  const handleChatSend = async (overrideText?: string) => {
+    const msg = (overrideText || chatInput).trim();
+    if (!msg || chatLoading || !product) return;
+    
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
     setChatLoading(true);
 
     try {
+      const history = chatMessages.slice(-5).map(m => ({
+        role: m.role === 'bot' ? 'assistant' : 'user',
+        content: m.text
+      }));
+
       const api = await sendChatbotMessage({
         message: msg,
         vendor_id: vendor?.id || '',
-        product_id: product.id
+        product_id: product.id,
+        history: history
       });
+      
       setChatMessages(prev => [...prev, { role: 'bot', text: api.response }]);
+      setChatSuggestions(api.suggestions || []);
     } catch {
       setChatMessages(prev => [...prev, { role: 'bot', text: "Erreur lors de la réponse. Réessayez." }]);
     } finally {
-      setChatLoading(false);
+      chatLoading && setChatLoading(false);
     }
   };
 
@@ -478,6 +488,22 @@ const Results = () => {
               </div>
             )}
           </div>
+
+          {/* Suggestions */}
+          {chatSuggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
+              {chatSuggestions.map((s, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleChatSend(s)}
+                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-400 hover:text-yellow-400 hover:border-yellow-400/50 transition-all flex items-center gap-2 group"
+                >
+                  {s}
+                  <ChevronRight size={10} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="relative group">
             <input

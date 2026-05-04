@@ -139,7 +139,8 @@ const AdminVendors = () => {
     password: '',
     phone: '',
     category: 'Énergie solaire',
-    subscription_type: 'free'
+    subscription_type: 'free',
+    billing_period: 'monthly'
   });
 
   useEffect(() => {
@@ -229,6 +230,7 @@ const AdminVendors = () => {
           password: newVendor.password,
           contract_duration: 12,
           subscription_type: newVendor.subscription_type,
+          billing_period: newVendor.billing_period,
         }),
       });
 
@@ -236,7 +238,7 @@ const AdminVendors = () => {
 
       toast.success('Vendeur créé avec succès !');
       setShowAddModal(false);
-      setNewVendor({ name: '', email: '', password: '', phone: '', category: 'Énergie solaire', subscription_type: 'free' });
+      setNewVendor({ name: '', email: '', password: '', phone: '', category: 'Énergie solaire', subscription_type: 'free', billing_period: 'monthly' });
       // Refresh list
       const { data } = await supabase.from('vendors').select('*').order('created_at', { ascending: false });
       setVendors(data ?? []);
@@ -529,6 +531,30 @@ const AdminVendors = () => {
                           <Calendar className="w-4 h-4 text-yellow-400" />
                           Inscrit le {new Date(selectedVendor.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                         </div>
+                        <div className="space-y-1">
+                          <label className="text-[8px] font-black text-gray-600 uppercase tracking-widest ml-1">Période de facturation</label>
+                          <select
+                            value={(selectedVendor as any).billing_period || 'monthly'}
+                            onChange={async (e) => {
+                              const val = e.target.value;
+                              try {
+                                const { error } = await supabase.from('vendors').update({ billing_period: val }).eq('id', selectedVendor.id);
+                                if (error) throw error;
+                                setVendors(prev => prev.map(v => v.id === selectedVendor.id ? { ...v, billing_period: val } as any : v));
+                                setSelectedVendor(prev => prev ? { ...prev, billing_period: val } as any : null);
+                                toast.success('Période mise à jour');
+                              } catch (err) {
+                                toast.error('Erreur lors du changement de période');
+                              }
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white text-xs font-bold outline-none focus:border-yellow-400/50"
+                          >
+                            <option value="weekly" className="bg-[#0A0A0A]">Hebdomadaire (Seuil: 4)</option>
+                            <option value="monthly" className="bg-[#0A0A0A]">Mensuel (Seuil: 3)</option>
+                            <option value="quarterly" className="bg-[#0A0A0A]">Trimestriel (Seuil: 4)</option>
+                            <option value="semi-annual" className="bg-[#0A0A0A]">Semestriel (Seuil: 2)</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -659,6 +685,17 @@ const AdminVendors = () => {
                   {CATEGORIES.map(cat => (
                     <option key={cat} value={cat} className="bg-[#0A0A0A]">{cat}</option>
                   ))}
+                </select>
+                <select
+                  value={newVendor.billing_period}
+                  onChange={e => setNewVendor({...newVendor, billing_period: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm"
+                  required
+                >
+                  <option value="weekly" className="bg-[#0A0A0A]">Période: Hebdomadaire (4 rappels)</option>
+                  <option value="monthly" className="bg-[#0A0A0A]">Période: Mensuelle (3 rappels)</option>
+                  <option value="quarterly" className="bg-[#0A0A0A]">Période: Trimestrielle (4 rappels)</option>
+                  <option value="semi-annual" className="bg-[#0A0A0A]">Période: Semestrielle (2 rappels)</option>
                 </select>
                 <div className="flex gap-4">
                   <button

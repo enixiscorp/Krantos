@@ -330,11 +330,18 @@ const BusinessDashboard = () => {
       const now = new Date().toISOString();
       const { error } = await supabase
         .from('vendors')
-        .update({ last_notification_read_at: now })
+        .update({ 
+          last_notification_read_at: now,
+          payment_notifications_count: 0 
+        })
         .eq('id', vendor.id);
       
       if (!error) {
-        setVendor(prev => prev ? { ...prev, last_notification_read_at: now } : null);
+        setVendor(prev => prev ? { 
+          ...prev, 
+          last_notification_read_at: now,
+          payment_notifications_count: 0 
+        } : null);
       }
     }
   };

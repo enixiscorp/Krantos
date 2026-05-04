@@ -245,7 +245,43 @@ const Results = () => {
        doc.setTextColor(50);
        doc.text(`Contact WhatsApp : ${vendor.phone}`, 15, y);
        y += 5;
-       doc.text(`Email : ${vendor.email}`, 15, y);
+       doc.text(`Email : ${vendor.email || 'N/A'}`, 15, y);
+       
+       // Payment Methods
+       const paymentMethods = (vendor as any).payment_methods || [];
+       if (paymentMethods.length > 0) {
+         y += 10;
+         doc.setFontSize(11);
+         doc.setFont('helvetica', 'bold');
+         doc.setTextColor(0);
+         doc.text('Moyens de paiement acceptés :', 15, y);
+         y += 6;
+         doc.setFont('helvetica', 'normal');
+         doc.setFontSize(9);
+         doc.setTextColor(80);
+         paymentMethods.forEach((pm: any) => {
+           doc.text(`${pm.type}: ${pm.details}`, 15, y);
+           y += 5;
+         });
+       }
+
+       // Delivery Options
+       const deliveryOptions = (vendor as any).delivery_options || [];
+       if (deliveryOptions.length > 0) {
+         y += 5;
+         doc.setFontSize(11);
+         doc.setFont('helvetica', 'bold');
+         doc.setTextColor(0);
+         doc.text('Options de récupération :', 15, y);
+         y += 6;
+         doc.setFont('helvetica', 'normal');
+         doc.setFontSize(9);
+         doc.setTextColor(80);
+         deliveryOptions.forEach((do_opt: any) => {
+           doc.text(`${do_opt.type}${do_opt.details ? ': ' + do_opt.details : ''}`, 15, y);
+           y += 5;
+         });
+       }
      }
 
      // Footer

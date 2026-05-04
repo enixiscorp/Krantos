@@ -29,6 +29,8 @@ const AdminChatbot = lazy(() => import('./pages/AdminChatbot'));
 
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
+const VendorProfile = lazy(() => import('./pages/VendorProfile'));
+
 function App() {
   return (
     <BrowserRouter>
@@ -45,6 +47,7 @@ function App() {
             <Route path="/business-login" element={<BusinessLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/business-dashboard" element={<BusinessDashboard />} />
+            <Route path="/vendor-profile" element={<VendorProfile />} />
             <Route path="/add-product" element={<AddProduct />} />
             <Route path="/leads" element={<Leads />} />
           </Route>

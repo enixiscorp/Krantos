@@ -29,10 +29,12 @@ import {
   Upload,
   Bell,
   Download,
-  AlertTriangle
+  AlertTriangle,
+  Settings
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Product, Lead, LeadStatus } from '../lib/supabase';
+import { generateReport, exportToPDF } from '../services/billingService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -351,48 +353,34 @@ const BusinessDashboard = () => {
     }
   };
 
-  const handleDownloadInvoice = () => {
+  const handleDownloadInvoice = async () => {
     markNotificationsAsRead();
-    if (!vendor || commissions.length === 0) {
+    if (!vendor || allCommissions.length === 0) {
       toast.error('Aucune donnée de commission disponible.');
       return;
     }
 
-    const headers = ['Date', 'ID LEAD', 'Client', 'Description', 'Montant (FCFA)', 'Taux (%)', 'Statut'];
     const confirmedComms = allCommissions.filter(c => c.status === 'confirmed');
-    
     if (confirmedComms.length === 0) {
       toast.error('Aucune commission confirmée à facturer.');
       return;
     }
 
-    const formatAmount = (amt: number) => amt.toLocaleString('fr-FR').replace(/[\s\u00A0]/g, '.');
+    setLoading(true);
+    try {
+      // Use the last 3 months by default for the report
+      const end = new Date();
+      const start = new Date();
+      start.setMonth(start.getMonth() - 3);
 
-    const rows = confirmedComms.map(c => [
-      new Date(c.created_at).toLocaleDateString('fr-FR'),
-      c.lead_id?.slice(0, 8) ?? 'N/A',
-      c.leads?.user_name ?? 'N/A',
-      `Vente Lead - ${c.leads?.user_name ?? 'Client'}`,
-      formatAmount(Number(c.amount)),
-      c.commission_rate_applied,
-      'Confirmé'
-    ]);
-
-    const csvContent = [
-      `FACTURE DE COMMISSIONS - KRANTOS\nVendeur: ${vendor.name}\nDate: ${new Date().toLocaleDateString('fr-FR')}\n`,
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Facture_Krantos_${vendor.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Facture téléchargée.');
+      const report = await generateReport(vendor.id, start, end);
+      exportToPDF(report);
+      toast.success('Facture PDF générée.');
+    } catch (err: any) {
+      toast.error('Erreur lors de la génération du PDF : ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -567,6 +555,9 @@ const BusinessDashboard = () => {
         </Link>
         <Link to="/add-product" className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
           Produits
+        </Link>
+        <Link to="/vendor-profile" className="px-6 py-3 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
+          Profil
         </Link>
       </div>
 
@@ -759,8 +750,8 @@ const BusinessDashboard = () => {
                 {/* Lead filter tabs */}
                 <div className="flex items-center justify-between px-2">
                   <h2 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">Mes Leads</h2>
-                  <Link to="/leads" className="text-xs font-bold text-yellow-400 hover:underline flex items-center gap-1">
-                    Voir tout <ChevronRight className="w-3 h-3" />
+                  <Link to="/vendor-profile" className="text-xs font-bold text-yellow-400 hover:underline flex items-center gap-1">
+                    Gérer mon profil <ChevronRight className="w-3 h-3" />
                   </Link>
                 </div>
                 <div className="flex gap-2 flex-wrap">

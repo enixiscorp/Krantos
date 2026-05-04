@@ -66,6 +66,66 @@ const DELIVERY_TYPES = [
 ];
 
 // ---------------------------------------------------------------------------
+// Reusable Custom Select Component
+// ---------------------------------------------------------------------------
+
+interface CustomSelectProps {
+  label?: string;
+  value: string;
+  options: string[];
+  onChange: (val: string) => void;
+  className?: string;
+}
+
+const CustomSelect = ({ value, options, onChange, className = "" }: CustomSelectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-left text-sm font-bold transition-all flex items-center justify-between hover:border-white/20 focus:border-yellow-400/50"
+      >
+        <span className="text-white">{value}</span>
+        <ChevronDown size={16} className={`text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-[110]" onClick={() => setIsOpen(false)} />
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute left-0 right-0 top-full mt-2 bg-[#1A1A1E] border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] z-[120] overflow-hidden backdrop-blur-xl max-h-60 overflow-y-auto scrollbar-hide"
+            >
+              {options.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-5 py-3.5 text-sm transition-colors flex items-center justify-between ${
+                    value === opt ? 'bg-yellow-400/10 text-yellow-400' : 'text-gray-300 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span className="font-bold">{opt}</span>
+                  {value === opt && <ShieldCheck size={14} />}
+                </button>
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -423,16 +483,11 @@ const VendorProfile = () => {
                     >
                       <div className="md:col-span-4">
                         <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-2 block ml-1">Type</label>
-                        <div className="relative">
-                          <select
-                            value={method.type}
-                            onChange={e => updatePaymentMethod(idx, 'type', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm font-bold appearance-none outline-none focus:border-yellow-400/50 transition-all"
-                          >
-                            {PAYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
-                        </div>
+                        <CustomSelect
+                          value={method.type}
+                          options={PAYMENT_TYPES}
+                          onChange={val => updatePaymentMethod(idx, 'type', val)}
+                        />
                       </div>
                       <div className="md:col-span-7">
                         <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-2 block ml-1">Détails (Numéro, compte...)</label>
@@ -495,16 +550,11 @@ const VendorProfile = () => {
                     >
                       <div className="md:col-span-5">
                         <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-2 block ml-1">Type de service</label>
-                        <div className="relative">
-                          <select
-                            value={option.type}
-                            onChange={e => updateDeliveryOption(idx, 'type', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-sm font-bold appearance-none outline-none focus:border-yellow-400/50 transition-all"
-                          >
-                            {DELIVERY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none" />
-                        </div>
+                        <CustomSelect
+                          value={option.type}
+                          options={DELIVERY_TYPES}
+                          onChange={val => updateDeliveryOption(idx, 'type', val)}
+                        />
                       </div>
                       <div className="md:col-span-6">
                         <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-2 block ml-1">Détails optionnels</label>
@@ -559,28 +609,23 @@ const VendorProfile = () => {
               <div className="space-y-6">
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">Choisir un Tier</label>
-                  <select
-                    value={upgradeForm.tier}
-                    onChange={e => setUpgradeForm({...upgradeForm, tier: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm font-bold"
-                  >
-                    <option value="basic" className="bg-[#0A0A0A]">BASIC (Standard)</option>
-                    <option value="premium" className="bg-[#0A0A0A]">PREMIUM (Visibilité Maximale)</option>
-                  </select>
+                  <CustomSelect
+                    value={upgradeForm.tier.toUpperCase()}
+                    options={['BASIC', 'PREMIUM']}
+                    onChange={val => setUpgradeForm({...upgradeForm, tier: val.toLowerCase()})}
+                  />
                 </div>
 
                 <div>
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block ml-1">Choisir une Période</label>
-                  <select
-                    value={upgradeForm.period}
-                    onChange={e => setUpgradeForm({...upgradeForm, period: e.target.value})}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm font-bold"
-                  >
-                    <option value="weekly" className="bg-[#0A0A0A]">Hebdomadaire</option>
-                    <option value="monthly" className="bg-[#0A0A0A]">Mensuelle</option>
-                    <option value="quarterly" className="bg-[#0A0A0A]">Trimestrielle</option>
-                    <option value="semi-annual" className="bg-[#0A0A0A]">Semestrielle</option>
-                  </select>
+                  <CustomSelect
+                    value={upgradeForm.period === 'weekly' ? 'Hebdomadaire' : upgradeForm.period === 'monthly' ? 'Mensuelle' : upgradeForm.period === 'quarterly' ? 'Trimestrielle' : 'Semestrielle'}
+                    options={['Hebdomadaire', 'Mensuelle', 'Trimestrielle', 'Semestrielle']}
+                    onChange={val => {
+                      const mapping: any = { 'Hebdomadaire': 'weekly', 'Mensuelle': 'monthly', 'Trimestrielle': 'quarterly', 'Semestrielle': 'semi-annual' };
+                      setUpgradeForm({...upgradeForm, period: mapping[val]});
+                    }}
+                  />
                 </div>
 
                 <div className="flex gap-4 pt-4">

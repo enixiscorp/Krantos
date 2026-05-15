@@ -45,7 +45,7 @@ export interface WhatsAppUser {
  * @param appliances  - List of appliances entered by the user
  * @param totalWatts  - Total power in Watts (with safety margin)
  * @param totalKVA    - Total power in kVA (with safety margin)
- * @param product     - Recommended product
+ * @param product     - Recommended product (optional)
  * @returns The formatted message string
  */
 export function buildWhatsAppMessage(
@@ -53,7 +53,7 @@ export function buildWhatsAppMessage(
   appliances: ApplianceInput[],
   totalWatts: number,
   totalKVA: number,
-  product: Product
+  product?: Product | null
 ): string {
 
   // Build appliance list: "Climatiseur x2, Réfrigérateur x1, ..."
@@ -61,15 +61,18 @@ export function buildWhatsAppMessage(
     .map((a) => `${a.name} x${a.quantity}`)
     .join(', ');
 
-  // Format price with thousands separator (FCFA convention)
-  const formattedPrice = Number(product.price).toLocaleString('fr-FR');
-
-  const message =
+  let message =
     `Bonjour, je suis ${user.fullName} (📞 ${user.phone}, 📍 ${user.location}).\n` +
     `J'ai calculé mes besoins : ${totalWatts} W / ${totalKVA} kVA.\n` +
-    `Appareils : ${applianceList}.\n` +
-    `Produit recommandé : ${product.name} — ${formattedPrice} FCFA.\n` +
-    `Je souhaite obtenir plus d'informations.`;
+    `Appareils : ${applianceList}.\n`;
+
+  if (product) {
+    // Format price with thousands separator (FCFA convention)
+    const formattedPrice = Number(product.price).toLocaleString('fr-FR');
+    message += `Produit recommandé : ${product.name} — ${formattedPrice} FCFA.\n`;
+  }
+
+  message += `Je souhaite obtenir plus d'informations.`;
 
   return message;
 }

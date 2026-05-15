@@ -294,12 +294,8 @@ const Results = () => {
   };
 
   const handleWhatsApp = async () => {
-    if (!product || !vendor) return;
-    if (!vendor) {
-      toast.error("Aucun partenaire n'a été sélectionné.");
-      return;
-    }
-
+    if (!vendor) return;
+    
     setIsContactingWhatsApp(true);
     try {
       const message = buildWhatsAppMessage(
@@ -317,7 +313,7 @@ const Results = () => {
             user_phone: userPhone,
             location,
             total_power_needed: totalKVA,
-            recommended_product_id: product.id,
+            recommended_product_id: product?.id ?? null,
             vendor_id: vendor.id,
             status: 'contacted',
           });

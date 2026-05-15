@@ -32,66 +32,78 @@ Deno.serve(async (req) => {
 
     if (!vendor) return jsonResponse(404, { error: "Vendor not found" });
 
-    // 2. Check for Keywords (Priority)
-    const lowerMsg = message.toLowerCase();
-    let keywordResponse = "";
+    // 2. SMART MATCH: Programmed Questions (Priority)
+    const lowerMsg = message.toLowerCase().trim();
     const suggestions = config?.suggestions?.map((s: any) => s.question).slice(0, 3) || [];
+    
+    // Exact or flexible match in programmed suggestions
+    const staticMatch = config?.suggestions?.find((s: any) => {
+      const q = s.question.toLowerCase().trim();
+      return lowerMsg === q || lowerMsg.includes(q) || q.includes(lowerMsg) && lowerMsg.length > 5;
+    });
 
-    // Detailed Product Context
+    if (staticMatch) {
+      return jsonResponse(200, {
+        response: staticMatch.answer,
+        suggestions: suggestions,
+        source: "static"
+      });
+    }
+
+    // 3. KEYWORDS: Specific Contextual Information
+    let keywordResponse = "";
+    
+    // Detailed Product Context (if product_id is provided)
     let productContext = "";
     if (product_id) {
       const { data: p } = await adminClient.from("products").select("*").eq("id", product_id).single();
       if (p) {
         productContext = `PRODUIT ACTUEL: ${p.name}. PRIX: ${Number(p.price).toLocaleString('fr-FR')} FCFA. PUISSANCE: ${p.power_rating} kVA. UNITÉ: ${p.unit || 'W'}. DESCRIPTION: ${p.description || 'N/A'}.`;
         
-        if (lowerMsg.includes("prix") || lowerMsg.includes("coûte") || lowerMsg.includes("combien")) {
+        const priceKeywords = ["prix", "coûte", "combien", "tarif", "valeur", "montant"];
+        if (priceKeywords.some(k => lowerMsg.includes(k))) {
           keywordResponse = `Le prix de ${p.name} est de ${Number(p.price).toLocaleString('fr-FR')} FCFA.`;
         }
       }
     }
 
     if (!keywordResponse) {
-      if (lowerMsg.includes("consommation") || lowerMsg.includes("énergie") || lowerMsg.includes("recharge")) {
-        keywordResponse = config?.consumption_info || "Ce produit est conçu pour une efficacité énergétique optimale. Souhaitez-vous plus de détails techniques ?";
-      } else if (lowerMsg.includes("usage") || lowerMsg.includes("appareil") || lowerMsg.includes("connecter") || lowerMsg.includes("alimenter")) {
-        keywordResponse = config?.usage_info || "Cet équipement peut alimenter vos appareils essentiels selon sa puissance. De quels appareils disposez-vous ?";
-      } else if (lowerMsg.includes("boutique") || lowerMsg.includes("adresse") || lowerMsg.includes("situé") || lowerMsg.includes("livraison") || lowerMsg.includes("livrer")) {
+      // Consumption / Energy info
+      if (["consommation", "énergie", "recharge", "batterie", "autonomie"].some(k => lowerMsg.includes(k))) {
+        keywordResponse = config?.consumption_info;
+      } 
+      // Usage / Appliances info
+      else if (["usage", "appareil", "connecter", "alimenter", "brancher", "supporter"].some(k => lowerMsg.includes(k))) {
+        keywordResponse = config?.usage_info;
+      }
+      // Address / Delivery info
+      else if (["boutique", "adresse", "situé", "livraison", "livrer", "où", "trouver"].some(k => lowerMsg.includes(k))) {
         const addr = config?.address ? `Notre boutique est située ici : ${config.address}.` : "";
         const deliv = config?.delivery_info ? ` Concernant la livraison : ${config.delivery_info}` : "";
-        keywordResponse = `${addr}${deliv}` || `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte et nos conditions de livraison.`;
+        keywordResponse = `${addr}${deliv}`.trim();
+        if (!keywordResponse && ["boutique", "adresse", "situé", "où"].some(k => lowerMsg.includes(k))) {
+          keywordResponse = `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte.`;
+        }
       }
     }
 
-    // 3. AI Mode (if enabled and key present)
+    if (keywordResponse) {
+      return jsonResponse(200, {
+        response: keywordResponse,
+        suggestions: suggestions,
+        source: "static"
+      });
+    }
+
+    // 4. AI MODE: Gemini (Fallback)
     if (config?.ai_enabled && GEMINI_API_KEY) {
       const systemPrompt = `
-        Tu es l'assistant virtuel intelligent de "${vendor.name}", une entreprise experte en solutions énergétiques (Secteur: ${vendor.category}).
-        Ton objectif est de conseiller le client, répondre à ses questions techniques et commerciales, et l'orienter vers l'achat.
-
-        BASE DE CONNAISSANCES DU VENDEUR (À utiliser en priorité):
-        - NOM DU VENDEUR: ${vendor.name}
-        - TÉLÉPHONE: ${vendor.phone}
-        - ADRESSE/BOUTIQUE: ${config.address || "Non spécifiée (Inviter à appeler)"}
-        - LIVRAISON: ${config.delivery_info || "Non spécifiée"}
-        - CONSOMMATION/RECHARGE: ${config.consumption_info || "Standard énergétique"}
-        - USAGE APPAREILS: ${config.usage_info || "Dépend de la puissance (kVA)"}
-        
+        Tu es l'assistant virtuel intelligent de "${vendor.name}". 
         ${productContext}
-        
-        CONTEXTE ADDITIONNEL: ${config.ai_context || "Répondre de manière experte, professionnelle et concise."}
-
-        RÈGLES DE RÉPONSE:
-        1. Utilise EXCLUSIVEMENT les informations ci-dessus pour les prix, adresses et caractéristiques.
-        2. Si tu ne sais pas, invite poliment à contacter le vendeur par WhatsApp ou téléphone au ${vendor.phone}.
-        3. Réponds en Français de manière chaleureuse.
-        4. NE JAMAIS mentionner que tu es une IA Gemini ou un programme. Tu es "L'assistant de ${vendor.name}".
-        5. TA RÉPONSE DOIT ÊTRE UN OBJET JSON VALIDE UNIQUEMENT.
-
-        FORMAT JSON ATTENDU:
-        {
-          "answer": "Votre réponse textuelle ici...",
-          "next_questions": ["Question suggérée 1?", "Question suggérée 2?"]
-        }
+        RÈGLES:
+        - Réponds de manière experte et concise.
+        - Si tu ne sais pas, invite à appeler au ${vendor.phone}.
+        - Format JSON: {"answer": "...", "next_questions": ["..."]}
       `;
 
       try {
@@ -100,18 +112,14 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             contents: [
-              { role: "user", parts: [{ text: "Initialise ton système avec ces instructions." }] },
-              { role: "model", parts: [{ text: "C'est entendu. Je suis prêt à représenter " + vendor.name + "." }] },
+              { role: "user", parts: [{ text: "Initialise ton système." }] },
+              { role: "model", parts: [{ text: "C'est entendu." }] },
               { role: "user", parts: [{ text: systemPrompt }] },
-              { role: "model", parts: [{ text: "Instructions reçues. J'appliquerai ces règles pour répondre." }] },
+              { role: "model", parts: [{ text: "Instructions reçues." }] },
               ...(history || []).map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.content }] })),
               { role: "user", parts: [{ text: message }] }
             ],
-            generationConfig: { 
-              response_mime_type: "application/json",
-              temperature: 0.7,
-              max_output_tokens: 500
-            }
+            generationConfig: { response_mime_type: "application/json", temperature: 0.7, max_output_tokens: 500 }
           })
         });
 
@@ -122,33 +130,22 @@ Deno.serve(async (req) => {
           const aiContent = JSON.parse(aiText);
           return jsonResponse(200, {
             response: aiContent.answer,
-            suggestions: aiContent.next_questions || [],
+            suggestions: aiContent.next_questions || suggestions,
             source: "ai"
           });
         }
       } catch (err) {
-        console.error("Gemini AI Processing Error:", err);
-        // Fallback to keyword if AI fails
+        console.error("Gemini AI Error:", err);
       }
     }
 
-    // 4. Try static suggestions as fallback (exact match)
-    const staticMatch = config?.suggestions?.find((s: any) => 
-      s.question.toLowerCase().trim() === message.toLowerCase().trim()
-    );
-
-    if (staticMatch) {
-      return jsonResponse(200, {
-        response: staticMatch.answer,
-        suggestions: suggestions,
-        source: "static"
-      });
-    }
-
-    // 5. Final Fallback (Keyword or Default)
-    const finalResponse = keywordResponse || 
-                          config?.welcome_message.replace("{vendor_name}", vendor.name) || 
-                          `Bonjour, je suis l'assistant de ${vendor.name}. Comment puis-je vous aider ?`;
+    // 5. FINAL FALLBACK: Default response
+    const isGreeting = ["bonjour", "salut", "hello", "hi", "hey"].some(k => lowerMsg.includes(k));
+    const welcome = config?.welcome_message?.replace("{vendor_name}", vendor.name) || `Bonjour, je suis l'assistant de ${vendor.name}.`;
+    
+    const finalResponse = isGreeting 
+      ? welcome 
+      : `Je n'ai pas d'information précise sur ce point. Je vous invite à contacter directement ${vendor.name} au ${vendor.phone}.`;
 
     return jsonResponse(200, {
       response: finalResponse,

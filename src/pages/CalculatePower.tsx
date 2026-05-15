@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOff, Database } from 'lucide-react';
+import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOff, Database, AlertCircle } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 import type { ApplianceInput, PowerUnit } from '../lib/supabase';
@@ -245,11 +245,21 @@ const CalculatePower = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Warm up cache when online
+      getRecommendation(1).catch(() => {});
+    };
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Initial warm up if online
+    if (navigator.onLine) {
+      getRecommendation(1).catch(() => {});
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -727,6 +737,33 @@ const CalculatePower = () => {
                     </div>
                   </motion.div>
                 ))}
+
+                {/* Fallback if no products found (common when offline with empty cache) */}
+                {!recommendations?.product && (recommendations?.alternatives?.length ?? 0) === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="col-span-full glass-card p-12 rounded-[2.5rem] border-white/5 text-center flex flex-col items-center gap-6"
+                  >
+                    <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center">
+                      <AlertCircle className="w-10 h-10 text-gray-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white mb-2 uppercase tracking-tight">Aucun produit trouvé en cache</h3>
+                      <p className="text-gray-400 text-sm max-w-sm mx-auto leading-relaxed">
+                        Nous ne trouvons pas de recommandation immédiate pour votre puissance hors-ligne. 
+                        Pas d'inquiétude : continuez pour enregistrer votre demande, nous vous contacterons dès notre retour en ligne.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleSelectProduct(null, null)}
+                      disabled={isSubmitting}
+                      className="px-10 py-4 rounded-2xl bg-yellow-400 text-black font-black text-sm uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-xl shadow-yellow-400/20"
+                    >
+                      Continuer sans sélection
+                    </button>
+                  </motion.div>
+                )}
               </div>
 
               <button

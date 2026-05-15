@@ -295,6 +295,11 @@ const Results = () => {
 
   const handleWhatsApp = async () => {
     if (!product || !vendor) return;
+    if (!vendor) {
+      toast.error("Aucun partenaire n'a été sélectionné.");
+      return;
+    }
+
     setIsContactingWhatsApp(true);
     try {
       const message = buildWhatsAppMessage(
@@ -447,32 +452,44 @@ const Results = () => {
 
       {/* Main Actions Bar */}
       <div className="flex flex-col md:flex-row gap-4 mb-20 items-stretch">
-        <motion.button
-          onClick={handleWhatsApp}
-          animate={{ boxShadow: ["0 0 0px rgba(0,217,95,0)", "0 0 20px rgba(0,217,95,0.4)", "0 0 0px rgba(0,217,95,0)"] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-          className="flex-[2] flex items-center justify-center gap-3 py-5 rounded-2xl bg-[#00D95F] text-white font-black text-sm uppercase tracking-widest hover:bg-[#00c456] transition-all shadow-xl shadow-green-500/10"
-        >
-          <MessageCircle className="w-5 h-5 fill-current" />
-          Contacter sur WhatsApp
-        </motion.button>
+        {vendor ? (
+          <>
+            <motion.button
+              onClick={handleWhatsApp}
+              animate={{ boxShadow: ["0 0 0px rgba(0,217,95,0)", "0 0 20px rgba(0,217,95,0.4)", "0 0 0px rgba(0,217,95,0)"] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="flex-[2] flex items-center justify-center gap-3 py-5 rounded-2xl bg-[#00D95F] text-white font-black text-sm uppercase tracking-widest hover:bg-[#00c456] transition-all shadow-xl shadow-green-500/10"
+            >
+              <MessageCircle className="w-5 h-5 fill-current" />
+              Contacter sur WhatsApp
+            </motion.button>
+            <button
+              onClick={() => {
+                 const cleanPhone = vendor.phone.replace(/\D/g, '');
+                 window.open(`tel:+${cleanPhone}`, '_self');
+              }}
+              className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
+            >
+              <Phone className="w-5 h-5" />
+              Appeler
+            </button>
+          </>
+        ) : (
+          <div className="flex-[3] p-6 rounded-2xl bg-yellow-400/5 border border-yellow-400/20 text-center">
+             <p className="text-yellow-400 text-xs font-black uppercase tracking-widest mb-1">Demande enregistrée hors-ligne</p>
+             <p className="text-gray-500 text-[10px] font-medium leading-relaxed">
+               Nous n'avons pas pu vous suggérer de partenaire immédiatement. 
+               Veuillez exporter votre PDF et nous vous recontacterons dès la synchronisation.
+             </p>
+          </div>
+        )}
+        
         <button
           onClick={handleExportPDF}
           className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
         >
           <FileDown className="w-5 h-5" />
           Exporter PDF
-        </button>
-        <button
-          onClick={() => {
-             if (!vendor) return;
-             const cleanPhone = vendor.phone.replace(/\D/g, '');
-             window.open(`tel:+${cleanPhone}`, '_self');
-          }}
-          className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
-        >
-          <Phone className="w-5 h-5" />
-          Appeler
         </button>
       </div>
 

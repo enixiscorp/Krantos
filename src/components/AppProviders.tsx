@@ -1,6 +1,6 @@
 import React from 'react';
-import { ThemeProvider } from './context/ThemeContext';
-import { ConnectionProvider } from './context/ConnectionContext';
+import { ThemeProvider } from '../context/ThemeContext';
+import { ConnectionProvider } from '../context/ConnectionContext';
 import { Toaster } from 'sonner';
 
 interface AppProvidersProps {

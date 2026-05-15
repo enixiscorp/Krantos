@@ -17,7 +17,7 @@ const Layout: React.FC = () => {
   const hideChatbot = ['/admin', '/admin-login', '/business-login'].some(p => location.pathname.startsWith(p));
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-white selection:bg-yellow-400 selection:text-gray-900">
+    <div className="min-h-screen bg-background text-foreground selection:bg-yellow-400 selection:text-gray-900 transition-colors duration-300">
       <Header />
       <main className="pt-16 pb-20">
         <Outlet />

@@ -1,95 +1,62 @@
-// ============================================================
-// Krantos Platform — OfflineStatusBar Component
-// Bandeau animé affiché quand hors-ligne, avec compteur
-// d'actions en attente et bouton de synchronisation.
-// ============================================================
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WifiOff, Wifi, RefreshCw, Clock } from 'lucide-react';
+import { WifiOff, RefreshCw, CheckCircle2, AlertCircle, Database } from 'lucide-react';
 import { useOnlineSync } from '../hooks/useOnlineSync';
+import { useConnection } from '../context/ConnectionContext';
 
 interface OfflineStatusBarProps {
-  /** Si true, affiché en haut de page plutôt qu'en bas */
   position?: 'top' | 'bottom';
 }
 
 const OfflineStatusBar: React.FC<OfflineStatusBarProps> = ({ position = 'bottom' }) => {
   const { isOnline, pendingCount, isSyncing, syncNow } = useOnlineSync();
+  const { isForcedOffline } = useConnection();
 
-  const positionClasses =
-    position === 'top'
-      ? 'top-0 left-0 right-0 rounded-b-2xl'
-      : 'bottom-6 left-1/2 -translate-x-1/2 rounded-2xl';
+  if (isOnline && pendingCount === 0) return null;
 
   return (
     <AnimatePresence>
-      {!isOnline && (
-        <motion.div
-          key="offline-bar"
-          initial={{ opacity: 0, y: position === 'top' ? -40 : 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: position === 'top' ? -40 : 40 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className={`fixed z-[300] flex items-center gap-3 px-5 py-3 shadow-2xl backdrop-blur-xl ${positionClasses}`}
-          style={{
-            background: 'linear-gradient(135deg, rgba(239,68,68,0.95) 0%, rgba(185,28,28,0.95) 100%)',
-            boxShadow: '0 8px 32px rgba(239,68,68,0.3)',
-          }}
-        >
-          {/* Icon */}
-          <div className="flex-shrink-0">
-            <WifiOff size={16} className="text-white" />
+      <motion.div
+        initial={{ y: position === 'bottom' ? 100 : -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: position === 'bottom' ? 100 : -100, opacity: 0 }}
+        className={`fixed ${position === 'bottom' ? 'bottom-6' : 'top-20'} left-1/2 -translate-x-1/2 z-[300] w-[calc(100%-2rem)] max-w-md`}
+      >
+        <div className={`glass p-4 rounded-2xl flex items-center justify-between gap-4 shadow-2xl ${isOnline ? 'border-blue-500/20' : 'border-red-500/20'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isOnline ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>
+              {!isOnline ? <WifiOff className="w-5 h-5" /> : <Database className="w-5 h-5" />}
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-foreground">
+                {isForcedOffline ? 'Mode Hors-ligne forcé' : !isOnline ? 'Vous êtes hors-ligne' : 'Synchronisation'}
+              </p>
+              <p className="text-[10px] text-muted-foreground font-bold">
+                {pendingCount > 0 
+                  ? `${pendingCount} action${pendingCount > 1 ? 's' : ''} en attente` 
+                  : isOnline ? 'Caches à jour' : 'Mode dégradé activé'}
+              </p>
+            </div>
           </div>
 
-          {/* Text */}
-          <div className="flex flex-col min-w-0">
-            <span className="text-white font-black text-xs uppercase tracking-widest leading-tight">
-              Mode Hors-ligne
-            </span>
-            {pendingCount > 0 && (
-              <span className="text-red-200 text-[10px] font-semibold leading-tight flex items-center gap-1">
-                <Clock size={9} />
-                {pendingCount} action{pendingCount > 1 ? 's' : ''} en attente
-              </span>
-            )}
-          </div>
-
-          {/* Sync button (only if there are pending actions) */}
-          {pendingCount > 0 && (
+          {isOnline && pendingCount > 0 && (
             <button
-              onClick={syncNow}
+              onClick={() => syncNow()}
               disabled={isSyncing}
-              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all disabled:opacity-50"
             >
-              <RefreshCw size={11} className={isSyncing ? 'animate-spin' : ''} />
-              {isSyncing ? 'Sync...' : 'Sync'}
+              {isSyncing ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <>
+                  <RefreshCw className="w-3 h-3" />
+                  Sync
+                </>
+              )}
             </button>
           )}
-        </motion.div>
-      )}
-
-      {/* Brief "back online" confirmation */}
-      {isOnline && isSyncing && (
-        <motion.div
-          key="syncing-bar"
-          initial={{ opacity: 0, y: position === 'top' ? -40 : 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: position === 'top' ? -40 : 40 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className={`fixed z-[300] flex items-center gap-3 px-5 py-3 shadow-2xl backdrop-blur-xl ${positionClasses}`}
-          style={{
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.95) 0%, rgba(21,128,61,0.95) 100%)',
-            boxShadow: '0 8px 32px rgba(34,197,94,0.3)',
-          }}
-        >
-          <Wifi size={16} className="text-white" />
-          <span className="text-white font-black text-xs uppercase tracking-widest">
-            Connexion rétablie · Synchronisation...
-          </span>
-          <RefreshCw size={14} className="text-white animate-spin flex-shrink-0" />
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 };

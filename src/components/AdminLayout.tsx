@@ -28,6 +28,8 @@ import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { useOnlineSync } from '../hooks/useOnlineSync';
 import OfflineStatusBar from './OfflineStatusBar';
+import ThemeToggle from './ThemeToggle';
+import OfflineToggle from './OfflineToggle';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -133,10 +135,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070709] text-white flex overflow-hidden">
+    <div className="min-h-screen bg-background text-foreground flex overflow-hidden transition-colors duration-300">
       {/* Background Glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-yellow-400/5 blur-[140px] rounded-full pointer-events-none z-0" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/5 blur-[140px] rounded-full pointer-events-none z-0" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[140px] rounded-full pointer-events-none z-0" />
 
       {!isLoginPage && (
         <>
@@ -165,7 +167,7 @@ export default function AdminLayout() {
                 exit={window.innerWidth < 1024 ? { x: -300 } : undefined}
                 onMouseEnter={() => window.innerWidth >= 1024 && setIsExpanded(true)}
                 onMouseLeave={() => window.innerWidth >= 1024 && setIsExpanded(false)}
-                className={`fixed lg:relative z-50 flex flex-col bg-black/60 lg:bg-black/40 backdrop-blur-2xl lg:backdrop-blur-xl border-r border-white/5 h-screen transition-all duration-300 ease-in-out group shadow-2xl lg:shadow-none ${
+                className={`fixed lg:relative z-50 flex flex-col bg-background/60 lg:bg-background/40 backdrop-blur-2xl lg:backdrop-blur-xl border-r border-white/5 h-screen transition-all duration-300 ease-in-out group shadow-2xl lg:shadow-none ${
                   isMobileMenuOpen ? 'w-[280px]' : ''
                 }`}
               >
@@ -261,6 +263,14 @@ export default function AdminLayout() {
                   <span className="whitespace-nowrap text-sm font-black uppercase tracking-widest">Installer l'app</span>
                 )}
               </button>
+            )}
+
+            {/* Quick Settings (Theme & Offline) */}
+            {(isExpanded || isMobileMenuOpen) && (
+              <div className="p-2 flex items-center justify-between gap-2 border-t border-white/5 mt-2 pt-4">
+                <OfflineToggle />
+                <ThemeToggle />
+              </div>
             )}
 
             <button

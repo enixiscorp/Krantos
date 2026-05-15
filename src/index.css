@@ -4,6 +4,37 @@
 
 @layer base {
   :root {
+    /* Base Colors (Light Mode Default) */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 98%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 47.9 95.8% 53.1%;
+    --primary-foreground: 26 83.3% 14.1%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
+    --radius: 1rem;
+
+    /* Custom Krantos Colors */
+    --krantos-bg: #f8f9fa;
+    --krantos-glass: rgba(255, 255, 255, 0.7);
+    --krantos-glass-border: rgba(0, 0, 0, 0.05);
+    --krantos-text: #1a1a1e;
+    --krantos-text-muted: #6b7280;
+  }
+
+  .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
@@ -23,32 +54,49 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 47.9 95.8% 53.1%;
-    --radius: 1rem;
+
+    --krantos-bg: #0a0a0c;
+    --krantos-glass: rgba(255, 255, 255, 0.05);
+    --krantos-glass-border: rgba(255, 255, 255, 0.1);
+    --krantos-text: #ffffff;
+    --krantos-text-muted: #94a3b8;
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
-    background-color: #0a0a0c;
+    @apply bg-background text-foreground antialiased transition-colors duration-300;
+    background-color: var(--krantos-bg);
+    color: var(--krantos-text);
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-xl;
+    background-color: var(--krantos-glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--krantos-glass-border);
+    @apply shadow-xl;
   }
   
   .glass-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+    background: linear-gradient(135deg, var(--krantos-glass) 0%, transparent 100%);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border: 1px solid var(--krantos-glass-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground;
   }
 
   .accent-glow {
     box-shadow: 0 0 20px rgba(250, 204, 21, 0.2);
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

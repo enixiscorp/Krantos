@@ -10,6 +10,7 @@ import { processQueue, getPendingCount } from '../lib/offlineQueue';
 import { vendorsCacheStore, productsCacheStore } from '../lib/offlineDB';
 import { supabase } from '../lib/supabase';
 import type { Vendor, Product } from '../lib/supabase';
+import { useConnection } from '../context/ConnectionContext';
 
 export interface OnlineSyncState {
   isOnline: boolean;
@@ -20,7 +21,7 @@ export interface OnlineSyncState {
 }
 
 export function useOnlineSync(): OnlineSyncState {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const { isOnline } = useConnection();
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
@@ -58,7 +59,7 @@ export function useOnlineSync(): OnlineSyncState {
   }, []);
 
   const syncNow = useCallback(async () => {
-    if (!navigator.onLine) {
+    if (!isOnline) {
       toast.error('Vous êtes hors-ligne. Synchronisation impossible.');
       return;
     }
@@ -86,52 +87,36 @@ export function useOnlineSync(): OnlineSyncState {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, refreshPendingCount]);
+  }, [isOnline, isSyncing, refreshPendingCount]);
 
   useEffect(() => {
-    const handleOnline = async () => {
-      setIsOnline(true);
-      toast.success('🌐 Connexion rétablie. Synchronisation en cours...', { duration: 3000 });
-
-      // Auto-sync queue
-      setIsSyncing(true);
-      try {
-        const result = await processQueue();
-        await refreshPendingCount();
-        if (result.success > 0) {
-          toast.success(`✅ ${result.success} action${result.success > 1 ? 's' : ''} synchronisée${result.success > 1 ? 's' : ''}.`);
+    const handleSync = async () => {
+      if (isOnline) {
+        // toast.success('🌐 En ligne. Synchronisation en cours...', { duration: 3000 });
+        setIsSyncing(true);
+        try {
+          const result = await processQueue();
+          await refreshPendingCount();
+          if (result.success > 0) {
+            toast.success(`✅ ${result.success} action${result.success > 1 ? 's' : ''} synchronisée${result.success > 1 ? 's' : ''}.`);
+          }
+        } catch (err) {
+          console.error('[OnlineSync] Auto-sync failed:', err);
+        } finally {
+          setIsSyncing(false);
         }
-      } catch (err) {
-        console.error('[OnlineSync] Auto-sync failed:', err);
-      } finally {
-        setIsSyncing(false);
+        refreshCaches();
+      } else {
+        // toast.warning('📵 Hors-ligne. Vos actions seront sauvegardées localement.', { duration: 4000 });
       }
-
-      // Refresh caches in background
-      refreshCaches();
     };
 
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast.warning('📵 Connexion perdue. Vos actions seront sauvegardées localement.', {
-        duration: 4000,
-      });
-    };
+    handleSync();
+  }, [isOnline, refreshPendingCount, refreshCaches]);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Initialize pending count and caches on mount
+  useEffect(() => {
     refreshPendingCount();
-    if (navigator.onLine) {
-      refreshCaches();
-    }
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [refreshPendingCount, refreshCaches]);
+  }, [refreshPendingCount]);
 
   return { isOnline, pendingCount, isSyncing, syncNow, refreshPendingCount };
 }

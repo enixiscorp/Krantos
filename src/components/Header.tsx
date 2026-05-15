@@ -2,6 +2,8 @@ import { Link, useLocation } from 'react-router-dom';
 import { Zap, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import ThemeToggle from './ThemeToggle';
+import OfflineToggle from './OfflineToggle';
 
 const Header = () => {
   const location = useLocation();
@@ -13,13 +15,13 @@ const Header = () => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[100] bg-[#0a0a0c]/80 backdrop-blur-lg border-b border-white/5">
+    <header className="fixed top-0 left-0 right-0 z-[100] bg-background/80 backdrop-blur-lg border-b border-white/5 dark:border-white/5 transition-colors">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2 group">
           <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
             <Zap className="w-5 h-5 text-gray-900 fill-current" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-white animate-electric">Krantos</span>
+          <span className="font-bold text-xl tracking-tight text-foreground animate-electric">Krantos</span>
         </Link>
         
         <style dangerouslySetInnerHTML={{ __html: `
@@ -39,14 +41,14 @@ const Header = () => {
         `}} />
 
         {/* Desktop Nav */}
-        <nav className="flex items-center gap-4 md:gap-8">
+        <nav className="flex items-center gap-4 md:gap-6">
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((link) => (
               <Link
                 key={link.path}
                 to={link.path}
                 className={`text-sm font-medium transition-colors hover:text-yellow-400 ${
-                  location.pathname === link.path ? 'text-yellow-400' : 'text-gray-400'
+                  location.pathname === link.path ? 'text-yellow-400' : 'text-muted-foreground'
                 }`}
               >
                 {link.name}
@@ -54,17 +56,20 @@ const Header = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-4 border-l border-white/10 pl-2 md:pl-4">
+            <OfflineToggle />
+            <ThemeToggle />
+            
             <Link
               to="/business-login"
-              className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20"
+              className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20"
             >
               Pro
             </Link>
 
             <button 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
+              className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>

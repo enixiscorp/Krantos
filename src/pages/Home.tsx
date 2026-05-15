@@ -16,7 +16,7 @@ const Home = () => {
           transition={{ duration: 0.5 }}
           className="mb-4"
         >
-          <span className="text-sm font-black text-gray-500 uppercase tracking-[0.3em]">
+          <span className="text-sm font-black text-muted-foreground uppercase tracking-[0.3em]">
             Krantos — Powering Africa's Energy Decisions
           </span>
         </motion.div>
@@ -39,7 +39,7 @@ const Home = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-5xl md:text-7xl font-bold tracking-tight mb-6"
+          className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-foreground"
         >
           Calculez vos besoins,<br />
           trouvez votre <span className="text-blue-500">groupe</span><br />
@@ -51,7 +51,7 @@ const Home = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="max-w-xl text-gray-400 text-base md:text-lg mb-10 leading-relaxed"
+          className="max-w-xl text-muted-foreground text-base md:text-lg mb-10 leading-relaxed"
         >
           Krantos vous aide à dimensionner votre installation électrique en quelques clics et vous met en relation avec des vendeurs vérifiés via WhatsApp.
         </motion.p>
@@ -72,7 +72,7 @@ const Home = () => {
           </Link>
           <Link
             to="/vendors"
-            className="flex items-center gap-2 px-8 py-4 rounded-full bg-white/5 border border-white/10 text-white font-bold text-lg hover:bg-white/10 transition-all"
+            className="flex items-center gap-2 px-8 py-4 rounded-full bg-white/5 border border-white/10 dark:text-white text-foreground font-bold text-lg hover:bg-white/10 transition-all"
           >
             Voir les vendeurs
           </Link>
@@ -102,13 +102,13 @@ const Home = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.4 + i * 0.1 }}
-              className="glass-card p-6 rounded-3xl text-left hover:border-white/20 transition-colors group"
+              className="glass-card p-6 rounded-3xl text-left border-white/5 dark:border-white/5 hover:border-white/20 transition-colors group"
             >
               <div className="p-3 rounded-2xl bg-white/5 w-fit mb-4 group-hover:scale-110 transition-transform">
                 {feature.icon}
               </div>
-              <h3 className="font-bold text-lg mb-2 text-white">{feature.title}</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+              <h3 className="font-bold text-lg mb-2 text-foreground">{feature.title}</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">{feature.desc}</p>
             </motion.div>
           ))}
         </div>

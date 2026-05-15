@@ -71,17 +71,30 @@ const Results = () => {
   const { state } = useLocation() as { state: ResultsState | null };
   const [showChatbot, setShowChatbot] = useState(false);
   const [isContactingWhatsApp, setIsContactingWhatsApp] = useState(false);
+  const KRANTOS_ADMIN_ID = "6fcb8ba0-d391-40bf-9408-82c7279c4521";
   
-  // Chatbot state
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    {
-      role: 'bot',
-      text: "Bonjour 👋 je suis votre conseiller Krantos. Posez-moi vos questions : prix, caractéristiques, garantie, fiabilité, durée de vie.",
-    },
-  ]);
+  const [activeBot, setActiveBot] = useState<'vendor' | 'krantos'>('vendor');
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSuggestions, setChatSuggestions] = useState<string[]>([]);
+  
+  // Separate histories
+  const [vendorMessages, setVendorMessages] = useState<ChatMessage[]>([
+    {
+      role: 'bot',
+      text: `Bonjour 👋 Je suis l'assistant de ${state?.vendor?.name || 'votre vendeur'}. Posez-moi vos questions sur nos produits et services.`,
+    },
+  ]);
+  const [krantosMessages, setKrantosMessages] = useState<ChatMessage[]>([
+    {
+      role: 'bot',
+      text: "Bonjour 👋 Je suis l'assistant Krantos. Je peux vous aider sur le fonctionnement de la plateforme, les conseils énergétiques généraux et les garanties Krantos.",
+    },
+  ]);
+
+  const chatMessages = activeBot === 'vendor' ? vendorMessages : krantosMessages;
+  const setChatMessages = activeBot === 'vendor' ? setVendorMessages : setKrantosMessages;
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,7 +102,12 @@ const Results = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [chatMessages, activeBot]);
+
+  useEffect(() => {
+    // Clear suggestions when switching bot
+    setChatSuggestions([]);
+  }, [activeBot]);
 
   if (!state) {
     return (
@@ -124,7 +142,7 @@ const Results = () => {
 
   const handleChatSend = async (overrideText?: string) => {
     const msg = (overrideText || chatInput).trim();
-    if (!msg || chatLoading || !product) return;
+    if (!msg || chatLoading) return;
     
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
@@ -136,10 +154,12 @@ const Results = () => {
         content: m.text
       }));
 
+      const targetVendorId = activeBot === 'vendor' ? (vendor?.id || '') : KRANTOS_ADMIN_ID;
+
       const api = await sendChatbotMessage({
         message: msg,
-        vendor_id: vendor?.id || '',
-        product_id: product.id,
+        vendor_id: targetVendorId,
+        product_id: activeBot === 'vendor' ? product?.id ?? null : null,
         history: history
       });
       
@@ -148,7 +168,7 @@ const Results = () => {
     } catch {
       setChatMessages(prev => [...prev, { role: 'bot', text: "Erreur lors de la réponse. Réessayez." }]);
     } finally {
-      chatLoading && setChatLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -495,15 +515,44 @@ const Results = () => {
         animate={{ opacity: 1, y: 0 }}
         className="glass-card p-10 rounded-[3rem] border-white/5 mb-20 bg-gradient-to-br from-yellow-400/[0.02] to-transparent"
       >
-        <div className="flex items-center gap-3 mb-8">
-          <MessageSquare className="w-6 h-6 text-yellow-400" />
-          <h2 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest">Conseil personnalisé</h2>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div className="flex items-center gap-3">
+            <MessageSquare className="w-6 h-6 text-yellow-400" />
+            <h2 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest">Conseil personnalisé</h2>
+          </div>
+
+          {/* Bot Selector Tabs */}
+          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 self-start md:self-auto">
+            <button
+              onClick={() => setActiveBot('vendor')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeBot === 'vendor' 
+                  ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                  : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              Assistant {vendor?.name || 'Vendeur'}
+            </button>
+            <button
+              onClick={() => setActiveBot('krantos')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeBot === 'krantos' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                  : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              Assistant Krantos
+            </button>
+          </div>
         </div>
 
-        <div className="bg-[#0A0A0B] rounded-[2.5rem] p-8 border border-white/5 h-[450px] flex flex-col">
+        <div className="bg-[#0A0A0B] rounded-[2.5rem] p-8 border border-white/5 h-[450px] flex flex-col relative overflow-hidden">
+          {/* Background decoration for the active bot */}
+          <div className={`absolute top-0 right-0 w-64 h-64 blur-[100px] rounded-full transition-colors duration-700 pointer-events-none ${activeBot === 'vendor' ? 'bg-yellow-400/5' : 'bg-blue-600/5'}`} />
+
           <div 
             ref={chatContainerRef}
-            className="space-y-6 flex-1 mb-8 overflow-y-auto scrollbar-hide"
+            className="space-y-6 flex-1 mb-8 overflow-y-auto scrollbar-hide relative z-10"
           >
             {chatMessages.map((msg, idx) => (
               <motion.div 
@@ -513,12 +562,16 @@ const Results = () => {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'bot' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-white/10 text-white'}`}>
+                  <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
+                    msg.role === 'bot' 
+                      ? (activeBot === 'vendor' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-blue-600/10 text-blue-400') 
+                      : 'bg-white/10 text-white'
+                  }`}>
                     {msg.role === 'bot' ? <Bot size={16} /> : <User size={16} />}
                   </div>
                   <div className={`px-6 py-4 rounded-[1.5rem] text-sm font-medium leading-relaxed ${
                     msg.role === 'user' 
-                    ? 'bg-yellow-400 text-gray-950 font-black shadow-lg shadow-yellow-400/10' 
+                    ? (activeBot === 'vendor' ? 'bg-yellow-400 text-gray-950 font-black' : 'bg-blue-600 text-white font-black') + ' shadow-lg'
                     : 'bg-white/[0.03] text-gray-300 border border-white/5'
                   }`}>
                     {msg.text}
@@ -528,8 +581,8 @@ const Results = () => {
             ))}
             {chatLoading && (
               <div className="flex gap-4">
-                <div className="w-8 h-8 rounded-full bg-yellow-400/10 flex items-center justify-center animate-pulse">
-                  <Bot size={16} className="text-yellow-400" />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center animate-pulse ${activeBot === 'vendor' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-blue-600/10 text-blue-400'}`}>
+                  <Bot size={16} />
                 </div>
                 <div className="bg-white/5 px-6 py-4 rounded-[1.5rem] animate-pulse">
                   <div className="w-12 h-2 bg-white/10 rounded-full" />
@@ -540,12 +593,14 @@ const Results = () => {
 
           {/* Suggestions */}
           {chatSuggestions.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex flex-wrap gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2 relative z-10">
               {chatSuggestions.map((s, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleChatSend(s)}
-                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-400 hover:text-yellow-400 hover:border-yellow-400/50 transition-all flex items-center gap-2 group"
+                  className={`px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-gray-400 transition-all flex items-center gap-2 group ${
+                    activeBot === 'vendor' ? 'hover:text-yellow-400 hover:border-yellow-400/50' : 'hover:text-blue-400 hover:border-blue-400/50'
+                  }`}
                 >
                   {s}
                   <ChevronRight size={10} className="group-hover:translate-x-1 transition-transform" />
@@ -554,19 +609,25 @@ const Results = () => {
             </div>
           )}
 
-          <div className="relative group">
+          <div className="relative group z-10">
             <input
               type="text"
               value={chatInput}
               onChange={e => setChatInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleChatSend()}
-              placeholder="Posez votre question..."
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none focus:border-yellow-400/50 transition-all placeholder:text-gray-600"
+              placeholder={activeBot === 'vendor' ? "Posez une question au vendeur..." : "Posez une question à Krantos..."}
+              className={`w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white focus:outline-none transition-all placeholder:text-gray-600 ${
+                activeBot === 'vendor' ? 'focus:border-yellow-400/50' : 'focus:border-blue-600/50'
+              }`}
             />
             <button
               onClick={() => handleChatSend()}
               disabled={chatLoading}
-              className="absolute right-2 top-2 bottom-2 px-6 rounded-xl bg-yellow-400 text-gray-950 flex items-center justify-center hover:bg-yellow-500 transition-all disabled:opacity-50"
+              className={`absolute right-2 top-2 bottom-2 px-6 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all disabled:opacity-50 ${
+                activeBot === 'vendor' 
+                  ? 'bg-yellow-400 text-gray-950 hover:bg-yellow-500' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
             >
               <Send size={18} />
             </button>

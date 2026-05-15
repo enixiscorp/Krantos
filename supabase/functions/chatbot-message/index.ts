@@ -80,9 +80,12 @@ Deno.serve(async (req) => {
       else if (["boutique", "adresse", "situé", "livraison", "livrer", "où", "trouver"].some(k => lowerMsg.includes(k))) {
         const addr = config?.address ? `Notre boutique est située ici : ${config.address}.` : "";
         const deliv = config?.delivery_info ? ` Concernant la livraison : ${config.delivery_info}` : "";
+        
         keywordResponse = `${addr}${deliv}`.trim();
-        if (!keywordResponse && ["boutique", "adresse", "situé", "où"].some(k => lowerMsg.includes(k))) {
-          keywordResponse = `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte.`;
+        
+        // If still empty but keyword matched, provide a standard fallback
+        if (!keywordResponse) {
+          keywordResponse = `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte et nos conditions de livraison.`;
         }
       }
     }
@@ -103,7 +106,8 @@ Deno.serve(async (req) => {
         RÈGLES:
         - Réponds de manière experte et concise.
         - Si tu ne sais pas, invite à appeler au ${vendor.phone}.
-        - Format JSON: {"answer": "...", "next_questions": ["..."]}
+        - Ton nom est "L'assistant de ${vendor.name}".
+        - Format JSON STRICT: {"answer": "réponse texte", "next_questions": ["question 1", "question 2"]}
       `;
 
       try {
@@ -128,9 +132,13 @@ Deno.serve(async (req) => {
         
         if (aiText) {
           const aiContent = JSON.parse(aiText);
+          const aiSuggestions = Array.isArray(aiContent.next_questions) 
+            ? aiContent.next_questions.map((q: any) => typeof q === 'string' ? q : String(q))
+            : suggestions;
+
           return jsonResponse(200, {
-            response: aiContent.answer,
-            suggestions: aiContent.next_questions || suggestions,
+            response: aiContent.answer || keywordResponse || "Comment puis-je vous aider ?",
+            suggestions: aiSuggestions,
             source: "ai"
           });
         }

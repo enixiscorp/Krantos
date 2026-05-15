@@ -1,13 +1,15 @@
 // ============================================================
 // Krantos Platform — AdminLogin (super_admin + admin staff)
+// Supporte la connexion hors-ligne via session mise en cache.
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Shield, Mail, Lock, LogIn, Loader2 } from 'lucide-react';
+import { Shield, Mail, Lock, LogIn, Loader2, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { adminSessionStore } from '../lib/offlineDB';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -15,6 +17,29 @@ const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineSession, setOfflineSession] = useState<{
+    email: string;
+    role: string;
+  } | null>(null);
+
+  // Check for cached admin session (allows offline access)
+  useEffect(() => {
+    const checkOfflineSession = async () => {
+      const cached = await adminSessionStore.get();
+      if (cached) setOfflineSession(cached);
+    };
+    checkOfflineSession();
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const redirectIfAdmin = async () => {
     try {
@@ -22,11 +47,12 @@ const AdminLogin = () => {
       if (!sessionData.session) return;
 
       const uid = sessionData.session.user.id;
-      const userEmail = sessionData.session.user.email;
-      
+      const userEmail = sessionData.session.user.email ?? '';
+
       // Force access for the main admin email
       if (userEmail === 'contacteccorp@gmail.com') {
-        console.log('Main admin detected, forcing redirect to /admin');
+        // Cache session for offline access
+        await adminSessionStore.set({ userId: uid, email: userEmail, role: 'super_admin' });
         navigate('/admin', { replace: true });
         return;
       }
@@ -39,6 +65,7 @@ const AdminLogin = () => {
         .maybeSingle();
 
       if (profile?.role === 'super_admin' || profile?.role === 'admin') {
+        await adminSessionStore.set({ userId: uid, email: userEmail, role: profile.role });
         navigate('/admin', { replace: true });
         return;
       }
@@ -50,6 +77,7 @@ const AdminLogin = () => {
         .maybeSingle();
 
       if (adminUser) {
+        await adminSessionStore.set({ userId: uid, email: userEmail, role: 'admin' });
         navigate('/admin', { replace: true });
         return;
       }
@@ -81,6 +109,13 @@ const AdminLogin = () => {
     }
   };
 
+  // Offline bypass: use cached session
+  const handleOfflineAccess = () => {
+    if (offlineSession) {
+      navigate('/admin', { replace: true });
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 relative">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-yellow-400/10 blur-[110px] rounded-full pointer-events-none" />
@@ -101,6 +136,46 @@ const AdminLogin = () => {
               Réservé au super admin et aux administrateurs staff.
             </p>
           </div>
+
+          {/* Offline Banner with cached session */}
+          {!isOnline && offlineSession && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex flex-col gap-3"
+            >
+              <div className="flex items-center gap-2">
+                <WifiOff size={14} className="text-blue-400 flex-shrink-0" />
+                <span className="text-blue-300 text-xs font-bold">Session locale disponible</span>
+              </div>
+              <p className="text-blue-400/70 text-[11px] leading-relaxed">
+                Dernière session : <strong className="text-blue-300">{offlineSession.email}</strong>
+              </p>
+              <button
+                onClick={handleOfflineAccess}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-500 text-white font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all"
+              >
+                <Shield size={14} /> Accéder sans connexion
+              </button>
+            </motion.div>
+          )}
+
+          {/* Offline Banner without cached session */}
+          {!isOnline && !offlineSession && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <WifiOff size={14} className="text-red-400 flex-shrink-0" />
+                <span className="text-red-300 text-xs font-bold">Vous êtes hors-ligne</span>
+              </div>
+              <p className="text-red-400/70 text-[11px] leading-relaxed">
+                Connectez-vous à internet pour accéder au panneau admin, ou connectez-vous d'abord en ligne pour activer l'accès hors-ligne.
+              </p>
+            </motion.div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 transition-all focus-within:border-yellow-400/50 group">
@@ -129,7 +204,7 @@ const AdminLogin = () => {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isOnline}
               className="w-full h-14 rounded-2xl bg-yellow-400 text-gray-900 font-black text-lg hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 flex items-center justify-center gap-2 accent-glow"
             >
               {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : (<><LogIn className="w-6 h-6" />Se connecter</>)}

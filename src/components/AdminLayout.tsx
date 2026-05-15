@@ -19,11 +19,15 @@ import {
   Menu,
   X,
   Download,
-  BellRing
+  BellRing,
+  RefreshCw,
+  Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { useOnlineSync } from '../hooks/useOnlineSync';
+import OfflineStatusBar from './OfflineStatusBar';
 
 export default function AdminLayout() {
   const location = useLocation();
@@ -31,6 +35,7 @@ export default function AdminLayout() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { pendingCount, isSyncing, syncNow } = useOnlineSync();
 
   // Hide sidebar on login page
   const isLoginPage = location.pathname === '/admin-login';
@@ -222,8 +227,28 @@ export default function AdminLayout() {
             })}
           </nav>
 
-          {/* Bottom Section: Install & Logout */}
+          {/* Bottom Section: Sync + Install + Logout */}
           <div className="p-3 mt-auto border-t border-white/5 space-y-1">
+            {/* Pending sync indicator */}
+            {pendingCount > 0 && (
+              <button
+                onClick={syncNow}
+                disabled={isSyncing}
+                className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 border border-orange-500/20`}
+              >
+                {isSyncing ? (
+                  <RefreshCw size={20} className="shrink-0 animate-spin" />
+                ) : (
+                  <Clock size={20} className="shrink-0" />
+                )}
+                {(isExpanded || isMobileMenuOpen) && (
+                  <span className="whitespace-nowrap text-xs font-black uppercase tracking-wider">
+                    {isSyncing ? 'Sync...' : `${pendingCount} action${pendingCount > 1 ? 's' : ''} en attente`}
+                  </span>
+                )}
+              </button>
+            )}
+
             {deferredPrompt && (
               <button
                 onClick={handleInstall}
@@ -269,6 +294,8 @@ export default function AdminLayout() {
 
       {/* Main Content Area */}
       <main className={`flex-1 h-screen overflow-y-auto relative z-10 scroll-smooth pt-16 lg:pt-0 pb-10 lg:pb-0`}>
+        {/* Offline status bar at top of content */}
+        <OfflineStatusBar position="top" />
         <div className="p-4 md:p-10 max-w-[1600px] mx-auto">
           <Outlet />
         </div>

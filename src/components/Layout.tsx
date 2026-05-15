@@ -1,25 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Outlet, useLocation, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { WifiOff } from 'lucide-react';
 import Header from './Header';
 import Chatbot from './Chatbot';
+import OfflineStatusBar from './OfflineStatusBar';
 
 const Layout: React.FC = () => {
   const { id: vendorIdFromUrl } = useParams();
   const location = useLocation();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   // If we are on a vendor page, use that vendor's chatbot.
   // Otherwise, use a default fallback (Krantos Admin Vendor ID should go here)
@@ -35,29 +22,18 @@ const Layout: React.FC = () => {
       <main className="pt-16 pb-20">
         <Outlet />
       </main>
-      
+
       {!hideChatbot && (
-        <Chatbot 
-          vendorId={activeVendorId} 
-          vendorName={activeVendorName} 
+        <Chatbot
+          vendorId={activeVendorId}
+          vendorName={activeVendorName}
         />
       )}
 
-      <AnimatePresence>
-        {!isOnline && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl shadow-red-500/20 font-black text-xs uppercase tracking-widest"
-          >
-            <WifiOff size={16} />
-            Mode Hors-ligne : Vos actions seront synchronisées plus tard
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Footer-like element or subtle background glows */}
+      {/* Offline status bar — handles sync queue display */}
+      <OfflineStatusBar position="bottom" />
+
+      {/* Ambient background glows */}
       <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-yellow-400/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none" />
     </div>

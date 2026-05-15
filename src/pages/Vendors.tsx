@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Vendors Directory Page (/vendors) (Premium Dark)
+// Krantos Platform — Vendors Directory Page (/vendors) (Offline-First)
 // Requirements: 9.1, 9.3
 // ============================================================
 
@@ -16,10 +16,11 @@ import {
   Zap,
   Loader2,
   ArrowRight,
-  Filter,
+  Database,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Vendor } from '../lib/supabase';
+import { vendorsCacheStore } from '../lib/offlineDB';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -30,20 +31,41 @@ const Vendors = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fromCache, setFromCache] = useState(false);
 
   useEffect(() => {
     const fetchVendors = async () => {
       setIsLoading(true);
-      const { data, error: supabaseError } = await supabase
-        .from('vendors')
-        .select('*')
-        .eq('status', 'active')
-        .order('name', { ascending: true });
 
-      if (supabaseError) {
-        setError('Impossible de charger les partenaires.');
+      // Try online first
+      if (navigator.onLine) {
+        try {
+          const { data, error: supabaseError } = await supabase
+            .from('vendors')
+            .select('*')
+            .eq('status', 'active')
+            .order('name', { ascending: true });
+
+          if (!supabaseError && data) {
+            setVendors(data);
+            setFromCache(false);
+            // Update cache
+            vendorsCacheStore.setAll(data).catch(() => {});
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Fall through to cache
+        }
+      }
+
+      // Offline fallback: use IndexedDB cache
+      const cached = await vendorsCacheStore.getAll();
+      if (cached.length > 0) {
+        setVendors(cached);
+        setFromCache(true);
       } else {
-        setVendors(data ?? []);
+        setError('Impossible de charger les partenaires. Connectez-vous à internet.');
       }
       setIsLoading(false);
     };
@@ -69,9 +91,16 @@ const Vendors = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
         <div>
           <h1 className="text-5xl font-black text-white mb-2">Partenaires</h1>
-          <p className="text-gray-500 text-lg uppercase tracking-widest text-xs font-black">
-             Annuaire des vendeurs vérifiés · Krantos Ecosystem
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-gray-500 text-lg uppercase tracking-widest text-xs font-black">
+               Annuaire des vendeurs vérifiés · Krantos Ecosystem
+            </p>
+            {fromCache && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-black uppercase tracking-widest">
+                <Database size={9} /> Cache local
+              </span>
+            )}
+          </div>
         </div>
         <div className="relative group w-full md:w-96">
            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />

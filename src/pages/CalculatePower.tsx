@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — CalculatePower Page (Premium Dark Overhaul)
+// Krantos Platform — CalculatePower Page (Offline-First)
 // Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 14.4
 // ============================================================
 
@@ -7,13 +7,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOff } from 'lucide-react';
+import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOff, Database } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
 import type { ApplianceInput, PowerUnit } from '../lib/supabase';
 import { calculateTotalPower } from '../utils/powerCalculator';
 import { getRecommendation } from '../services/recommendationEngine';
 import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '../constants/applianceCatalog';
+import { enqueueAction } from '../lib/offlineQueue';
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -238,20 +239,14 @@ const CalculatePower = () => {
     product: any;
     vendor: any;
     alternatives: { product: any; vendor: any }[];
+    fromCache?: boolean;
   } | null>(null);
   const [calculatedPower, setCalculatedPower] = useState({ watts: 0, kva: 0 });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast.success('Vous êtes de nouveau en ligne. Synchronisation...');
-      syncOfflineLeads();
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast.warning('Connexion perdue. Vos données seront sauvegardées localement.');
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -260,31 +255,6 @@ const CalculatePower = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  const syncOfflineLeads = async () => {
-    const queue = JSON.parse(localStorage.getItem('krantos_offline_leads') || '[]');
-    if (queue.length === 0) return;
-
-    for (const item of queue) {
-      try {
-        const { data: leadData, error: leadError } = await supabase
-          .from('leads')
-          .insert(item.lead)
-          .select('id')
-          .single();
-
-        if (leadError) throw leadError;
-
-        const apps = item.appliances.map((a: any) => ({ ...a, lead_id: leadData.id }));
-        await supabase.from('appliances_input').insert(apps);
-      } catch (err) {
-        console.error('Failed to sync offline lead:', err);
-      }
-    }
-
-    localStorage.removeItem('krantos_offline_leads');
-    toast.success(`${queue.length} demande(s) synchronisée(s).`);
-  };
 
   // ── User form validation ─────────────────────────────────────────────────
   const validateUserForm = (): boolean => {
@@ -340,29 +310,33 @@ const CalculatePower = () => {
     setSubmitFailed(false);
 
     if (!isOnline) {
-      const offlineQueue = JSON.parse(localStorage.getItem('krantos_offline_leads') || '[]');
-      offlineQueue.push({
-        lead: {
-          user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-          user_phone: userForm.phone.trim(),
-          location: userForm.location.trim(),
-          total_power_needed: totalKVA,
-          recommended_product_id: product?.id ?? null,
-          vendor_id: vendor?.id ?? null,
-          status: 'new',
+      // Enqueue lead in IndexedDB offline queue (more reliable than localStorage)
+      await enqueueAction({
+        type: 'INSERT',
+        table: 'leads_with_appliances',
+        label: `Calcul de ${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
+        payload: {
+          lead: {
+            user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
+            user_phone: userForm.phone.trim(),
+            location: userForm.location.trim(),
+            total_power_needed: totalKVA,
+            recommended_product_id: product?.id ?? null,
+            vendor_id: vendor?.id ?? null,
+            status: 'new',
+          },
+          appliances: appliances.map(a => ({
+            appliance_name: a.name,
+            quantity: a.quantity,
+            power: a.power,
+            unit: a.unit,
+            power_in_watts: a.unit === 'A' ? a.power * 220 : a.power,
+          })),
         },
-        appliances: appliances.map(a => ({
-          appliance_name: a.name,
-          quantity: a.quantity,
-          power: a.power,
-          unit: a.unit,
-          power_in_watts: a.unit === 'A' ? a.power * 220 : a.power
-        }))
       });
-      localStorage.setItem('krantos_offline_leads', JSON.stringify(offlineQueue));
-      
-      toast.info("Mode Hors-ligne : Votre demande sera envoyée dès votre retour en ligne.");
-      
+
+      toast.info("📵 Mode Hors-ligne : Votre demande sera envoyée dès votre retour en ligne.");
+
       navigate('/results', {
         state: {
           totalWatts,
@@ -478,6 +452,9 @@ const CalculatePower = () => {
     try {
       const result = await getRecommendation(totalKVA);
       setRecommendations(result);
+      if (result.fromCache) {
+        toast.info('📦 Résultats affichés depuis le cache local (mode hors-ligne).');
+      }
       setStep('suggestions');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -662,6 +639,12 @@ const CalculatePower = () => {
                   <Zap className="w-3.5 h-3.5 text-yellow-400" />
                   <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Calcul terminé : {calculatedPower.watts.toFixed(0)} W ({(calculatedPower.watts / 1000).toFixed(2)} kW)</span>
                 </div>
+                {recommendations?.fromCache && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-4 ml-2">
+                    <Database className="w-3.5 h-3.5 text-blue-400" />
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Depuis cache local</span>
+                  </div>
+                )}
                 <h2 className="text-4xl font-black text-white mb-4 tracking-tight">Choisissez votre solution</h2>
                 <p className="text-gray-400 text-sm max-w-md mx-auto">Sélectionnez le vendeur qui vous convient le mieux pour continuer vers les détails.</p>
               </div>

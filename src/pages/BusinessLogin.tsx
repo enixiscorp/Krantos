@@ -3,17 +3,33 @@
 // Requirements: 9.1, 9.2, 9.3, 9.4
 // ============================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Briefcase, Mail, Lock, LogIn, Loader2, Building2, Phone, Sparkles, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useConnection } from '../context/ConnectionContext';
+import { vendorSessionStore } from '../lib/offlineDB';
 
 const BusinessLogin = () => {
   const navigate = useNavigate();
+  const { isOnline, isForcedOffline, setForcedOffline, toggleForcedOffline } = useConnection();
+  const isActuallyOnline = isOnline && !isForcedOffline;
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [offlineSession, setOfflineSession] = useState<{
+    email: string;
+    name: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const checkOfflineSession = async () => {
+      const cached = await vendorSessionStore.get();
+      if (cached) setOfflineSession(cached);
+    };
+    checkOfflineSession();
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -100,6 +116,26 @@ const BusinessLogin = () => {
       return;
     }
     setLoading(true);
+
+    // Offline bypass logic
+    if (!isActuallyOnline) {
+      try {
+        const cached = await vendorSessionStore.get();
+        if (cached && cached.email.toLowerCase() === email.toLowerCase()) {
+          toast.success('Connexion hors-ligne réussie ! (Bypass local)');
+          navigate('/business-dashboard', { replace: true });
+          return;
+        } else {
+          throw new Error("Aucun profil correspondant n'est enregistré localement pour un accès hors-ligne.");
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur de connexion.';
+        toast.error(`Échec de la connexion hors-ligne : ${message}`);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -209,6 +245,62 @@ const BusinessLogin = () => {
                 : 'Créez votre compte (Validation Krantos).'}
             </p>
           </div>
+
+          {/* Connectivity Status & Forced Offline Control */}
+          <div className="mb-6 p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {isActuallyOnline ? (
+                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
+                  <Wifi className="w-4 h-4 animate-pulse" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <WifiOff className="w-4 h-4" />
+                </div>
+              )}
+              <div className="text-left">
+                <p className="text-xs font-bold text-white">
+                  {isActuallyOnline ? 'Statut : Connecté' : 'Statut : Hors-ligne'}
+                </p>
+                <p className="text-[10px] text-gray-500 font-medium">
+                  {isActuallyOnline 
+                    ? 'Accès total en temps réel' 
+                    : offlineSession 
+                      ? 'Accès local disponible (bypass)' 
+                      : 'Accès restreint - Aucun cache'}
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={toggleForcedOffline}
+              type="button"
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                isForcedOffline 
+                  ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                  : 'bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {isForcedOffline ? 'Forcer En-ligne' : 'Forcer Offline'}
+            </button>
+          </div>
+
+          {/* Local Session Info if Offline */}
+          {!isActuallyOnline && offlineSession && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex flex-col gap-2 text-left"
+            >
+              <span className="text-blue-300 text-xs font-bold flex items-center gap-1.5">
+                <CheckCircle2 size={14} className="text-blue-400" />
+                Session locale disponible
+              </span>
+              <p className="text-blue-400/70 text-[11px] leading-relaxed">
+                Connectez-vous hors-ligne avec l'adresse : <strong className="text-blue-300">{offlineSession.email}</strong>.
+              </p>
+            </motion.div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button

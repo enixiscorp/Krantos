@@ -1,9 +1,9 @@
-// ============================================================
+﻿// ============================================================
 // Krantos Platform — CalculatePower Page (Offline-First)
 // Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 14.4
 // ============================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -83,147 +83,84 @@ const CalculatePower = () => {
   });
   const [userErrors, setUserErrors] = useState<UserFormErrors>({});
 
-  // ── Location suggestions state ───────────────────────────────────────────
+  // ── Location suggestions state (Nominatim / OpenStreetMap) ─────────────
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const ALL_LOCATIONS = [
-    'Assivito, Lomé - Togo',
-    'Dékon, Lomé - Togo',
-    'Kodjoviakopé, Lomé - Togo',
-    'Nyékonakpoè, Lomé - Togo',
-    'Béniglato, Lomé - Togo',
-    'Tokoin Gbonvié, Lomé - Togo',
-    'Tokoin Doumassessé, Lomé - Togo',
-    'Tokoin Forever, Lomé - Togo',
-    'Tokoin Wuiti, Lomé - Togo',
-    'Tokoin Solidarité, Lomé - Togo',
-    'Tokoin Habitat, Lomé - Togo',
-    'Klikamé, Lomé - Togo',
-    'Djidjolé, Lomé - Togo',
-    'Nukafu, Lomé - Togo',
-    'Cassablanca, Lomé - Togo',
-    'Agbalépédogan, Lomé - Togo',
-    'Totsi, Lomé - Togo',
-    'Totsi Wouti, Lomé - Togo',
-    'Totsi Atikoumé, Lomé - Togo',
-    'Attiégou, Lomé - Togo',
-    'Gblinkomé, Lomé - Togo',
-    'Kégué, Lomé - Togo',
-    'Kpota-Colas, Lomé - Togo',
-    'Hédzranawoé, Lomé - Togo',
-    'Adidogomé, Lomé - Togo',
-    'Adidogomé Apéyémé, Lomé - Togo',
-    'Adidogomé Madiba, Lomé - Togo',
-    'Adidogomé Amadahomé, Lomé - Togo',
-    'Adidogomé Assiyéyé, Lomé - Togo',
-    'Adidogomé Soviépé, Lomé - Togo',
-    'Adidogomé Kové, Lomé - Togo',
-    'Agoè-Nyivé Centre, Lomé - Togo',
-    'Agoè Assiyéyé, Lomé - Togo',
-    'Agoè Démakpoè, Lomé - Togo',
-    'Agoè Logopé, Lomé - Togo',
-    'Agoè Télessou, Lomé - Togo',
-    'Agoè Zongo, Lomé - Togo',
-    'Agoè Cacaveli, Lomé - Togo',
-    'Agoè Vakpossito, Lomé - Togo',
-    'Agoè Sogbossito, Lomé - Togo',
-    'Agoè Plateau, Lomé - Togo',
-    'Agoè Minamadou, Lomé - Togo',
-    'Agoè Kossigan, Lomé - Togo',
-    'Bè Kpota, Lomé - Togo',
-    'Bè Klikamé, Lomé - Togo',
-    'Bè Apédokoè, Lomé - Togo',
-    'Bè Adakpamé, Lomé - Togo',
-    'Bè Kpéhénou, Lomé - Togo',
-    'Bè Anfamé, Lomé - Togo',
-    'Bè Agodéké, Lomé - Togo',
-    'Bè Akodesséwa, Lomé - Togo',
-    'Akodesséwa, Lomé - Togo',
-    'Baguida, Lomé - Togo',
-    'Kpogan, Lomé - Togo',
-    'Avépozo, Lomé - Togo',
-    'Ablogamé, Lomé - Togo',
-    'Katanga, Lomé - Togo',
-    'Zanguéra, Lomé - Togo',
-    'Sanguéra, Lomé - Togo',
-    'Légbassito, Lomé - Togo',
-    'Adétikopé, Lomé - Togo',
-    'Togblékopé, Lomé - Togo',
-    'Vakpossito, Lomé - Togo',
-    'Sogbossito, Lomé - Togo',
-    'Cacaveli, Lomé - Togo',
-    'Logopé, Lomé - Togo',
-    'Kossigan, Lomé - Togo',
-    'Télessou, Lomé - Togo',
-    'Agbalépédo, Lomé - Togo',
-    'Amadahomé, Lomé - Togo',
-    'Kové, Lomé - Togo',
-    'Apéyémé, Lomé - Togo',
-    'Assiyéyé, Lomé - Togo',
-    'Soviépé, Lomé - Togo',
-    'Aného - Togo',
-    'Tsévié - Togo',
-    'Kpalimé - Togo',
-    'Atakpamé - Togo',
-    'Sokodé - Togo',
-    'Kara - Togo',
-    'Dapaong - Togo',
-    'Cotonou - Bénin',
-    'Porto-Novo - Bénin',
-    'Bamako - Mali',
-    'Ouagadougou - Burkina Faso',
-    'Abidjan - Côte d’Ivoire',
-    'Yamoussoukro - Côte d’Ivoire',
-    'Niamey - Niger',
-    'Accra - Ghana',
-    'Kumasi - Ghana',
-    'Lagos - Nigeria',
-    'Abuja - Nigeria',
-    'Dakar - Sénégal',
-    'Conakry - Guinée',
-    'Freetown - Sierra Leone',
-    'Monrovia - Liberia',
-    'Banjul - Gambie',
-    'Douala - Cameroun',
-    'Yaoundé - Cameroun',
-    'Libreville - Gabon',
-    'Brazzaville - Congo',
-    'Kinshasa - RDC',
-    'Luanda - Angola',
-    'Nairobi - Kenya',
-    'Addis-Abeba - Éthiopie',
-    'Kigali - Rwanda',
-    'Bujumbura - Burundi',
-    'Dar es Salaam - Tanzanie',
-    'Kampala - Ouganda',
-    'Johannesburg - Afrique du Sud',
-    'Le Cap - Afrique du Sud',
-    'Pretoria - Afrique du Sud',
-    'Casablanca - Maroc',
-    'Rabat - Maroc',
-    'Tunis - Tunisie',
-    'Alger - Algérie',
-    'Le Caire - Égypte',
-    'Paris - France',
-    'Lyon - France',
-    'Marseille - France',
-    'Bruxelles - Belgique',
-    'Genève - Suisse',
-    'Montréal - Canada',
-    'Ottawa - Canada',
-    'New York - USA',
-    'Washington - USA',
-    'Londres - Royaume-Uni',
-    'Berlin - Allemagne',
-    'Madrid - Espagne',
-    'Rome - Italie',
-    'Pékin - Chine',
-    'Tokyo - Japon',
-    'Dubaï - Émirats Arabes Unis',
-    'Istanbul - Turquie'
-  ];
+  /**
+   * Fetches address suggestions from Nominatim (OpenStreetMap).
+   * No API key required. Rate-limit: 1 req/s handled by 400ms debounce.
+   *
+   * To swap for another provider (Google Places, Mapbox…),
+   * replace only this function — the state & UI below stay identical.
+   */
+  const fetchLocationSuggestions = useCallback(async (query: string) => {
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
 
+    setLocationLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        limit: '6',
+        addressdetails: '1',
+        'accept-language': 'fr',
+      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params}`,
+        {
+          signal: abortRef.current.signal,
+          headers: {
+            // Required by Nominatim usage policy: identify your app
+            'User-Agent': 'Krantos/1.0 (contact@krantos.com)',
+          },
+        }
+      );
+      if (!res.ok) throw new Error('Nominatim error');
+      const data: Array<{ display_name: string }> = await res.json();
+      const labels = data.map((item) => item.display_name);
+      setLocationSuggestions(labels);
+      setShowSuggestions(labels.length > 0);
+    } catch (err: unknown) {
+      // AbortError means the user kept typing — not a real error
+      if (err instanceof Error && err.name !== 'AbortError') {
+        setLocationSuggestions([]);
+        setShowSuggestions(false);
+      }
+    } finally {
+      setLocationLoading(false);
+    }
+  }, []);
+
+  /** Debounced handler — waits 400 ms after the last keystroke */
+  const handleLocationChange = useCallback((val: string) => {
+    setUserForm((f) => ({ ...f, location: val }));
+    setUserErrors((err) => ({ ...err, location: undefined }));
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (val.length < 3) {
+      setShowSuggestions(false);
+      setLocationSuggestions([]);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      fetchLocationSuggestions(val);
+    }, 400);
+  }, [fetchLocationSuggestions]);
+
+  // Cleanup timers & in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
   // ── Appliance list state ─────────────────────────────────────────────────
   const [appliances, setAppliances] = useState<ApplianceInput[]>([]);
   const [applianceForm, setApplianceForm] = useState<ApplianceFormData>(emptyApplianceForm());

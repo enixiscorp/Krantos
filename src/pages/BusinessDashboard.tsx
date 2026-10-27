@@ -35,6 +35,9 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Product, Lead, LeadStatus } from '../lib/supabase';
 import { generateReport, exportToPDF } from '../services/billingService';
+import { notificationService } from '../services/notificationService';
+import { vendorSessionStore, productsCacheStore } from '../lib/offlineDB';
+import { useConnection } from '../context/ConnectionContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -118,6 +121,8 @@ const COMMISSION_STATUS_CONFIG: Record<string, { label: string; color: string; b
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
+  const { isOnline, isForcedOffline } = useConnection();
+  const isActuallyOnline = isOnline && !isForcedOffline;
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'commissions'>('overview');
@@ -170,6 +175,34 @@ const BusinessDashboard = () => {
     let mounted = true;
 
     const init = async () => {
+      // 1. Check offline fallback
+      if (!isActuallyOnline) {
+        const cached = await vendorSessionStore.get();
+        if (cached) {
+          console.log('[Offline Mode] Loaded cached vendor session:', cached);
+          const cachedVendor: VendorInfo = {
+            id: cached.vendorId,
+            name: cached.name,
+            email: cached.email,
+            subscription_type: cached.subscription_type,
+            status: cached.status,
+            commission_rate: 0.1, // standard fallback
+          };
+          if (mounted) {
+            setVendor(cachedVendor);
+            const cachedProducts = await productsCacheStore.getAll();
+            setProducts(cachedProducts.filter(p => p.vendor_id === cached.vendorId));
+            setLoading(false);
+          }
+          return;
+        } else {
+          toast.error("Aucune session hors-ligne enregistrée. Connectez-vous d'abord en étant en ligne.");
+          navigate('/business-login', { replace: true });
+          return;
+        }
+      }
+
+      // 2. Normal online initialization
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
         navigate('/business-login', { replace: true });
@@ -235,6 +268,21 @@ const BusinessDashboard = () => {
         const fetchedCommissions: CommissionRecord[] = cRes.data ?? [];
         setAllCommissions(fetchedCommissions);
         setLoading(false);
+
+        // Cache the session locally for offline bypass
+        if (vendorData) {
+          await vendorSessionStore.set({
+            vendorId: vendorData.id,
+            profileId: userId,
+            name: vendorData.name,
+            email: vendorData.email,
+            subscription_type: vendorData.subscription_type,
+            status: vendorData.status,
+          }).catch(e => console.warn('[Offline Cache] Failed to cache session:', e));
+        }
+
+        // Auto-subscribe to Web Push notifications
+        notificationService.subscribeToPushNotifications(userId).catch(e => console.warn('[Push] Auto-subscribe failed:', e));
       }
     };
 

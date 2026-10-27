@@ -47,6 +47,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        importScripts: ['push-worker.js'],
         // Precache all app shell assets (JS, CSS, HTML, icons)
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webp}'],
 

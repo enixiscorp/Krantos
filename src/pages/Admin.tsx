@@ -23,6 +23,7 @@ import {
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
 import { getStatsLeads, getStatsRevenue } from '../services/statsService';
 import { supabase } from '../lib/supabase';
+import { notificationService } from '../services/notificationService';
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -86,11 +87,12 @@ const Admin = () => {
     let mounted = true;
     const fetchDashboard = async () => {
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user.id;
+
         const [dash, roleInfo] = await Promise.all([
           getAdminDashboard(period),
           (async () => {
-            const { data: sessionData } = await supabase.auth.getSession();
-            const uid = sessionData.session?.user.id;
             if (!uid) return { super: false };
             const { data: profile } = await supabase
               .from('profiles')
@@ -104,6 +106,11 @@ const Admin = () => {
         if (!mounted) return;
         setDashboard(dash);
         setIsSuperAdmin(roleInfo.super);
+
+        // Auto-subscribe to Web Push notifications
+        if (uid) {
+          notificationService.subscribeToPushNotifications(uid).catch(e => console.warn('[Push] Auto-subscribe failed:', e));
+        }
       } catch (e) {
         console.error('Dashboard load error:', e);
       } finally {

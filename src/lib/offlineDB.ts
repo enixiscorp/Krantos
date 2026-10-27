@@ -12,7 +12,7 @@ import type { Vendor, Product } from './supabase';
 // ---------------------------------------------------------------------------
 
 const DB_NAME = 'krantos-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface QueuedAction {
   id: string;
@@ -41,6 +41,10 @@ interface KrantosDB {
   admin_session: {
     key: string;
     value: { userId: string; email: string; role: string; cachedAt: string };
+  };
+  vendor_session: {
+    key: string;
+    value: { vendorId: string; profileId: string; name: string; email: string; subscription_type: string; status: string; cachedAt: string };
   };
 }
 
@@ -73,6 +77,11 @@ export function getDB(): Promise<IDBPDatabase<KrantosDB>> {
         // Admin session cache
         if (!db.objectStoreNames.contains('admin_session')) {
           db.createObjectStore('admin_session');
+        }
+
+        // Vendor session cache
+        if (!db.objectStoreNames.contains('vendor_session')) {
+          db.createObjectStore('vendor_session');
         }
       },
     });
@@ -177,5 +186,26 @@ export const adminSessionStore = {
   async clear(): Promise<void> {
     const db = await getDB();
     await db.delete('admin_session', 'current');
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Vendor Session Cache helpers
+// ---------------------------------------------------------------------------
+
+export const vendorSessionStore = {
+  async set(session: { vendorId: string; profileId: string; name: string; email: string; subscription_type: string; status: string }): Promise<void> {
+    const db = await getDB();
+    await db.put('vendor_session', { ...session, cachedAt: new Date().toISOString() }, 'current');
+  },
+
+  async get(): Promise<{ vendorId: string; profileId: string; name: string; email: string; subscription_type: string; status: string; cachedAt: string } | undefined> {
+    const db = await getDB();
+    return db.get('vendor_session', 'current');
+  },
+
+  async clear(): Promise<void> {
+    const db = await getDB();
+    await db.delete('vendor_session', 'current');
   },
 };

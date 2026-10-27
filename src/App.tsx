@@ -5,6 +5,7 @@ import AdminLayout from './components/AdminLayout';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import AdminRoute from './components/AdminRoute';
 import { NotificationProvider } from './components/NotificationProvider';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 
 const Home = lazy(() => import('./pages/Home'));
 const CalculatePower = lazy(() => import('./pages/CalculatePower'));
@@ -33,6 +34,7 @@ const VendorProfile = lazy(() => import('./pages/VendorProfile'));
 
 function App() {
   return (
+    <AppErrorBoundary>
     <BrowserRouter>
       <NotificationProvider>
         <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-yellow-400 font-bold">Chargement...</div>}>
@@ -140,6 +142,7 @@ function App() {
       </Suspense>
       </NotificationProvider>
     </BrowserRouter>
+    </AppErrorBoundary>
   );
 }
 

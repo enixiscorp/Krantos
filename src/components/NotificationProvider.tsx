@@ -1,6 +1,7 @@
 // NotificationProvider.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { createRealtimeChannel } from '../lib/realtime';
 import { notificationService } from '../services/notificationService';
 
 const NotificationContext = createContext({});
@@ -29,8 +30,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     getProfile();
 
     // 2. Setup Realtime Subscriptions
-    const channel = supabase
-      .channel('krantos-realtime')
+    const channel = createRealtimeChannel('krantos-realtime')
       // A. New Lead Trigger (For Vendors and Admins)
       .on(
         'postgres_changes',

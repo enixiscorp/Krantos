@@ -123,3 +123,34 @@ input:autofill {
   background: transparent !important;
   filter: none;
 }
+
+/* Scrollbars: thin and translucent so they blend with the design instead of
+   the default white Windows bars (admin tables, leads, vendors…). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.28);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(250, 204, 21, 0.45);
+}
+
+/* Fully hidden scrollbar (content still scrolls with wheel / touch) */
+.custom-scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.custom-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}

@@ -28,6 +28,69 @@ export function validateProductImageUrl(url: string): string | null {
 }
 
 /**
+ * Turns common "page" links into a direct image link:
+ * - Google Images result (…/imgres?imgurl=…) or Google redirect (…/url?url=…)
+ * - Google Drive share link (…/file/d/<id>/view, …/open?id=<id>)
+ * - Dropbox share link (?dl=0 → ?raw=1)
+ */
+export function normalizeProductImageUrl(url: string): string {
+  const trimmed = url.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return trimmed;
+  }
+  const host = parsed.hostname.replace(/^www\./, '');
+
+  if (/^google\.[a-z.]+$/.test(host)) {
+    const direct = parsed.searchParams.get('imgurl') || parsed.searchParams.get('url') || parsed.searchParams.get('q');
+    if (direct && /^https?:\/\//.test(direct)) return normalizeProductImageUrl(direct);
+  }
+
+  if (host === 'drive.google.com') {
+    const id = parsed.pathname.match(/\/file\/d\/([^/]+)/)?.[1] ?? parsed.searchParams.get('id');
+    if (id) return `https://drive.google.com/thumbnail?id=${id}&sz=w1200`;
+  }
+
+  if (host === 'dropbox.com' || host.endsWith('.dropbox.com')) {
+    parsed.searchParams.delete('dl');
+    parsed.searchParams.set('raw', '1');
+    return parsed.toString();
+  }
+
+  return trimmed;
+}
+
+/** Loads the image in the browser: resolves true only if it really displays. */
+export function checkImageLoads(url: string, timeoutMs = 10_000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => { img.src = ''; resolve(false); }, timeoutMs);
+    img.onload = () => { clearTimeout(timer); resolve(img.naturalWidth > 0 && img.naturalHeight > 0); };
+    img.onerror = () => { clearTimeout(timer); resolve(false); };
+    img.referrerPolicy = 'no-referrer';
+    img.src = url;
+  });
+}
+
+export const IMAGE_LINK_NOT_AN_IMAGE =
+  "Ce lien n'affiche pas d'image. Faites un clic droit sur l'image puis « Copier l'adresse de l'image », ou téléversez le fichier.";
+
+/** Clear French message for a failed product save (missing column, rights…). */
+export function describeProductSaveError(err: unknown): string {
+  const e = err as { message?: string; code?: string } | null;
+  const msg = e?.message ?? '';
+  if (e?.code === 'PGRST204' || /image_url.*schema cache|column .*image_url/i.test(msg)) {
+    return "La base de données n'a pas encore la colonne des images. Exécutez la migration 20240031_products_image_url.sql dans Supabase, puis réessayez.";
+  }
+  if (e?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
+    return "Vous n'avez pas les droits pour modifier ce produit.";
+  }
+  return msg || "L'image n'a pas pu être enregistrée.";
+}
+
+/**
  * Uploads a product image and returns its public URL.
  *
  * Each upload gets a unique file name: the storage policies allow vendors to
@@ -64,5 +127,5 @@ export async function resolveProductImageUrl(opts: {
   if (!trimmed) return null;
   const error = validateProductImageUrl(trimmed);
   if (error) throw new Error(error);
-  return trimmed;
+  return normalizeProductImageUrl(trimmed);
 }

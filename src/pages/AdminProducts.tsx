@@ -18,8 +18,9 @@ import {
   ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { ProductImageInput, type ProductImageValue } from '../components/ProductImageInput';
-import { resolveProductImageUrl } from '../services/productImageService';
+import { ProductImage } from '../components/ProductImage';
+import { ProductImageInput, productImageBlockingReason, type ProductImageValue } from '../components/ProductImageInput';
+import { describeProductSaveError, resolveProductImageUrl } from '../services/productImageService';
 
 type ProductRow = {
   id: string;
@@ -171,6 +172,11 @@ const AdminProducts = () => {
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editProduct) return;
+    const imageProblem = productImageBlockingReason(editImage);
+    if (imageProblem) {
+      toast.error(imageProblem);
+      return;
+    }
     setEditSaving(true);
     try {
       // File picked or link pasted (empty = image removed)
@@ -195,7 +201,7 @@ const AdminProducts = () => {
       setEditProduct(null);
       await load();
     } catch (err: any) {
-      toast.error(`Erreur : ${err.message}`);
+      toast.error(describeProductSaveError(err));
     } finally {
       setEditSaving(false);
     }
@@ -321,18 +327,12 @@ const AdminProducts = () => {
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 blur-3xl -mr-16 -mt-16 group-hover:bg-cyan-400/10 transition-all" />
                 <div className="aspect-video bg-black/40 relative overflow-hidden mb-6 rounded-2xl border border-white/5 group">
-                  {p.image_url ? (
-                    <img 
-                      src={p.image_url} 
-                      alt={p.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-800">
-                      <Zap size={32} className="opacity-10" />
-                    </div>
-                  )}
+                  <ProductImage
+                    src={p.image_url}
+                    alt={p.name}
+                    className="group-hover:scale-105 transition-transform duration-500"
+                    fallback={<Zap size={32} className="opacity-10 text-gray-800" />}
+                  />
                   <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border ${p.is_active ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'} backdrop-blur-md`}>
                     {p.is_active ? 'En ligne' : 'Masqué'}
                   </div>

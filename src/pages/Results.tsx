@@ -31,6 +31,7 @@ import {
 } from '../services/whatsappService';
 import { sendChatbotMessage } from '../services/chatbotApi';
 import WhatsAppIcon from '../components/WhatsAppIcon';
+import { ProductImage } from '../components/ProductImage';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -401,23 +402,15 @@ const Results = () => {
           className="glass-card rounded-[3rem] border-white/5 overflow-hidden group"
         >
           <div className="aspect-square bg-black/20 relative overflow-hidden">
-            {product?.image_url ? (
-              <img 
-                src={product.image_url} 
-                alt={product.name} 
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                loading="lazy"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                  (e.target as HTMLImageElement).parentElement?.classList.add('bg-black/40');
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-800">
+            <ProductImage
+              src={product?.image_url}
+              alt={product?.name ?? 'Produit'}
+              className="group-hover:scale-105 transition-transform duration-700"
+              fallback={<div className="w-full h-full flex flex-col items-center justify-center text-gray-800">
                 <Sparkles className="w-20 h-20 mb-4 opacity-10" />
                 <p className="text-xs font-black uppercase tracking-widest opacity-20">Visuel non disponible</p>
-              </div>
-            )}
+              </div>}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
             <div className="absolute bottom-8 left-8 right-8">
               <div className="flex items-center gap-3 mb-2">

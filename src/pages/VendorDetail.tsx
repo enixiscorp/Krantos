@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
+import { ProductImage } from '../components/ProductImage';
 import type { Vendor, Product } from '../lib/supabase';
 
 // ---------------------------------------------------------------------------
@@ -151,17 +152,12 @@ const VendorDetail = () => {
               className="glass-card rounded-[2rem] border-white/5 hover:border-white/10 transition-all flex flex-col group overflow-hidden"
             >
                <div className="aspect-video bg-black/20 relative overflow-hidden">
-                 {product.image_url ? (
-                   <img 
-                    src={product.image_url} 
-                    alt={product.name} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                   />
-                 ) : (
-                   <div className="w-full h-full flex items-center justify-center">
-                     <Package className="w-10 h-10 text-white/5" />
-                   </div>
-                 )}
+                 <ProductImage
+                    src={product.image_url}
+                    alt={product.name}
+                    className="group-hover:scale-105 transition-transform duration-500"
+                    fallback={<Package className="w-10 h-10 text-white/5" />}
+                  />
                  <div className="absolute top-4 right-4">
                     <span className="px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] font-black text-white uppercase tracking-widest border border-white/10">
                        {product.price.toLocaleString('fr-FR')} FCFA

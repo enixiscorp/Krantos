@@ -29,8 +29,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Product } from '../lib/supabase';
-import { ProductImageInput, type ProductImageValue } from '../components/ProductImageInput';
-import { resolveProductImageUrl } from '../services/productImageService';
+import { ProductImage } from '../components/ProductImage';
+import { ProductImageInput, productImageBlockingReason, type ProductImageValue } from '../components/ProductImageInput';
+import { describeProductSaveError, resolveProductImageUrl } from '../services/productImageService';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -126,6 +127,11 @@ const AddProduct = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate() || !vendorId) return;
+    const imageProblem = productImageBlockingReason(image);
+    if (imageProblem) {
+      toast.error(imageProblem);
+      return;
+    }
     setSubmitting(true);
     try {
       let productId = editingProductId;
@@ -170,7 +176,7 @@ const AddProduct = () => {
           const { error: imageError } = await supabase.from('products').update({ image_url: imageUrl }).eq('id', productId);
           if (imageError) throw imageError;
         } catch (imgErr: any) {
-          toast.error(imgErr?.message ?? "L'image n'a pas pu être enregistrée.");
+          toast.error(describeProductSaveError(imgErr));
         } finally {
           setUploadingImage(false);
         }
@@ -386,13 +392,7 @@ const AddProduct = () => {
               className={`glass-card rounded-[2rem] border-white/5 overflow-hidden flex flex-col transition-all ${!product.is_active ? 'opacity-50 grayscale' : 'hover:border-white/10'}`}
             >
               <div className="aspect-video bg-black/20 relative">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-10 h-10 text-white/10" />
-                  </div>
-                )}
+                <ProductImage src={product.image_url} alt={product.name} />
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button 
                     onClick={() => handleToggleActive(product.id, product.is_active)}

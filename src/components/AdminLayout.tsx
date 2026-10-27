@@ -24,6 +24,7 @@ import {
   Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { createRealtimeChannel } from '../lib/realtime';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { useOnlineSync } from '../hooks/useOnlineSync';
@@ -91,8 +92,7 @@ export default function AdminLayout() {
     };
 
     // Listen for new Leads
-    const leadsChannel = supabase
-      .channel('admin-leads')
+    const leadsChannel = createRealtimeChannel('admin-leads')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
         showNotification('Nouveau Lead !', `Un client (${payload.new.user_name}) vient de faire un calcul.`);
         toast.info(`Nouveau Lead: ${payload.new.user_name}`, { icon: <BellRing className="text-yellow-400" /> });
@@ -100,8 +100,7 @@ export default function AdminLayout() {
       .subscribe();
 
     // Listen for new Vendor Signups
-    const vendorsChannel = supabase
-      .channel('admin-vendors')
+    const vendorsChannel = createRealtimeChannel('admin-vendors')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendors' }, (payload) => {
         showNotification('Nouvelle Inscription !', `Le vendeur ${payload.new.name} s'est inscrit.`);
         toast.success(`Nouveau Vendeur: ${payload.new.name}`, { icon: <UserPlus className="text-green-400" /> });
@@ -129,6 +128,12 @@ export default function AdminLayout() {
   ];
 
   const handleLogout = async () => {
+    // Forget the cached dashboard data of this tab
+    try {
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith('krantos:admin:'))
+        .forEach((k) => sessionStorage.removeItem(k));
+    } catch { /* storage unavailable */ }
     await supabase.auth.signOut();
     toast.success('Déconnexion réussie');
     navigate('/admin-login');

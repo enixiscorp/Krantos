@@ -11,6 +11,7 @@ import {
   Package,
   ShoppingCart,
   AlertTriangle,
+  RotateCcw,
   ArrowUpRight,
   ArrowDownRight,
   Download,
@@ -23,14 +24,49 @@ import {
 import { getAdminDashboard, type AdminDashboardPayload } from '../services/adminService';
 import { getStatsLeads, getStatsRevenue } from '../services/statsService';
 import { supabase } from '../lib/supabase';
+import { createRealtimeChannel } from '../lib/realtime';
 import { notificationService } from '../services/notificationService';
+
+// Last good data, kept for the browser tab only (sessionStorage): shown at once
+// after a refresh while fresh data loads, and kept if the server is slow/down.
+type ChartPoint = { label: string; count: number };
+const cacheKey = (...parts: string[]) => `krantos:admin:${parts.join(':')}`;
+function readCache<T>(key: string): T | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+function writeCache(key: string, value: unknown) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or unavailable */ }
+}
+
+/** Retries a request (e.g. session still restoring right after a refresh). */
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
+  }
+  throw lastError;
+}
 
 const Admin = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [dashboard, setDashboard] = useState<AdminDashboardPayload | null>(null);
-  const [chartData, setChartData] = useState<{ label: string; count: number }[]>([]);
-  const [convertedData, setConvertedData] = useState<{ label: string; count: number }[]>([]);
+  const [dashboard, setDashboard] = useState<AdminDashboardPayload | null>(
+    () => readCache<AdminDashboardPayload>(cacheKey('dashboard', 'month'))
+  );
+  const [loading, setLoading] = useState(() => dashboard === null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [convertedData, setConvertedData] = useState<ChartPoint[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   
   // Filters
@@ -52,7 +88,7 @@ const Admin = () => {
 
   useEffect(() => {
     // Realtime Notifications for Admin
-    const channel = supabase.channel('admin_notifications')
+    const channel = createRealtimeChannel('admin_notifications')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
         playNotificationSound();
         toast.success(`Nouveau lead : ${payload.new.user_name} (${payload.new.total_power_needed} W)`, {
@@ -86,13 +122,19 @@ const Admin = () => {
 
   useEffect(() => {
     let mounted = true;
+    const key = cacheKey('dashboard', period);
+    const cached = readCache<AdminDashboardPayload>(key);
+    if (cached) setDashboard(cached);
+    setLoading(!cached);
+    setLoadError(null);
+
     const fetchDashboard = async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user.id;
 
         const [dash, roleInfo] = await Promise.all([
-          getAdminDashboard(period),
+          withRetry(() => getAdminDashboard(period)),
           (async () => {
             if (!uid) return { super: false };
             const { data: profile } = await supabase
@@ -106,6 +148,7 @@ const Admin = () => {
         
         if (!mounted) return;
         setDashboard(dash);
+        writeCache(key, dash);
         setIsSuperAdmin(roleInfo.super);
 
         // Auto-subscribe to Web Push notifications
@@ -114,36 +157,49 @@ const Admin = () => {
         }
       } catch (e) {
         console.error('Dashboard load error:', e);
+        if (!mounted) return;
+        const message = e instanceof Error ? e.message : 'Erreur inconnue';
+        setLoadError(message);
+        if (cached) toast.warning('Données affichées depuis la dernière mise à jour (serveur indisponible).');
       } finally {
         if (mounted) setLoading(false);
       }
     };
     fetchDashboard();
     return () => { mounted = false; };
-  }, [period]);
+  }, [period, reloadKey]);
 
   useEffect(() => {
     let mounted = true;
+    const key = cacheKey('stats', chartType, period, selectedVendor || 'all');
+    const cached = readCache<{ chart: ChartPoint[]; converted: ChartPoint[] }>(key);
+    if (cached) {
+      setChartData(cached.chart);
+      setConvertedData(cached.converted);
+    }
+
     const fetchStats = async () => {
       setStatsLoading(true);
       try {
-        const params = { 
-          period, 
+        const params = {
+          period,
           vendor_id: selectedVendor === 'all' ? undefined : (selectedVendor || undefined)
         };
-        
+
+        let chart: ChartPoint[];
+        let converted: ChartPoint[] = [];
         if (chartType === 'leads') {
-          const res = await getStatsLeads(params);
-          if (mounted) {
-            setChartData(res.chart_data);
-            setConvertedData(res.converted_data ?? []);
-          }
+          const res = await withRetry(() => getStatsLeads(params));
+          chart = res.chart_data ?? [];
+          converted = res.converted_data ?? [];
         } else {
-          const res = await getStatsRevenue(params);
-          if (mounted) {
-            setChartData(res.chart_data);
-            setConvertedData([]);
-          }
+          const res = await withRetry(() => getStatsRevenue(params));
+          chart = res.chart_data ?? [];
+        }
+        if (mounted) {
+          setChartData(chart);
+          setConvertedData(converted);
+          writeCache(key, { chart, converted });
         }
       } catch (e) {
         console.error('Stats fetch error:', e);
@@ -153,7 +209,7 @@ const Admin = () => {
     };
     fetchStats();
     return () => { mounted = false; };
-  }, [period, selectedVendor, chartType]);
+  }, [period, selectedVendor, chartType, reloadKey]);
 
   const handleInstallPWA = () => {
     if (!installPrompt) {
@@ -169,7 +225,27 @@ const Admin = () => {
     });
   };
 
-  if (loading || !dashboard) {
+  if (!dashboard && !loading) {
+    // Nothing cached and the server did not answer: never leave an endless spinner
+    return (
+      <div className="min-h-full flex items-center justify-center py-20 px-4">
+        <div className="text-center max-w-sm">
+          <AlertTriangle className="w-10 h-10 text-yellow-400 mx-auto mb-4" />
+          <p className="text-white font-black mb-2">Impossible de charger le tableau de bord</p>
+          <p className="text-gray-500 text-xs mb-6 break-words">{loadError ?? 'Le serveur ne répond pas.'}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((k) => k + 1)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-yellow-400 text-gray-900 font-black text-sm hover:bg-yellow-500 transition-all"
+          >
+            <RotateCcw className="w-4 h-4" /> Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!dashboard) {
     return (
       <div className="min-h-full flex items-center justify-center py-20">
         <div className="text-center">

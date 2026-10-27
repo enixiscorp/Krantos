@@ -33,6 +33,7 @@ import {
   Settings
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { createRealtimeChannel } from '../lib/realtime';
 import type { Product, Lead, LeadStatus } from '../lib/supabase';
 import { generateReport, exportToPDF } from '../services/billingService';
 import { notificationService } from '../services/notificationService';
@@ -153,7 +154,7 @@ const BusinessDashboard = () => {
   useEffect(() => {
     if (!vendor?.id) return;
     
-    const channel = supabase.channel(`vendor_${vendor.id}_notifications`)
+    const channel = createRealtimeChannel(`vendor_${vendor.id}_notifications`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'leads', filter: `vendor_id=eq.${vendor.id}` },

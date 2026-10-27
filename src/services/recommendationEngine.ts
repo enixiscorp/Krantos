@@ -112,7 +112,7 @@ export async function getRecommendation(totalKVA: number): Promise<Recommendatio
 // Offline cache recommendation
 // ---------------------------------------------------------------------------
 
-async function getRecommendationFromCache(totalKVA: number): Promise<RecommendationResult> {
+export async function getRecommendationFromCache(totalKVA: number): Promise<RecommendationResult> {
   const [cachedProducts, cachedVendors] = await Promise.all([
     productsCacheStore.getAll(),
     vendorsCacheStore.getAll(),

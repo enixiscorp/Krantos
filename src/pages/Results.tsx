@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 
 import type { Product, Vendor, ApplianceInput } from '../lib/supabase';
-import { supabase } from '../lib/supabase';
 import {
   buildWhatsAppMessage,
   sendWhatsAppMessage,
@@ -59,6 +58,8 @@ interface ChatMessage {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const RESULTS_STORAGE_KEY = 'krantos:lastResults';
+
 function formatPrice(price: number): string {
   return Number(price).toLocaleString('fr-FR');
 }
@@ -69,7 +70,20 @@ function formatPrice(price: number): string {
 
 const Results = () => {
   const navigate = useNavigate();
-  const { state } = useLocation() as { state: ResultsState | null };
+  const { state: navState } = useLocation() as { state: ResultsState | null };
+  // Keep results after a page refresh (common on mobile when coming back from WhatsApp)
+  const [state] = useState<ResultsState | null>(() => {
+    if (navState) {
+      try { sessionStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(navState)); } catch { /* storage unavailable */ }
+      return navState;
+    }
+    try {
+      const saved = sessionStorage.getItem(RESULTS_STORAGE_KEY);
+      return saved ? (JSON.parse(saved) as ResultsState) : null;
+    } catch {
+      return null;
+    }
+  });
   const [showChatbot, setShowChatbot] = useState(false);
   const KRANTOS_ADMIN_ID = "6fcb8ba0-d391-40bf-9408-82c7279c4521";
   
@@ -329,27 +343,19 @@ const Results = () => {
       return;
     }
 
-    // 2. Mark the lead as contacted in the background
-    if (leadId.startsWith('offline-') || leadId.startsWith('error-')) {
-      supabase
-        .from('leads')
-        .insert({
-          user_name: userName,
-          user_phone: userPhone,
-          location,
-          total_power_needed: totalKVA,
-          recommended_product_id: product?.id ?? null,
-          vendor_id: vendor.id,
-          status: 'contacted',
-        })
-        .then(({ error }) => {
-          if (error) console.warn('[Lead] Could not save offline lead:', error.message);
-        });
-    } else {
-      updateLeadStatus(leadId, 'contacted').catch((err) =>
-        console.warn('[Lead] Could not update lead status:', err)
-      );
-    }
+    // 2. Mark the lead as contacted in the background. The lead may still be
+    //    saving (or queued offline), so retry a couple of times.
+    const markContacted = async (attempt = 0): Promise<void> => {
+      try {
+        const updated = await updateLeadStatus(leadId, 'contacted');
+        if (!updated && attempt < 2) {
+          setTimeout(() => markContacted(attempt + 1), 3000);
+        }
+      } catch (err) {
+        console.warn('[Lead] Could not update lead status:', err);
+      }
+    };
+    markContacted();
   };
 
   // ── Render ────────────────────────────────────────────────────────────────

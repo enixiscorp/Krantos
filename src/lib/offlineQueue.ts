@@ -117,15 +117,15 @@ async function syncLeadWithAppliances(payload: Record<string, unknown>): Promise
     appliances: Record<string, unknown>[];
   };
 
-  const { data: leadData, error: leadError } = await supabase
-    .from('leads')
-    .insert(lead)
-    .select('id')
-    .single();
+  // Insert without .select(): anonymous visitors cannot read leads back (RLS).
+  // The id is generated client-side (older queued items may not have one).
+  const leadId = (lead.id as string | undefined) ?? uuidv4();
+  const { error: leadError } = await supabase.from('leads').insert({ ...lead, id: leadId });
 
-  if (leadError || !leadData) throw new Error(leadError?.message ?? 'Lead insert failed');
+  // 23505 = duplicate key: the lead was already saved by a previous attempt
+  if (leadError && leadError.code !== '23505') throw new Error(leadError.message);
 
-  const appsWithLeadId = appliances.map((a) => ({ ...a, lead_id: leadData.id }));
+  const appsWithLeadId = appliances.map((a) => ({ ...a, lead_id: leadId }));
   const { error: appsError } = await supabase.from('appliances_input').insert(appsWithLeadId);
   if (appsError) throw new Error(appsError.message);
 }

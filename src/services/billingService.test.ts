@@ -61,8 +61,7 @@ describe('BillingService — Tests unitaires & de propriété', () => {
     expect(report.vendor.name).toBe('Vendor 1');
 
     // Verify correct filters were applied in the supabase call
-    const fromSpy = vi.spyOn(supabase, 'from');
-    expect(fromSpy).toHaveBeenCalledWith('commission_records');
+    expect(supabase.from).toHaveBeenCalledWith('commission_records');
     // Note: Since we use chaining, we'd need to spy on the chained methods to verify .eq('status', 'confirmed'), etc.
   });
 

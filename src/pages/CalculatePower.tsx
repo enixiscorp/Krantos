@@ -12,19 +12,17 @@ import { Plus, Trash2, Zap, User, Phone, MapPin, ChevronRight, RotateCcw, WifiOf
 import { supabase } from '../lib/supabase';
 import type { ApplianceInput, PowerUnit } from '../lib/supabase';
 import { calculateTotalPower } from '../utils/powerCalculator';
-import { getRecommendation } from '../services/recommendationEngine';
+import { getRecommendation, getRecommendationFromCache } from '../services/recommendationEngine';
 import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '../constants/applianceCatalog';
 import { enqueueAction } from '../lib/offlineQueue';
+import { v4 as uuidv4 } from '../lib/uuid';
+import { normalizeWhatsAppPhone } from '../services/whatsappService';
 
-/** UUID v4 generated client-side so the lead id is known before saving. */
-function newUuid(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
+/** Togo local number (8 digits) or international number (8–15 digits). */
+function isValidPhone(raw: string): boolean {
+  if (/[^\d\s+().-]/.test(raw)) return false;
+  const digits = normalizeWhatsAppPhone(raw);
+  return digits.length >= 10 && digits.length <= 15;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +179,7 @@ const CalculatePower = () => {
 
   // ── Submission state ─────────────────────────────────────────────────────
   const [isLoadingReco, setIsLoadingReco] = useState(false);
+  const recoRequestRef = useRef(0);
   const [step, setStep] = useState<'input' | 'suggestions'>('input');
   const [recommendations, setRecommendations] = useState<{
     product: any;
@@ -219,6 +218,9 @@ const CalculatePower = () => {
     if (!userForm.firstName.trim()) errors.firstName = 'Requis';
     if (!userForm.lastName.trim()) errors.lastName = 'Requis';
     if (!userForm.phone.trim()) errors.phone = 'Requis';
+    else if (!isValidPhone(userForm.phone)) {
+      errors.phone = 'Numéro invalide : 8 chiffres (ex. 90 12 34 56) ou format international (+228…).';
+    }
     if (!userForm.location.trim()) errors.location = 'Requis';
     setUserErrors(errors);
     return Object.keys(errors).length === 0;
@@ -283,7 +285,7 @@ const CalculatePower = () => {
     }));
 
     const online = isOnline && navigator.onLine;
-    const leadId = online ? newUuid() : 'offline-' + Date.now();
+    const leadId = uuidv4();
 
     navigate('/results', {
       state: {
@@ -309,7 +311,7 @@ const CalculatePower = () => {
 
     if (!online) {
       toast.info("📵 Mode Hors-ligne : Votre demande sera envoyée dès votre retour en ligne.");
-      queueLead(leadPayload);
+      queueLead({ id: leadId, ...leadPayload });
       return;
     }
 
@@ -347,17 +349,35 @@ const CalculatePower = () => {
     setStep('suggestions');
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
+    // Ignore answers from an older calculation (user went back and recalculated)
+    const requestId = ++recoRequestRef.current;
+    let onlineDone = false;
+
+    // 1. Local cache first (filled when the page loads) → near-instant products
+    getRecommendationFromCache(totalKVA)
+      .then((cached) => {
+        if (onlineDone || requestId !== recoRequestRef.current || !cached.product) return;
+        setRecommendations(cached);
+        setIsLoadingReco(false);
+      })
+      .catch(() => {});
+
+    // 2. Fresh results from Supabase replace the cached ones
     try {
       const result = await getRecommendation(totalKVA);
+      onlineDone = true;
+      if (requestId !== recoRequestRef.current) return;
       setRecommendations(result);
       if (result.fromCache) {
         toast.info('📦 Résultats affichés depuis le cache local (mode hors-ligne).');
       }
     } catch (err) {
+      onlineDone = true;
+      if (requestId !== recoRequestRef.current) return;
       toast.error("Erreur lors de la recherche de produits.");
-      setRecommendations({ product: null, vendor: null, alternatives: [] });
+      setRecommendations((prev) => prev ?? { product: null, vendor: null, alternatives: [] });
     } finally {
-      setIsLoadingReco(false);
+      if (requestId === recoRequestRef.current) setIsLoadingReco(false);
     }
   };
 
@@ -411,6 +431,9 @@ const CalculatePower = () => {
                         <Phone className="w-4 h-4 text-gray-500" />
                         <input id="phone" type="tel" value={userForm.phone} placeholder="+228..." onChange={(e) => { setUserForm(f => ({ ...f, phone: e.target.value })); if (userErrors.phone) setUserErrors(err => ({ ...err, phone: undefined })); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
                       </div>
+                      {userErrors.phone && userErrors.phone !== 'Requis' && (
+                        <p className="text-red-400 text-xs mt-1 ml-1 font-medium">{userErrors.phone}</p>
+                      )}
                     </div>
                     <div className={`relative group ${showSuggestions ? 'z-[100]' : ''}`}>
                       <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Localisation</label>

@@ -26,7 +26,7 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
 import WhatsAppIcon from '../components/WhatsAppIcon';
-import { buildVendorToClientMessage, buildWhatsAppUrl } from '../services/whatsappService';
+import { buildVendorToClientMessage, buildAdminToVendorMessage, buildWhatsAppUrl } from '../services/whatsappService';
 
 const clientWhatsAppUrl = (lead: LeadWithVendor) =>
   buildWhatsAppUrl(lead.user_phone, buildVendorToClientMessage({
@@ -484,11 +484,18 @@ const AdminLeads = () => {
                       <p className="text-white font-black text-sm">{selectedLead.vendor_name || 'Non assigné'}</p>
                       {selectedLead.vendor_phone && (
                         <a
-                          href={buildWhatsAppUrl(selectedLead.vendor_phone, '')}
+                          href={buildWhatsAppUrl(selectedLead.vendor_phone, buildAdminToVendorMessage({
+                            vendorName: selectedLead.vendor_name,
+                            clientName: selectedLead.user_name,
+                            clientPhone: selectedLead.user_phone,
+                            location: selectedLead.location,
+                            totalKVA: selectedLead.total_power_needed,
+                            productName: selectedLead.product_name,
+                          }))}
                           target="_blank" rel="noopener noreferrer"
-                          className="text-[10px] text-green-400 hover:underline font-bold"
+                          className="text-[10px] text-green-400 hover:underline font-bold inline-flex items-center gap-1"
                         >
-                          WhatsApp vendeur →
+                          <WhatsAppIcon size={12} /> WhatsApp vendeur →
                         </a>
                       )}
                     </div>

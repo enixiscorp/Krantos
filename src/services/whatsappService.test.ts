@@ -5,7 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fc from 'fast-check';
-import { buildWhatsAppMessage, sendWhatsAppMessage } from './whatsappService';
+import { buildWhatsAppMessage, buildVendorToClientMessage, sendWhatsAppMessage } from './whatsappService';
 import type { WhatsAppUser } from './whatsappService';
 import type { ApplianceInput, Product } from '../lib/supabase';
 
@@ -93,14 +93,19 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
   it('7.1 — Le message respecte le format défini dans le design', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     // Vérifie la structure générale du message
-    expect(message).toMatch(/^Bonjour, je suis/);
-    expect(message).toContain('📞');
-    expect(message).toContain('📍');
+    expect(message).toMatch(/^Bonjour,\n\nJe suis Kofi Mensah\./);
+    expect(message).toContain('Mes coordonnées :\n• Téléphone : +22890123456\n• Localisation : Lomé, Tokoin');
     expect(message).toContain("J'ai calculé mes besoins");
     expect(message).toContain('Appareils :');
-    expect(message).toContain('Générateur choisi :');
+    expect(message).toContain('Générateur choisi :\n• Modèle : Groupe électrogène 5kVA\n• Prix : 850 000 FCFA');
     expect(message).toContain('Je souhaite obtenir plus d\'informations');
-    expect(message).toContain('Merci, Kofi.');
+    expect(message).toMatch(/Merci,\nKofi$/);
+  });
+
+  it('7.1 — Le message ne contient aucun emoji (cassés par certaines apps WhatsApp)', () => {
+    const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct, 'Vendeur X');
+    expect(message).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
+    expect(message.startsWith('Bonjour Vendeur X,')).toBe(true);
   });
 
   it('7.1 — Le message gère correctement un seul appareil', () => {
@@ -114,7 +119,32 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
   it('7.1 — Le message liste chaque appareil sur sa propre ligne', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     // Un appareil par ligne, avec sa puissance unitaire
-    expect(message).toContain('• Climatiseur x2 — 1500 W/unité\n• Réfrigérateur x1 — 200 W/unité');
+    expect(message).toContain('• Climatiseur x2 : 1500 W par unité\n• Réfrigérateur x1 : 200 W par unité');
+  });
+});
+
+describe('buildVendorToClientMessage — Tests unitaires', () => {
+  it('Message structuré, sans emoji, avec consommation et modèle', () => {
+    const message = buildVendorToClientMessage({
+      clientName: 'Rebfbf Doe',
+      totalKVA: 0.26,
+      productName: 'Panneau Solaire 450 W Mono',
+      productPowerRating: 450,
+      vendorName: 'ZE BE LIGHT',
+    });
+    expect(message).toBe(
+      'Bonjour Rebfbf,\n\n' +
+      'Je suis ZE BE LIGHT, votre vendeur sur Krantos. Je vous contacte suite à votre simulation de consommation électrique.\n\n' +
+      'Récapitulatif de votre demande :\n' +
+      '• Consommation estimée : 0,26 kVA (environ 260 W)\n' +
+      '• Modèle choisi : Panneau Solaire 450 W Mono\n\n' +
+      'Je reste à votre disposition pour :\n' +
+      '• la disponibilité du produit\n' +
+      '• la livraison\n' +
+      "• l'installation\n\n" +
+      'Bien cordialement,\n' +
+      'ZE BE LIGHT'
+    );
   });
 });
 

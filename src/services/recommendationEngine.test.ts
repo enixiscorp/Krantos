@@ -33,6 +33,17 @@ vi.mock('../lib/supabase', () => {
   };
 });
 
+// These tests cover the online (Supabase) path. Keep the offline cache empty
+// so results from one test never leak into the next through the fallback.
+vi.mock('../lib/offlineDB', () => {
+  const emptyStore = {
+    setAll: vi.fn(() => Promise.resolve()),
+    getAll: vi.fn(() => Promise.resolve([])),
+    count: vi.fn(() => Promise.resolve(0)),
+  };
+  return { productsCacheStore: emptyStore, vendorsCacheStore: emptyStore };
+});
+
 import { getRecommendation } from './recommendationEngine';
 import { supabase } from '../lib/supabase';
 import type { Product, Vendor } from '../lib/supabase';
@@ -1490,7 +1501,7 @@ describe('Tests unitaires — Limite à 10 résultats (Exigence 4.5)', () => {
     expect(result.vendor!.subscription_type).toBe('basic');
   });
 
-  it('Ne retourne jamais plus de 1 produit (la structure est toujours { product, vendor })', async () => {
+  it('Retourne 1 produit principal + au plus 3 alternatives', async () => {
     const vendor = makeVendorUnit('v1');
     const rows = Array.from({ length: 10 }, (_, i) =>
       makeProductUnit(`p${i}`, 'v1', 10, (i + 1) * 5_000, vendor)
@@ -1500,13 +1511,11 @@ describe('Tests unitaires — Limite à 10 résultats (Exigence 4.5)', () => {
 
     const result = await getRecommendation(5);
 
-    // Vérifie que le résultat n'est pas un tableau et contient exactement product + vendor
+    // Structure : { product, vendor, alternatives, fromCache }
     expect(typeof result).toBe('object');
     expect(Array.isArray(result)).toBe(false);
-    const keys = Object.keys(result);
-    expect(keys).toContain('product');
-    expect(keys).toContain('vendor');
-    // Pas de clé supplémentaire inattendue (pas de tableau de résultats)
-    expect(keys.length).toBe(2);
+    expect(Object.keys(result).sort()).toEqual(['alternatives', 'fromCache', 'product', 'vendor']);
+    expect(Array.isArray(result.product)).toBe(false);
+    expect(result.alternatives.length).toBeLessThanOrEqual(3);
   });
 });

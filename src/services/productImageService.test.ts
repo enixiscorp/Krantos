@@ -46,7 +46,7 @@ describe('describeProductSaveError', () => {
       code: 'PGRST204',
       message: "Could not find the 'image_url' column of 'products' in the schema cache",
     });
-    expect(msg).toContain('20240031_products_image_url.sql');
+    expect(msg).toContain('apply_pending_updates.sql');
   });
 
   it('explique un refus de droits', () => {

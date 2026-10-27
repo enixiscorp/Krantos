@@ -82,7 +82,7 @@ export function describeProductSaveError(err: unknown): string {
   const e = err as { message?: string; code?: string } | null;
   const msg = e?.message ?? '';
   if (e?.code === 'PGRST204' || /image_url.*schema cache|column .*image_url/i.test(msg)) {
-    return "La base de données n'a pas encore la colonne des images. Exécutez la migration 20240031_products_image_url.sql dans Supabase, puis réessayez.";
+    return "La base de données n'a pas encore la colonne des images. Exécutez le script supabase/queries/apply_pending_updates.sql dans Supabase (SQL Editor), puis réessayez.";
   }
   if (e?.code === '42501' || /row-level security|permission denied/i.test(msg)) {
     return "Vous n'avez pas les droits pour modifier ce produit.";

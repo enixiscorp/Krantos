@@ -26,3 +26,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.mark_lead_contacted(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.mark_lead_contacted(uuid) TO anon, authenticated;
+
+-- Make the API (PostgREST) see the new functions right away
+NOTIFY pgrst, 'reload schema';

@@ -66,8 +66,8 @@ const labelCls = 'block text-xs font-bold text-gray-500 uppercase tracking-wides
 /** Clear message for database function errors. */
 function rpcErrorMessage(err: { message?: string; code?: string } | null): string {
   if (!err) return 'Erreur inconnue.';
-  if (err.code === 'PGRST202' || /Could not find the function/i.test(err.message ?? '')) {
-    return 'Fonction indisponible : exécutez la migration 20240032_admin_users_management.sql dans Supabase.';
+  if (err.code === 'PGRST202' || err.code === '42703' || /Could not find the function|does not exist/i.test(err.message ?? '')) {
+    return 'La base de données n’est pas à jour : exécutez le script supabase/queries/apply_pending_updates.sql dans Supabase (SQL Editor), puis réessayez.';
   }
   return err.message ?? 'Erreur inconnue.';
 }

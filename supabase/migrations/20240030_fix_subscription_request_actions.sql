@@ -103,3 +103,6 @@ REVOKE ALL ON FUNCTION public.approve_subscription_request(uuid) FROM PUBLIC, an
 REVOKE ALL ON FUNCTION public.reject_subscription_request(uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.approve_subscription_request(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reject_subscription_request(uuid, text) TO authenticated;
+
+-- Make the API (PostgREST) see the new functions right away
+NOTIFY pgrst, 'reload schema';

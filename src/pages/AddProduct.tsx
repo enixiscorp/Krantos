@@ -3,7 +3,7 @@
 // Requirements: 12.1, 12.2, 12.4, 14.4
 // ============================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Product } from '../lib/supabase';
+import { ProductImageInput, type ProductImageValue } from '../components/ProductImageInput';
+import { resolveProductImageUrl } from '../services/productImageService';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,16 +49,12 @@ const CATEGORIES = [
   'Autre',
 ];
 
-const MAX_IMAGE_SIZE_MB = 5;
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 const AddProduct = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -78,9 +76,7 @@ const AddProduct = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Image state
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageError, setImageError] = useState('');
+  const [image, setImage] = useState<ProductImageValue>({ file: null, url: '' });
   const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
@@ -127,24 +123,6 @@ const AddProduct = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageError('');
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setImageError('Format non supporté (JPEG, PNG, WebP).');
-      return;
-    }
-    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      setImageError(`Max ${MAX_IMAGE_SIZE_MB} Mo.`);
-      return;
-    }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate() || !vendorId) return;
@@ -184,19 +162,18 @@ const AddProduct = () => {
         productId = newProduct.id;
       }
 
-      if (imageFile && productId) {
+      if (productId) {
+        // File picked or link pasted (empty = image removed)
         setUploadingImage(true);
-        const ext = imageFile.name.split('.').pop();
-        const path = `${vendorId}/${productId}.${ext}`;
-        await supabase.storage.from('product-images').upload(path, imageFile, { 
-          upsert: true,
-          cacheControl: '3600'
-        });
-        const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
-        // Add timestamp as cache-buster to avoid stale cache
-        const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-        await supabase.from('products').update({ image_url: finalUrl }).eq('id', productId);
-        setUploadingImage(false);
+        try {
+          const imageUrl = await resolveProductImageUrl({ ...image, folder: vendorId, productId });
+          const { error: imageError } = await supabase.from('products').update({ image_url: imageUrl }).eq('id', productId);
+          if (imageError) throw imageError;
+        } catch (imgErr: any) {
+          toast.error(imgErr?.message ?? "L'image n'a pas pu être enregistrée.");
+        } finally {
+          setUploadingImage(false);
+        }
       }
 
       // Refresh products
@@ -206,7 +183,7 @@ const AddProduct = () => {
       setSuccess(true);
       toast.success(editingProductId ? 'Produit mis à jour !' : 'Produit ajouté !');
       setForm({ name: '', category: '', power_rating: '', price: '', description: '', keywords: '' });
-      setImagePreview(null); setImageFile(null);
+      setImage({ file: null, url: '' });
       setEditingProductId(null);
     } catch (err) {
       toast.error('Erreur lors de l’ajout.');
@@ -225,8 +202,7 @@ const AddProduct = () => {
       description: product.description || '',
       keywords: product.keywords || '',
     });
-    setImagePreview(product.image_url || null);
-    setImageFile(null);
+    setImage({ file: null, url: product.image_url || '' });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -360,32 +336,7 @@ const AddProduct = () => {
            {/* Image Upload */}
            <div className="glass-card p-8 rounded-[2rem] border-white/5 text-center">
               <label className="block text-[10px] font-black text-gray-600 uppercase tracking-[0.2em] mb-6">Image du produit</label>
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className={`relative aspect-square rounded-3xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${imagePreview ? 'border-transparent' : 'border-white/10 hover:border-yellow-400/40 hover:bg-yellow-400/[0.02]'}`}
-              >
-                 {imagePreview ? (
-                   <>
-                     <img src={imagePreview} className="w-full h-full object-cover rounded-3xl" alt="Preview" />
-                     <button 
-                       onClick={e => { e.stopPropagation(); setImagePreview(null); setImageFile(null); }}
-                       className="absolute top-4 right-4 p-2 rounded-xl bg-black/60 text-white hover:bg-red-500 transition-all"
-                     >
-                        <X className="w-4 h-4" />
-                     </button>
-                   </>
-                 ) : (
-                   <>
-                      <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
-                         <ImageIcon className="w-8 h-8 text-gray-700" />
-                      </div>
-                      <p className="text-sm font-bold text-gray-500">Cliquez pour ajouter</p>
-                      <p className="text-[10px] text-gray-700 mt-1 uppercase font-black">JPEG, PNG, WEBP</p>
-                   </>
-                 )}
-              </div>
-              <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
-              {imageError && <p className="mt-4 text-xs font-bold text-red-500 uppercase tracking-widest">{imageError}</p>}
+              <ProductImageInput value={image} onChange={setImage} />
            </div>
 
            {/* Info card */}
@@ -413,8 +364,7 @@ const AddProduct = () => {
                onClick={() => {
                  setEditingProductId(null);
                  setForm({ name: '', category: '', power_rating: '', price: '', description: '', keywords: '' });
-                 setImagePreview(null);
-                 setImageFile(null);
+                 setImage({ file: null, url: '' });
                }}
                className="w-full mt-4 py-4 rounded-[1.5rem] bg-white/5 text-gray-400 font-bold hover:bg-white/10 transition-all"
              >

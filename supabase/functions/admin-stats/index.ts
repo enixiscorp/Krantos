@@ -163,6 +163,56 @@ Deno.serve(async (req) => {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([label, count]) => ({ label, count }));
 
+      // Conversions curve, dated by conversion (first conversion commission),
+      // falling back to the lead creation date. Counts converted leads even
+      // when they were created before the chart window.
+      let converted_data: Array<{ label: string; count: number }> | undefined;
+      if (type === "leads") {
+        const bucketKey = (d: Date): string => {
+          if (step === "day") return d.toISOString().slice(0, 10);
+          if (step === "week") {
+            const t = new Date(d);
+            t.setHours(0, 0, 0, 0);
+            t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
+            const w1 = new Date(t.getFullYear(), 0, 4);
+            const wn = 1 + Math.round(((t.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+            return `${t.getFullYear()}-W${wn.toString().padStart(2, "0")}`;
+          }
+          if (step === "month") return d.toISOString().slice(0, 7);
+          if (step === "quarter") return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+          return `${d.getFullYear()}`;
+        };
+
+        let convQuery = adminClient.from("leads").select("id, created_at").eq("status", "converted");
+        if (vendorId && vendorId !== "all") convQuery = convQuery.eq("vendor_id", vendorId);
+        const { data: convLeads } = await convQuery;
+
+        const ids = (convLeads ?? []).map((l) => (l as { id: string }).id);
+        const convDate = new Map<string, string>();
+        if (ids.length > 0) {
+          const { data: recs } = await adminClient
+            .from("commission_records")
+            .select("lead_id, created_at")
+            .eq("type", "conversion")
+            .in("lead_id", ids)
+            .order("created_at", { ascending: true });
+          for (const r of recs ?? []) {
+            const rr = r as { lead_id: string; created_at: string };
+            if (!convDate.has(rr.lead_id)) convDate.set(rr.lead_id, rr.created_at);
+          }
+        }
+
+        const convBuckets: Record<string, number> = Object.fromEntries(Object.keys(statsByPeriod).map((k) => [k, 0]));
+        for (const l of convLeads ?? []) {
+          const ll = l as { id: string; created_at: string };
+          const key = bucketKey(new Date(convDate.get(ll.id) ?? ll.created_at));
+          if (convBuckets[key] !== undefined) convBuckets[key]++;
+        }
+        converted_data = Object.entries(convBuckets)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([label, count]) => ({ label, count }));
+      }
+
       await logAdminAction({
         actorId: user.id,
         actorRole: adminRole,
@@ -171,6 +221,8 @@ Deno.serve(async (req) => {
 
       const response: Record<string, any> = { chart_data };
       if (type === "leads") {
+        response.converted_data = converted_data;
+        response.total_converted = (converted_data ?? []).reduce((s, d) => s + d.count, 0);
         response.total_leads = totalValue;
         response.conversion_rate = totalValue > 0 ? Math.round((convertedCount / totalValue) * 1000) / 10 : 0;
       } else {

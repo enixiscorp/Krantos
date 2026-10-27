@@ -82,6 +82,7 @@ const AdminContracts = () => {
   const [renewalEndDate, setRenewalEndDate] = useState('');
   const [upgradeRequests, setUpgradeRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -175,33 +176,42 @@ const AdminContracts = () => {
     setUpdatingId(null);
   };
 
+  // Both actions go through admin-checked RPCs
+  // (supabase/migrations/20240030_fix_subscription_request_actions.sql).
   const handleApproveUpgrade = async (requestId: string) => {
+    if (processingRequestId) return;
+    setProcessingRequestId(requestId);
     try {
       const { error } = await supabase.rpc('approve_subscription_request', { request_id: requestId });
       if (error) throw error;
-      
-      toast.success('Upgrade approuvé et appliqué.');
+
+      toast.success('Changement de contrat approuvé et appliqué.');
       setUpgradeRequests(prev => prev.filter(r => r.id !== requestId));
-      // Refresh vendors
       const { data } = await supabase.from('vendors').select('*').order('contract_end_date', { ascending: true });
       setVendors(data || []);
     } catch (err: any) {
-      toast.error('Erreur : ' + err.message);
+      console.error('approve_subscription_request failed:', err);
+      toast.error(`Approbation impossible : ${err?.message ?? 'erreur inconnue'}`);
+    } finally {
+      setProcessingRequestId(null);
     }
   };
 
   const handleRejectUpgrade = async (requestId: string) => {
+    if (processingRequestId) return;
+    if (!confirm('Rejeter cette demande de changement de contrat ?')) return;
+    setProcessingRequestId(requestId);
     try {
-      const { error } = await supabase
-        .from('subscription_requests')
-        .update({ status: 'rejected' })
-        .eq('id', requestId);
-      
+      const { error } = await supabase.rpc('reject_subscription_request', { request_id: requestId });
       if (error) throw error;
+
       toast.success('Demande rejetée.');
       setUpgradeRequests(prev => prev.filter(r => r.id !== requestId));
     } catch (err: any) {
-      toast.error('Erreur lors du rejet.');
+      console.error('reject_subscription_request failed:', err);
+      toast.error(`Rejet impossible : ${err?.message ?? 'erreur inconnue'}`);
+    } finally {
+      setProcessingRequestId(null);
     }
   };
 
@@ -302,14 +312,18 @@ const AdminContracts = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => handleApproveUpgrade(req.id)}
-                    className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                    disabled={processingRequestId !== null}
+                    className="px-4 py-2 rounded-xl bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Approuver
+                    {processingRequestId === req.id ? '…' : 'Approuver'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleRejectUpgrade(req.id)}
-                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                    disabled={processingRequestId !== null}
+                    className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Rejeter
                   </button>

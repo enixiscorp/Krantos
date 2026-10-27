@@ -18,6 +18,8 @@ import {
   ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { ProductImageInput, type ProductImageValue } from '../components/ProductImageInput';
+import { resolveProductImageUrl } from '../services/productImageService';
 
 type ProductRow = {
   id: string;
@@ -41,6 +43,12 @@ const AdminProducts = () => {
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
   const [editProduct, setEditProduct] = useState<ProductRow | null>(null);
   const [editSaving, setEditSaving] = useState(false);
+  const [editImage, setEditImage] = useState<ProductImageValue>({ file: null, url: '' });
+
+  const openEdit = (p: ProductRow) => {
+    setEditProduct(p);
+    setEditImage({ file: null, url: p.image_url || '' });
+  };
   
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -165,6 +173,12 @@ const AdminProducts = () => {
     if (!editProduct) return;
     setEditSaving(true);
     try {
+      // File picked or link pasted (empty = image removed)
+      const imageUrl = await resolveProductImageUrl({
+        ...editImage,
+        folder: editProduct.vendor_id,
+        productId: editProduct.id,
+      });
       const { error } = await supabase
         .from('products')
         .update({
@@ -173,6 +187,7 @@ const AdminProducts = () => {
           price: Number(editProduct.price),
           power_rating: Number(editProduct.power_rating),
           is_active: editProduct.is_active,
+          image_url: imageUrl,
         })
         .eq('id', editProduct.id);
       if (error) throw error;
@@ -347,7 +362,7 @@ const AdminProducts = () => {
                     <button onClick={() => handleDeleteProduct(p.id)} className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 transition-all" title="Supprimer">
                       <X size={18} />
                     </button>
-                    <button onClick={() => setEditProduct(p)} className="p-3 rounded-xl bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20 transition-all" title="Modifier">
+                    <button onClick={() => openEdit(p)} className="p-3 rounded-xl bg-cyan-400/10 text-cyan-400 hover:bg-cyan-400/20 transition-all" title="Modifier">
                       <Edit2 size={18} />
                     </button>
                   </div>
@@ -563,6 +578,10 @@ const AdminProducts = () => {
                     <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Prix (FCFA)</label>
                     <input type="number" value={editProduct.price || 0} onChange={e => setEditProduct({...editProduct, price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Image du produit</label>
+                  <ProductImageInput value={editImage} onChange={setEditImage} accent="cyan" />
                 </div>
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setEditProduct(null)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>

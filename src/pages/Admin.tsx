@@ -30,6 +30,7 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<AdminDashboardPayload | null>(null);
   const [chartData, setChartData] = useState<{ label: string; count: number }[]>([]);
+  const [convertedData, setConvertedData] = useState<{ label: string; count: number }[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   
   // Filters
@@ -131,12 +132,18 @@ const Admin = () => {
           vendor_id: selectedVendor === 'all' ? undefined : (selectedVendor || undefined)
         };
         
-        const res = chartType === 'leads' 
-          ? await getStatsLeads(params)
-          : await getStatsRevenue(params);
-
-        if (mounted) {
-          setChartData(res.chart_data);
+        if (chartType === 'leads') {
+          const res = await getStatsLeads(params);
+          if (mounted) {
+            setChartData(res.chart_data);
+            setConvertedData(res.converted_data ?? []);
+          }
+        } else {
+          const res = await getStatsRevenue(params);
+          if (mounted) {
+            setChartData(res.chart_data);
+            setConvertedData([]);
+          }
         }
       } catch (e) {
         console.error('Stats fetch error:', e);
@@ -173,7 +180,12 @@ const Admin = () => {
     );
   }
 
-  const maxCount = Math.max(1, ...(chartData || []).map(d => d.count));
+  const maxCount = Math.max(1, ...(chartData || []).map(d => d.count), ...convertedData.map(d => d.count));
+  const showConverted = chartType === 'leads' && convertedData.length === chartData.length && convertedData.length > 1;
+  const curvePoints = (series: { count: number }[]) =>
+    series.map((d, i) => `${(i / (series.length - 1)) * 100},${100 - (d.count / maxCount) * 85}`);
+  const totalLeadsInChart = chartData.reduce((s, d) => s + d.count, 0);
+  const totalConvertedInChart = convertedData.reduce((s, d) => s + d.count, 0);
   
   // Real Dynamic Trends from API
   const trends = dashboard?.trends || {
@@ -464,7 +476,43 @@ const Admin = () => {
                       </g>
                     );
                   })}
+
+                  {/* Converted leads curve */}
+                  {showConverted && (
+                    <motion.path
+                      initial={{ pathLength: 0, opacity: 0 }}
+                      animate={{ pathLength: 1, opacity: 1 }}
+                      transition={{ duration: 1.5, ease: "easeInOut", delay: 0.3 }}
+                      d={`M ${curvePoints(convertedData).join(' L ')}`}
+                      fill="none"
+                      stroke="#4ade80"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                  {showConverted && convertedData.map((d, i) => (
+                    <circle
+                      key={`c-${i}`}
+                      cx={(i / (convertedData.length - 1)) * 100}
+                      cy={100 - (d.count / maxCount) * 85}
+                      r="0.8"
+                      fill="#4ade80"
+                    />
+                  ))}
                 </svg>
+
+                {/* Legend */}
+                {chartType === 'leads' && (
+                  <div className="absolute top-0 right-2 flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-1.5 text-yellow-400">
+                      <span className="w-3 h-0.5 rounded bg-yellow-400" /> Leads reçus ({totalLeadsInChart})
+                    </span>
+                    <span className="flex items-center gap-1.5 text-green-400">
+                      <span className="w-3 h-0.5 rounded bg-green-400" /> Convertis ({totalConvertedInChart})
+                    </span>
+                  </div>
+                )}
  
                 {/* X-Axis Labels */}
                 <div className="absolute -bottom-6 w-full flex justify-between px-2">
@@ -579,7 +627,10 @@ const Admin = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-black tracking-tighter">{v.leads_count} Leads</p>
+                  <p className="text-white font-black tracking-tighter">
+                    {v.converted_count ?? 0} convertis
+                    <span className="text-gray-500 font-bold"> · {v.active_leads_count ?? v.leads_count} actifs</span>
+                  </p>
                   <p className={`text-[10px] font-bold ${v.status === 'active' ? 'text-green-400' : 'text-yellow-400'}`}>{v.status.toUpperCase()}</p>
                 </div>
               </div>
@@ -593,14 +644,14 @@ const Admin = () => {
         <div className="flex items-center justify-between mb-8 px-2">
           <div>
             <h3 className="text-sm font-black text-gray-500 uppercase tracking-widest">Journal d'activité Lead</h3>
-            <p className="text-[10px] text-gray-600 mt-1">Leads reçus sur la période sélectionnée</p>
+            <p className="text-[10px] text-gray-600 mt-1">Derniers leads reçus</p>
           </div>
           <Link to="/admin/leads" className="text-[10px] font-black uppercase text-yellow-400 hover:underline">Flux complet</Link>
         </div>
         {(dashboard?.recent_leads?.length ?? 0) === 0 ? (
           <div className="text-center py-12 text-gray-600">
             <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-bold uppercase tracking-widest">Aucun lead sur cette période</p>
+            <p className="text-sm font-bold uppercase tracking-widest">Aucun lead pour le moment</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

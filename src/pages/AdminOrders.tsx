@@ -19,6 +19,8 @@ import {
 import { useOrders, type OrderStatus } from '../hooks/useOrders';
 import { OrderList } from '../components/orders/OrderList';
 import { OrderDetailsModal } from '../components/orders/OrderDetailsModal';
+import { PlatformOrders } from '../components/orders/PlatformOrders';
+import { usePlatformOrders } from '../hooks/usePlatformOrders';
 
 const STATUS_OPTIONS: Array<{ id: OrderStatus; label: string }> = [
   { id: 'pending', label: 'En attente' },
@@ -41,9 +43,13 @@ const AdminOrders = () => {
   const { loading, orders, stats, selected, setSelected, loadOrders, loadOrderDetails, createOrder, updateOrderStatus, deleteOrder } =
     useOrders();
 
+  const platform = usePlatformOrders();
+  const { loadPlatformOrders } = platform;
+
   useEffect(() => {
     void loadOrders();
-  }, [loadOrders]);
+    void loadPlatformOrders();
+  }, [loadOrders, loadPlatformOrders]);
 
   const rows = useMemo(() => {
     if (filter === 'all') return orders;
@@ -115,6 +121,13 @@ const AdminOrders = () => {
           </button>
         </div>
       </div>
+
+      <PlatformOrders loading={platform.loading} orders={platform.orders} stats={platform.stats} />
+
+      <h2 className="text-xl font-black text-white tracking-tight mb-5 flex items-center gap-2">
+        <ShoppingCart className="w-5 h-5 text-yellow-400" />
+        Ventes boutique
+      </h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-6 rounded-3xl border-white/5">

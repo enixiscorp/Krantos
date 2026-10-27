@@ -59,6 +59,10 @@ export interface AdminDashboardPayload {
     status: string;
     category: string;
     leads_count: number;
+    /** contacted + converted leads, all time */
+    active_leads_count?: number;
+    /** converted leads, all time */
+    converted_count?: number;
     conversion_rate: number;
   }>;
   recent_leads: Array<{

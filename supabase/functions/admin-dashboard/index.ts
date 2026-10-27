@@ -1,7 +1,14 @@
-import { adminClient, corsHeaders, jsonResponse } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, jsonResponse, requireAdminStaff } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
+
+  // This function reads all leads with the service role: admins only.
+  try {
+    await requireAdminStaff(req.headers.get("authorization"));
+  } catch {
+    return jsonResponse(403, { error: "Access denied" });
+  }
 
   const url = new URL(req.url);
   const period = url.searchParams.get("period") || "month";
@@ -59,8 +66,8 @@ Deno.serve(async (req) => {
       adminClient.from("leads").select("id", { count: "exact", head: true }).gte("created_at", previousIso).lt("created_at", currentIso),
       adminClient.from("leads").select("id", { count: "exact", head: true }).eq("status", "converted").gte("created_at", currentIso),
       adminClient.from("leads").select("id", { count: "exact", head: true }).eq("status", "converted").gte("created_at", previousIso).lt("created_at", currentIso),
-      // Recent leads for the CURRENT PERIOD only (not all-time)
-      adminClient.from("leads").select("*").gte("created_at", currentIso).order("created_at", { ascending: false }).limit(8),
+      // Latest leads (all time) so the activity journal is never empty when data exists
+      adminClient.from("leads").select("*").order("created_at", { ascending: false }).limit(8),
     ]);
 
     // ── Revenue ───────────────────────────────────────────────────────────
@@ -121,32 +128,40 @@ Deno.serve(async (req) => {
     const premiumProgress = Math.min(100, Math.round((currentRevenue / revenueTarget) * 100));
 
     // ── Top Vendors ───────────────────────────────────────────────────────
-    const { data: topVendorsRaw } = await adminClient
-      .from("vendors")
-      .select("id, name, category, status")
-      .limit(6);
+    // All vendors (not just the first 6 rows), ranked by business activity.
+    // "Active" leads = contacted or converted, all time: a converted prospect
+    // keeps counting even if it was created before the selected period.
+    const [{ data: vendorsRaw }, { data: vendorLeadsRaw }] = await Promise.all([
+      adminClient.from("vendors").select("id, name, category, status"),
+      adminClient.from("leads").select("vendor_id, status, created_at").not("vendor_id", "is", null),
+    ]);
 
-    const topVendors = await Promise.all((topVendorsRaw || []).map(async (v) => {
-      const { count: lCount } = await adminClient
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("vendor_id", v.id)
-        .gte("created_at", currentIso);
-      const { count: lConverted } = await adminClient
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .eq("vendor_id", v.id)
-        .eq("status", "converted")
-        .gte("created_at", currentIso);
+    const perVendor = new Map<string, { period: number; periodConverted: number; active: number; converted: number }>();
+    for (const l of vendorLeadsRaw || []) {
+      const s = perVendor.get(l.vendor_id) ?? { period: 0, periodConverted: 0, active: 0, converted: 0 };
+      const inPeriod = new Date(l.created_at) >= currentStart;
+      if (inPeriod) s.period++;
+      if (l.status === "converted") {
+        s.converted++;
+        if (inPeriod) s.periodConverted++;
+      }
+      if (l.status === "converted" || l.status === "contacted") s.active++;
+      perVendor.set(l.vendor_id, s);
+    }
+
+    const topVendors = (vendorsRaw || []).map((v) => {
+      const s = perVendor.get(v.id) ?? { period: 0, periodConverted: 0, active: 0, converted: 0 };
       return {
         vendor_id: v.id,
         name: v.name,
         status: v.status,
         category: v.category,
-        leads_count: lCount || 0,
-        conversion_rate: (lCount || 0) > 0 ? Math.round(((lConverted || 0) / (lCount || 1)) * 100) : 0,
+        leads_count: s.period,
+        active_leads_count: s.active,
+        converted_count: s.converted,
+        conversion_rate: s.period > 0 ? Math.round((s.periodConverted / s.period) * 100) : 0,
       };
-    }));
+    });
 
     return jsonResponse(200, {
       total_vendors:    totalVendors  || 0,
@@ -174,7 +189,11 @@ Deno.serve(async (req) => {
         revenue_current:    currentRevenue,
         revenue_target:     Math.round(revenueTarget),
       },
-      top_vendors:   topVendors.sort((a, b) => b.leads_count - a.leads_count),
+      top_vendors:   topVendors.sort((a, b) =>
+        (b.converted_count - a.converted_count) ||
+        (b.active_leads_count - a.active_leads_count) ||
+        (b.leads_count - a.leads_count) ||
+        a.name.localeCompare(b.name)),
       recent_leads:  (recentLeadsRaw || []).map((l) => ({
         id:                 l.id,
         user_name:          l.user_name,

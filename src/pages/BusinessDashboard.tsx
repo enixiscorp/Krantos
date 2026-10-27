@@ -143,6 +143,7 @@ const BusinessDashboard = () => {
   const [chartType, setChartType] = useState<'leads' | 'revenue'>('leads');
   const [chartData, setChartData] = useState<{ label: string; count: number }[]>([]);
   const [maxCount, setMaxCount] = useState(1);
+  const [convertedChartData, setConvertedChartData] = useState<{ label: string; count: number }[]>([]);
 
   const playNotificationSound = () => {
     const audio = new Audio('/sounds/notifications_Krantos.mp3');
@@ -357,8 +358,33 @@ const BusinessDashboard = () => {
       });
 
       const formatted = Object.entries(statsByPeriod).map(([label, count]) => ({ label, count }));
+
+      // Conversions curve: dated by the first conversion commission (else lead
+      // creation), so prospects created before the period still show up.
+      let converted: { label: string; count: number }[] = [];
+      if (chartType === 'leads') {
+        const convDate = new Map<string, string>();
+        [...allCommissions]
+          .filter(c => c.type === 'conversion' && c.lead_id)
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
+          .forEach(c => { if (!convDate.has(c.lead_id!)) convDate.set(c.lead_id!, c.created_at); });
+
+        const convByPeriod: Record<string, number> = Object.fromEntries(Object.keys(statsByPeriod).map(k => [k, 0]));
+        allLeads.filter(l => l.status === 'converted').forEach(l => {
+          const d = new Date(convDate.get(l.id) ?? l.created_at);
+          if (d < startDate) return;
+          let key = "";
+          if (period === 'day') key = d.toISOString().slice(8, 10) + '/' + d.toISOString().slice(5, 7);
+          else if (period === 'week') key = 'W' + Math.ceil(d.getDate() / 7);
+          else key = d.toLocaleString('fr-FR', { month: 'short' });
+          if (convByPeriod[key] !== undefined) convByPeriod[key]++;
+        });
+        converted = Object.entries(convByPeriod).map(([label, count]) => ({ label, count }));
+      }
+
       setChartData(formatted);
-      setMaxCount(Math.max(...formatted.map(d => d.count), 1));
+      setConvertedChartData(converted);
+      setMaxCount(Math.max(...formatted.map(d => d.count), ...converted.map(d => d.count), 1));
     };
 
     generateChartData();
@@ -783,7 +809,38 @@ const BusinessDashboard = () => {
                             </g>
                           );
                         })}
+
+                        {/* Converted leads curve */}
+                        {chartType === 'leads' && convertedChartData.length === chartData.length && (
+                          <>
+                            <motion.path
+                              initial={{ pathLength: 0, opacity: 0 }}
+                              animate={{ pathLength: 1, opacity: 1 }}
+                              transition={{ duration: 1.5, ease: "easeInOut", delay: 0.3 }}
+                              d={`M ${convertedChartData.map((d, i) => `${(i / (convertedChartData.length - 1)) * 100},${100 - (d.count / maxCount) * 85}`).join(' L ')}`}
+                              fill="none"
+                              stroke="#4ade80"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                            {convertedChartData.map((d, i) => (
+                              <circle key={`c-${i}`} cx={(i / (convertedChartData.length - 1)) * 100} cy={100 - (d.count / maxCount) * 85} r="1" fill="#4ade80" />
+                            ))}
+                          </>
+                        )}
                       </svg>
+
+                      {chartType === 'leads' && (
+                        <div className="absolute top-0 right-2 flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
+                          <span className="flex items-center gap-1.5 text-yellow-400">
+                            <span className="w-3 h-0.5 rounded bg-yellow-400" /> Leads reçus
+                          </span>
+                          <span className="flex items-center gap-1.5 text-green-400">
+                            <span className="w-3 h-0.5 rounded bg-green-400" /> Convertis ({convertedChartData.reduce((s, d) => s + d.count, 0)})
+                          </span>
+                        </div>
+                      )}
 
                       {/* X-Axis Labels */}
                       <div className="absolute -bottom-6 w-full flex justify-between px-2">
@@ -823,15 +880,15 @@ const BusinessDashboard = () => {
                           : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      {f === 'all' ? `Tous (${leads.length})` :
-                       f === 'contacted' ? `Contacté (${leads.filter(l => l.status === 'contacted').length})` :
-                       f === 'converted' ? `Converti (${leads.filter(l => l.status === 'converted').length})` :
-                       `Perdu (${leads.filter(l => l.status === 'lost').length})`}
+                      {f === 'all' ? `Tous (${allLeads.length})` :
+                       f === 'contacted' ? `Contacté (${allLeads.filter(l => l.status === 'contacted').length})` :
+                       f === 'converted' ? `Converti (${allLeads.filter(l => l.status === 'converted').length})` :
+                       `Perdu (${allLeads.filter(l => l.status === 'lost').length})`}
                     </button>
                   ))}
                 </div>
                 <div className="space-y-3">
-                  {leads
+                  {allLeads
                     .filter(l => leadFilter === 'all' || l.status === leadFilter)
                     .slice(0, 6)
                     .map((lead) => {
@@ -901,7 +958,7 @@ const BusinessDashboard = () => {
                         </div>
                       );
                   })}
-                  {leads.filter(l => leadFilter === 'all' || l.status === leadFilter).length === 0 && (
+                  {allLeads.filter(l => leadFilter === 'all' || l.status === leadFilter).length === 0 && (
                     <p className="text-center py-10 text-gray-600 italic text-sm">Aucun lead dans cette catégorie.</p>
                   )}
                 </div>

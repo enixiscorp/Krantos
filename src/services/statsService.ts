@@ -40,6 +40,9 @@ export async function getStatsLeads(params?: { period?: string; vendor_id?: stri
   return getFunction<{
     total_leads: number;
     chart_data: Array<{ label: string; count: number }>;
+    /** Converted leads per period, dated by conversion (same labels as chart_data) */
+    converted_data?: Array<{ label: string; count: number }>;
+    total_converted?: number;
     conversion_rate: number;
   }>('admin-stats', sp);
 }

@@ -187,6 +187,7 @@ const BusinessDashboard = () => {
             subscription_type: cached.subscription_type,
             status: cached.status,
             commission_rate: 0.1, // standard fallback
+            payment_notifications_count: 0, // unavailable offline
           };
           if (mounted) {
             setVendor(cachedVendor);

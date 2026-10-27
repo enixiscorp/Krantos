@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // Krantos Platform — CalculatePower Page (Offline-First)
 // Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 14.4
 // ============================================================
@@ -466,7 +466,7 @@ const CalculatePower = () => {
                       <label htmlFor="location" className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wider ml-1">Localisation</label>
                       <div className={`flex items-center gap-3 bg-white/5 border rounded-2xl px-4 py-3 transition-all group-focus-within:border-yellow-400/50 ${userErrors.location ? 'border-red-500/50 bg-red-500/5' : 'border-white/10'}`}>
                         <MapPin className="w-4 h-4 text-gray-500" />
-                        <input id="location" type="text" value={userForm.location} placeholder="Lomé, Togo" autoComplete="off" onChange={(e) => { const val = e.target.value; setUserForm(f => ({ ...f, location: val })); if (userErrors.location) setUserErrors(err => ({ ...err, location: undefined })); if (val.length >= 2) { const matches = ALL_LOCATIONS.filter(l => l.toLowerCase().includes(val.toLowerCase())); setLocationSuggestions(matches); setShowSuggestions(matches.length > 0); } else { setShowSuggestions(false); } }} onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
+                        <input id="location" type="text" value={userForm.location} placeholder="Lomé, Togo" autoComplete="off" onChange={(e) => handleLocationChange(e.target.value)} onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); }} className="bg-transparent border-none outline-none w-full text-white placeholder:text-gray-600 text-sm" />
                       </div>
                       <AnimatePresence>
                         {showSuggestions && (

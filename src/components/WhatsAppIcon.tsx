@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — WhatsApp SVG Icon Component
+// Krantos Platform - WhatsApp SVG Icon Component
 // ============================================================
 
 import React from 'react';

@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — CommissionService
+// Krantos Platform - CommissionService
 // Requirements: C1.2, C2.1, C2.2, C2.3, C3.3
 // ============================================================
 

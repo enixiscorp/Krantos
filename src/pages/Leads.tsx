@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /leads (vendor leads management) (Premium Dark Overhaul)
+// Krantos Platform - /leads (vendor leads management) (Premium Dark Overhaul)
 // Requirements: 11.3, 4.2 (Sale amount tracking)
 // ============================================================
 
@@ -151,7 +151,7 @@ const Leads = () => {
       amount: commissionAmount,
       status: 'confirmed',
       type: 'conversion',
-      notes: `Commission auto (${newStatus}) — Produit: ${product.name} — Prix: ${product.price.toLocaleString()} FCFA`,
+      notes: `Commission auto (${newStatus}) - Produit: ${product.name} - Prix: ${product.price.toLocaleString()} FCFA`,
     });
   };
 

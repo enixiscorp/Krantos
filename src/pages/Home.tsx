@@ -17,7 +17,7 @@ const Home = () => {
           className="mb-4"
         >
           <span className="text-sm font-black text-muted-foreground uppercase tracking-[0.3em]">
-            Krantos — Powering Africa's Energy Decisions
+            Krantos - Powering Africa's Energy Decisions
           </span>
         </motion.div>
 
@@ -84,7 +84,7 @@ const Home = () => {
             {
               icon: <MousePointer2 className="w-6 h-6 text-yellow-400" />,
               title: "Calcul automatique",
-              desc: "Watts, Ampères, Volts — tout est converti pour vous."
+              desc: "Watts, Ampères, Volts - tout est converti pour vous."
             },
             {
               icon: <Zap className="w-6 h-6 text-yellow-400" />,

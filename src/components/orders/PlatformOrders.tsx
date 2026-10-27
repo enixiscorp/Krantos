@@ -84,10 +84,10 @@ export function PlatformOrders(props: {
                     <tr key={o.leadId} className="border-b border-white/5 hover:bg-white/[0.02]">
                       <td className="p-4">
                         <div className="font-bold text-white">{o.clientName}</div>
-                        <div className="text-xs text-gray-500">{[o.clientPhone, o.location].filter(Boolean).join(' · ') || '—'}</div>
+                        <div className="text-xs text-gray-500">{[o.clientPhone, o.location].filter(Boolean).join(' · ') || '-'}</div>
                       </td>
                       <td className="p-4 text-gray-300">{o.vendorName}</td>
-                      <td className="p-4 text-gray-300">{o.productName ?? '—'}</td>
+                      <td className="p-4 text-gray-300">{o.productName ?? '-'}</td>
                       <td className="p-4 text-right font-black text-yellow-300 whitespace-nowrap">{fcfa(o.orderAmount)}</td>
                       <td className="p-4 text-right whitespace-nowrap">
                         <div className="font-black text-green-300">{fcfa(o.commissionAmount)}</div>

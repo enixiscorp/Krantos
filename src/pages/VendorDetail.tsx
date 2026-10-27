@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Vendor Detail Page (/vendor/:id) (Premium Dark)
+// Krantos Platform - Vendor Detail Page (/vendor/:id) (Premium Dark)
 // Requirements: 9.2
 // ============================================================
 

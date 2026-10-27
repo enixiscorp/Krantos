@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Orders made through the platform
+// Krantos Platform - Orders made through the platform
 // ============================================================
 // A lead with status "converted" is a completed order. Its order amount
 // (equipment cost) is derived from the commission record:

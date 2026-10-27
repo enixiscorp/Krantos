@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Results Page (Premium Dark Overhaul)
+// Krantos Platform - Results Page (Premium Dark Overhaul)
 // Requirements: 6.1, 6.2, 6.3, 6.4, 7.1, 7.2, 7.3, 7.4,
 //               8.1, 8.2, 8.3, 8.4, 8.5
 // ============================================================
@@ -19,7 +19,11 @@ import {
   Sparkles,
   MessageSquare,
   User,
-  RotateCcw
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  Square,
+  Headphones,
 } from 'lucide-react';
 
 import type { Product, Vendor, ApplianceInput } from '../lib/supabase';
@@ -29,7 +33,12 @@ import {
   normalizeWhatsAppPhone,
   updateLeadStatus,
 } from '../services/whatsappService';
-import { sendChatbotMessage } from '../services/chatbotApi';
+import { getChatbotConfig, sendChatbotMessage } from '../services/chatbotApi';
+import { useSpeech } from '../hooks/useSpeech';
+import {
+  CALCULATION_GUIDE,
+  chatSuggestions as buildChatSuggestions,
+} from '../../supabase/functions/_shared/chatbotBrain.ts';
 import WhatsAppIcon from '../components/WhatsAppIcon';
 import { ProductImage } from '../components/ProductImage';
 
@@ -87,12 +96,12 @@ const Results = () => {
   });
   const [showChatbot, setShowChatbot] = useState(false);
   const KRANTOS_ADMIN_ID = "6fcb8ba0-d391-40bf-9408-82c7279c4521";
-  
+
   const [activeBot, setActiveBot] = useState<'vendor' | 'krantos'>('vendor');
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [chatSuggestions, setChatSuggestions] = useState<string[]>([]);
-  
+
   // Separate histories
   const [vendorMessages, setVendorMessages] = useState<ChatMessage[]>([
     {
@@ -119,9 +128,21 @@ const Results = () => {
     }
   }, [chatMessages, activeBot]);
 
+  const speech = useSpeech();
+
   useEffect(() => {
-    // Clear suggestions when switching bot
-    setChatSuggestions([]);
+    // Show the selected company's programmed questions (+ "how to calculate")
+    let cancelled = false;
+    speech.stop();
+    setChatSuggestions(buildChatSuggestions([]));
+    const botVendorId = activeBot === 'vendor' ? state?.vendor?.id : KRANTOS_ADMIN_ID;
+    if (botVendorId) {
+      getChatbotConfig(botVendorId)
+        .then((c) => { if (!cancelled) setChatSuggestions(buildChatSuggestions(c?.suggestions)); })
+        .catch(() => {});
+    }
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBot]);
 
   if (!state) {
@@ -158,7 +179,7 @@ const Results = () => {
   const handleChatSend = async (overrideText?: string) => {
     const msg = (overrideText || chatInput).trim();
     if (!msg || chatLoading) return;
-    
+
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
     setChatLoading(true);
@@ -177,9 +198,11 @@ const Results = () => {
         product_id: activeBot === 'vendor' ? product?.id ?? null : null,
         history: history
       });
-      
+
       setChatMessages(prev => [...prev, { role: 'bot', text: api.response }]);
       setChatSuggestions(api.suggestions || []);
+      // Read the answer aloud when audio mode is on (index of the new bot message)
+      if (speech.autoRead) speech.speak(`${activeBot}-${chatMessages.length + 1}`, api.response);
     } catch {
       setChatMessages(prev => [...prev, { role: 'bot', text: "Erreur lors de la réponse. Réessayez." }]);
     } finally {
@@ -190,20 +213,20 @@ const Results = () => {
   const handleExportPDF = () => {
      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
      const pageWidth = doc.internal.pageSize.getWidth();
-     
+
      // Krantos Background Header
      doc.setFillColor(20, 20, 24);
      doc.rect(0, 0, pageWidth, 40, 'F');
-     
+
      doc.setTextColor(250, 204, 21); // Krantos Yellow
      doc.setFontSize(26);
      doc.setFont('helvetica', 'bold');
      doc.text('Krantos Energy', 15, 25);
-     
+
      doc.setTextColor(255, 255, 255);
      doc.setFontSize(10);
-     doc.text(`Rapport personnalisé — ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 15, 25, { align: 'right' });
-     
+     doc.text(`Rapport personnalisé - ${new Date().toLocaleDateString('fr-FR')}`, pageWidth - 15, 25, { align: 'right' });
+
      let y = 55;
 
      // Client Section
@@ -223,16 +246,16 @@ const Results = () => {
      // Energy Results
      doc.setFillColor(250, 204, 21, 0.1);
      doc.rect(10, y-5, pageWidth-20, 30, 'F');
-     
+
      doc.setTextColor(0);
      doc.setFontSize(14);
      doc.setFont('helvetica', 'bold');
      doc.text('Besoin Énergétique Estimé', 15, y+5);
-     
+
      doc.setFontSize(18);
      doc.setTextColor(250, 204, 21);
      doc.text(`${totalWatts.toFixed(0)} W`, pageWidth - 20, y+5, { align: 'right' });
-     
+
      doc.setFontSize(10);
      doc.setTextColor(100);
      doc.text(`Soit environ ${(totalWatts / 1000).toFixed(2)} kW / ${totalKVA.toFixed(2)} kVA`, pageWidth - 20, y+12, { align: 'right' });
@@ -245,12 +268,12 @@ const Results = () => {
        doc.setFont('helvetica', 'bold');
        doc.text('Solution Recommandée', 15, y);
        y += 8;
-       
+
        doc.setFontSize(11);
        doc.text(product.name, 15, y);
        doc.setTextColor(250, 204, 21);
        doc.text(`${formatPrice(product.price)} FCFA`, pageWidth - 20, y, { align: 'right' });
-       
+
        y += 6;
        doc.setFontSize(9);
        doc.setTextColor(100);
@@ -264,24 +287,24 @@ const Results = () => {
        doc.setDrawColor(230);
        doc.line(15, y, pageWidth - 15, y);
        y += 10;
-       
+
        doc.setTextColor(0);
        doc.setFontSize(12);
        doc.setFont('helvetica', 'bold');
        doc.text('Boutique Partenaire', 15, y);
        y += 8;
-       
+
        doc.setFontSize(14);
        doc.setTextColor(250, 204, 21);
        doc.text(vendor.name, 15, y);
-       
+
        y += 6;
        doc.setFontSize(10);
        doc.setTextColor(50);
        doc.text(`Contact WhatsApp : ${vendor.phone}`, 15, y);
        y += 5;
        doc.text(`Email : ${vendor.email || 'N/A'}`, 15, y);
-       
+
        // Payment Methods
        const paymentMethods = (vendor as any).payment_methods || [];
        if (paymentMethods.length > 0) {
@@ -364,8 +387,8 @@ const Results = () => {
     <div className="max-w-4xl mx-auto px-4 py-12">
       {/* Home Navigation */}
       <div className="flex justify-between items-center mb-12">
-        <Link 
-          to="/" 
+        <Link
+          to="/"
           className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-black uppercase tracking-widest"
         >
           <RotateCcw className="w-4 h-4" />
@@ -450,12 +473,12 @@ const Results = () => {
           >
             <span className="text-[10px] font-black text-yellow-500/50 uppercase tracking-[0.2em] mb-4 block">Prix de l'équipement</span>
             <div className="flex items-baseline gap-2 mb-2">
-              <motion.span 
+              <motion.span
                 animate={{ opacity: [1, 0.7, 1], scale: [1, 1.02, 1] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 className="text-5xl font-black text-yellow-400 leading-none tracking-tighter"
               >
-                {product ? formatPrice(product.price) : "—"}
+                {product ? formatPrice(product.price) : "-"}
               </motion.span>
               <span className="text-xl font-bold text-yellow-400/60 uppercase">FCFA</span>
             </div>
@@ -494,12 +517,12 @@ const Results = () => {
           <div className="flex-[3] p-6 rounded-2xl bg-yellow-400/5 border border-yellow-400/20 text-center">
              <p className="text-yellow-400 text-xs font-black uppercase tracking-widest mb-1">Demande enregistrée hors-ligne</p>
              <p className="text-gray-500 text-[10px] font-medium leading-relaxed">
-               Nous n'avons pas pu vous suggérer de partenaire immédiatement. 
+               Nous n'avons pas pu vous suggérer de partenaire immédiatement.
                Veuillez exporter votre PDF et nous vous recontacterons dès la synchronisation.
              </p>
           </div>
         )}
-        
+
         <button
           onClick={handleExportPDF}
           className="flex-1 flex items-center justify-center gap-3 py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-bold text-sm uppercase tracking-widest hover:bg-white/10 transition-all"
@@ -521,13 +544,32 @@ const Results = () => {
             <h2 className="text-2xl font-black text-white tracking-tight uppercase tracking-widest">Conseil personnalisé</h2>
           </div>
 
+          <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+          {speech.supported && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = !speech.autoRead;
+                speech.setAutoRead(next);
+                if (next) speech.speak('audio-on', 'Mode audio activé. Je vous lirai mes réponses.');
+              }}
+              aria-pressed={speech.autoRead}
+              title={speech.autoRead ? 'Couper les réponses audio' : 'Activer les réponses audio'}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                speech.autoRead ? 'bg-yellow-400 text-black border-yellow-400' : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
+              }`}
+            >
+              {speech.autoRead ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              Audio
+            </button>
+          )}
           {/* Bot Selector Tabs */}
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5 self-start md:self-auto">
+          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/5">
             <button
               onClick={() => setActiveBot('vendor')}
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeBot === 'vendor' 
-                  ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' 
+                activeBot === 'vendor'
+                  ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20'
                   : 'text-gray-500 hover:text-white'
               }`}
             >
@@ -536,13 +578,14 @@ const Results = () => {
             <button
               onClick={() => setActiveBot('krantos')}
               className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeBot === 'krantos' 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                activeBot === 'krantos'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                   : 'text-gray-500 hover:text-white'
               }`}
             >
               Assistant Krantos
             </button>
+          </div>
           </div>
         </div>
 
@@ -550,31 +593,44 @@ const Results = () => {
           {/* Background decoration for the active bot */}
           <div className={`absolute top-0 right-0 w-64 h-64 blur-[100px] rounded-full transition-colors duration-700 pointer-events-none ${activeBot === 'vendor' ? 'bg-yellow-400/5' : 'bg-blue-600/5'}`} />
 
-          <div 
+          <div
             ref={chatContainerRef}
             className="space-y-6 flex-1 mb-8 overflow-y-auto scrollbar-hide relative z-10"
           >
             {chatMessages.map((msg, idx) => (
-              <motion.div 
-                key={idx} 
+              <motion.div
+                key={idx}
                 initial={{ opacity: 0, x: msg.role === 'bot' ? -10 : 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${
-                    msg.role === 'bot' 
-                      ? (activeBot === 'vendor' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-blue-600/10 text-blue-400') 
+                    msg.role === 'bot'
+                      ? (activeBot === 'vendor' ? 'bg-yellow-400/10 text-yellow-400' : 'bg-blue-600/10 text-blue-400')
                       : 'bg-white/10 text-white'
                   }`}>
                     {msg.role === 'bot' ? <Bot size={16} /> : <User size={16} />}
                   </div>
                   <div className={`px-6 py-4 rounded-[1.5rem] text-sm font-medium leading-relaxed ${
-                    msg.role === 'user' 
+                    msg.role === 'user'
                     ? (activeBot === 'vendor' ? 'bg-yellow-400 text-gray-950 font-black' : 'bg-blue-600 text-white font-black') + ' shadow-lg'
                     : 'bg-white/[0.03] text-gray-300 border border-white/5'
-                  }`}>
+                  } whitespace-pre-line`}>
                     {msg.text}
+                    {msg.role === 'bot' && speech.supported && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const id = `${activeBot}-${idx}`;
+                          if (speech.speakingId === id) speech.stop();
+                          else speech.speak(id, msg.text);
+                        }}
+                        className={`mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-colors ${activeBot === 'vendor' ? 'text-yellow-400/80 hover:text-yellow-400' : 'text-blue-400/80 hover:text-blue-400'}`}
+                      >
+                        {speech.speakingId === `${activeBot}-${idx}` ? <><Square size={10} /> Arrêter</> : <><Volume2 size={12} /> Écouter</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -590,6 +646,16 @@ const Results = () => {
               </div>
             )}
           </div>
+
+          {speech.supported && (
+            <button
+              type="button"
+              onClick={() => speech.speakingId === 'guide' ? speech.stop() : speech.speak('guide', CALCULATION_GUIDE)}
+              className="mb-3 self-start flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-yellow-400 hover:border-yellow-400/40 transition-all relative z-10"
+            >
+              {speech.speakingId === 'guide' ? <><Square size={12} /> Arrêter le guide audio</> : <><Headphones size={14} /> Guide audio du calcul</>}
+            </button>
+          )}
 
           {/* Suggestions */}
           {chatSuggestions.length > 0 && (
@@ -624,8 +690,8 @@ const Results = () => {
               onClick={() => handleChatSend()}
               disabled={chatLoading}
               className={`absolute right-2 top-2 bottom-2 px-6 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center transition-all disabled:opacity-50 ${
-                activeBot === 'vendor' 
-                  ? 'bg-yellow-400 text-gray-950 hover:bg-yellow-500' 
+                activeBot === 'vendor'
+                  ? 'bg-yellow-400 text-gray-950 hover:bg-yellow-500'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >

@@ -1,5 +1,5 @@
 -- ============================================================
--- Krantos Platform — Initial Schema Migration
+-- Krantos Platform - Initial Schema Migration
 -- Requirements: 5.1, 5.2, 15.2
 -- ============================================================
 

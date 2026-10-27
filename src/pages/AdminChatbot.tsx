@@ -437,7 +437,7 @@ const AdminChatbot = () => {
               <div className="flex items-center justify-between mb-10">
                 <div>
                   <h3 className="text-2xl font-black text-white tracking-tight">Suggestions de Questions (FAQ)</h3>
-                  <p className="text-sm text-gray-500 font-medium">Questions rapides affichées au client lors de l'ouverture du chat.</p>
+                  <p className="text-sm text-gray-500 font-medium">Questions rapides affichées au client. Le client n'a pas besoin de les taper mot pour mot : l'assistante reconnaît les formulations proches. Le guide « Comment calculer ma puissance ? » est déjà inclus.</p>
                 </div>
                 <button
                   onClick={handleAddSuggestion}

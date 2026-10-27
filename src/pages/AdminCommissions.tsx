@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/commissions (Premium Dark Overhaul)
+// Krantos Platform - /admin/commissions (Premium Dark Overhaul)
 // Requirements: 13.5 (Commission management)
 // ============================================================
 
@@ -404,7 +404,7 @@ const AdminCommissions = () => {
 
                   <div className="flex flex-col items-end gap-1 md:text-right">
                     <p className="text-2xl font-black text-white">
-                      {rec.type === 'conversion' ? `${Number(rec.amount).toLocaleString('fr-FR')} FCFA` : '—'}
+                      {rec.type === 'conversion' ? `${Number(rec.amount).toLocaleString('fr-FR')} FCFA` : '-'}
                     </p>
                     <p className="text-xs font-bold text-yellow-400">Taux : {rec.commission_rate_applied}%</p>
                   </div>

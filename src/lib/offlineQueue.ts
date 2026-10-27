@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Offline Queue Service
+// Krantos Platform - Offline Queue Service
 // Gère la file d'attente des actions hors-ligne et leur
 // synchronisation avec Supabase au retour en ligne.
 // ============================================================
@@ -26,7 +26,7 @@ export async function enqueueAction(
 }
 
 // ---------------------------------------------------------------------------
-// Process queue — Called when back online
+// Process queue - Called when back online
 // ---------------------------------------------------------------------------
 
 export interface SyncResult {

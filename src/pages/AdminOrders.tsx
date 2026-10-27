@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/orders (Premium Orders)
+// Krantos Platform - /admin/orders (Premium Orders)
 // ============================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -93,7 +93,7 @@ const AdminOrders = () => {
               Commandes
             </h1>
             <p className="text-gray-500 text-sm mt-1">
-              Gestion premium — historique automatique, statuts, détail complet.
+              Gestion premium - historique automatique, statuts, détail complet.
             </p>
           </div>
         </div>
@@ -176,7 +176,7 @@ const AdminOrders = () => {
       {selected && (
         <div className="mt-6 glass-card p-5 rounded-2xl border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="text-sm text-gray-400">
-            <span className="text-white font-bold">Mettre à jour le statut</span> — {selected.id}
+            <span className="text-white font-bold">Mettre à jour le statut</span> - {selected.id}
           </div>
           <div className="flex items-center gap-2">
             <select

@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Realtime channel helper
+// Krantos Platform - Realtime channel helper
 // ============================================================
 // supabase.channel(name) returns the EXISTING channel when one with the same
 // name is still registered. removeChannel() is async, so when a component

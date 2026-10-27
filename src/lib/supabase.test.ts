@@ -1,5 +1,5 @@
 // ============================================================
-// Tests unitaires — SupabaseClient
+// Tests unitaires - SupabaseClient
 // Requirements: 14.3
 // ============================================================
 
@@ -10,7 +10,7 @@ import { resolve } from 'path';
 // ---------------------------------------------------------------------------
 // 1. Vérification que la clé service n'est PAS exposée dans le code source
 // ---------------------------------------------------------------------------
-describe('Sécurité — clé service non exposée côté client', () => {
+describe('Sécurité - clé service non exposée côté client', () => {
   it('ne doit pas contenir de référence à SUPABASE_SERVICE_ROLE_KEY dans le code source', () => {
     const sourceCode = readFileSync(resolve(__dirname, 'supabase.ts'), 'utf-8');
     expect(sourceCode).not.toContain('SUPABASE_SERVICE_ROLE_KEY');

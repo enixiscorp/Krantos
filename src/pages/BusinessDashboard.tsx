@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /business-dashboard (Premium Dark Overhaul)
+// Krantos Platform - /business-dashboard (Premium Dark Overhaul)
 // Requirements: 11.1, 11.2, 4.1 (Commissions tab)
 // ============================================================
 
@@ -1087,7 +1087,7 @@ const BusinessDashboard = () => {
                            </div>
                            <div className="text-right">
                               <p className="text-sm font-black text-white">
-                                 {c.type === 'conversion' ? `${Number(c.amount).toLocaleString('fr-FR')} FCFA` : '—'}
+                                 {c.type === 'conversion' ? `${Number(c.amount).toLocaleString('fr-FR')} FCFA` : '-'}
                               </p>
                               <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
                                  {cfg.label}

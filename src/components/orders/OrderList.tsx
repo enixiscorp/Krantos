@@ -45,11 +45,11 @@ export function OrderList(props: {
                 >
                   <td className="p-4">
                     <div className="font-bold text-white">{o.client_name}</div>
-                    <div className="text-xs text-gray-500">{o.client_location ?? '—'}</div>
+                    <div className="text-xs text-gray-500">{o.client_location ?? '-'}</div>
                   </td>
                   <td className="p-4 text-gray-400">
-                    <div>{o.client_phone ?? '—'}</div>
-                    <div className="text-xs">{o.client_email ?? '—'}</div>
+                    <div>{o.client_phone ?? '-'}</div>
+                    <div className="text-xs">{o.client_email ?? '-'}</div>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-3 py-1 rounded-full border text-xs font-black ${badge.cls}`}>

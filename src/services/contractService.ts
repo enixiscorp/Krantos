@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — ContractService
+// Krantos Platform - ContractService
 // Requirements: C5.1, C5.2, C5.4, C5.5, C6.2, C6.3
 // ============================================================
 

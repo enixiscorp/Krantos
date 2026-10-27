@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — CalculatePower Page (Offline-First)
+// Krantos Platform - CalculatePower Page (Offline-First)
 // Requirements: 1.1, 1.2, 1.3, 2.1, 2.2, 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 14.4
 // ============================================================
 
@@ -104,7 +104,7 @@ const CalculatePower = () => {
    * No API key required. Rate-limit: 1 req/s handled by 400ms debounce.
    *
    * To swap for another provider (Google Places, Mapbox…),
-   * replace only this function — the state & UI below stay identical.
+   * replace only this function - the state & UI below stay identical.
    */
   const fetchLocationSuggestions = useCallback(async (query: string) => {
     if (abortRef.current) abortRef.current.abort();
@@ -135,7 +135,7 @@ const CalculatePower = () => {
       setLocationSuggestions(labels);
       setShowSuggestions(labels.length > 0);
     } catch (err: unknown) {
-      // AbortError means the user kept typing — not a real error
+      // AbortError means the user kept typing - not a real error
       if (err instanceof Error && err.name !== 'AbortError') {
         setLocationSuggestions([]);
         setShowSuggestions(false);
@@ -145,7 +145,7 @@ const CalculatePower = () => {
     }
   }, []);
 
-  /** Debounced handler — waits 400 ms after the last keystroke */
+  /** Debounced handler - waits 400 ms after the last keystroke */
   const handleLocationChange = useCallback((val: string) => {
     setUserForm((f) => ({ ...f, location: val }));
     setUserErrors((err) => ({ ...err, location: undefined }));

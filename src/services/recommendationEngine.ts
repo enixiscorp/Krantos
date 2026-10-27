@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — RecommendationEngine
+// Krantos Platform - RecommendationEngine
 // Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 12.3, 13.3
 // ============================================================
 
@@ -14,8 +14,8 @@ import { productsCacheStore, vendorsCacheStore } from '../lib/offlineDB';
 /**
  * The result returned by `getRecommendation`.
  *
- * - `product` — the best-matching product, or `null` if none found
- * - `vendor`  — the vendor associated with the product, or `null` if none found
+ * - `product` - the best-matching product, or `null` if none found
+ * - `vendor`  - the vendor associated with the product, or `null` if none found
  */
 export interface RecommendationResult {
   product: Product | null;

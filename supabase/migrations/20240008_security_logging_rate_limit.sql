@@ -1,5 +1,5 @@
 -- ============================================================
--- Krantos Platform — Lot 3 Security Hardening
+-- Krantos Platform - Lot 3 Security Hardening
 -- ============================================================
 
 -- 1) Admin action logs (immutable audit trail)

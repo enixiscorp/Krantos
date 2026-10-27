@@ -1,17 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MessageSquare, 
-  X, 
-  Send, 
-  Bot, 
-  User, 
-  Loader2, 
+import {
+  MessageSquare,
+  X,
+  Send,
+  Bot,
+  User,
+  Loader2,
   Sparkles,
-  ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Volume2,
+  VolumeX,
+  Square,
+  Headphones,
 } from 'lucide-react';
 import { sendChatbotMessage, getChatbotConfig } from '../services/chatbotApi';
+import { supabase } from '../lib/supabase';
+import { useSpeech } from '../hooks/useSpeech';
+import {
+  CALCULATION_GUIDE,
+  chatSuggestions,
+} from '../../supabase/functions/_shared/chatbotBrain.ts';
 import { toast } from 'sonner';
 
 interface Message {
@@ -32,8 +41,35 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [config, setConfig] = useState<any>(null);
-  
+  const [displayName, setDisplayName] = useState(vendorName);
+  const speech = useSpeech();
+  const spokenCount = useRef(0);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Read each NEW assistant answer aloud when audio mode is on
+  useEffect(() => {
+    if (messages.length <= spokenCount.current) {
+      spokenCount.current = messages.length;
+      return;
+    }
+    const last = messages[messages.length - 1];
+    const isNewAnswer = spokenCount.current > 0 && last.role === 'assistant';
+    spokenCount.current = messages.length;
+    if (isNewAnswer && speech.autoRead) speech.speak(`msg-${messages.length - 1}`, last.content);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  // Stop talking when the chat is closed
+  useEffect(() => { if (!isOpen) speech.stop(); }, [isOpen, speech.stop]);
+
+  const toggleAudio = () => {
+    const next = !speech.autoRead;
+    speech.setAutoRead(next);
+    if (next) {
+      speech.speak('audio-on', "Mode audio activé. Je vous lirai mes réponses. Demandez-moi par exemple comment calculer votre puissance.");
+    }
+  };
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -49,13 +85,22 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
 
   const loadConfig = async () => {
     try {
-      const data = await getChatbotConfig(vendorId);
+      const [data, vendorRes] = await Promise.all([
+        getChatbotConfig(vendorId).catch(() => null),
+        supabase.from('vendors').select('name').eq('id', vendorId).maybeSingle(),
+      ]);
+      const name = vendorRes.data?.name || vendorName;
+      setDisplayName(name);
       setConfig(data);
-      const welcome = data?.welcome_message?.replace('{vendor_name}', vendorName) || `Bonjour ! Comment puis-je vous aider ?`;
+      const welcome = data?.welcome_message?.replace('{vendor_name}', name)
+        || `Bonjour ! Je suis l'assistante de ${name}. Je peux vous guider pour calculer votre puissance ou répondre à vos questions.`;
+      spokenCount.current = 0;
       setMessages([{ role: 'assistant', content: welcome }]);
-      setSuggestions(data?.suggestions?.map((s: any) => s.question) || []);
+      setSuggestions(chatSuggestions(data?.suggestions));
     } catch (err) {
       console.error(err);
+      setMessages([{ role: 'assistant', content: 'Bonjour ! Comment puis-je vous aider ?' }]);
+      setSuggestions(chatSuggestions([]));
     }
   };
 
@@ -72,7 +117,7 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
         message: text,
         vendor_id: vendorId,
         product_id: productId,
-        history: messages.slice(-5) // Send last 5 messages for context
+        history: messages.slice(-5) // Last 5 messages for context
       });
 
       setMessages(prev => [...prev, { role: 'assistant', content: res.response }]);
@@ -120,20 +165,33 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
                   <h3 className="font-black text-white uppercase tracking-tight text-sm">Assistant Krantos</h3>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{vendorName} (IA)</span>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{displayName}</span>
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                {speech.supported && (
+                  <button
+                    type="button"
+                    onClick={toggleAudio}
+                    title={speech.autoRead ? 'Couper les réponses audio' : 'Activer les réponses audio'}
+                    aria-pressed={speech.autoRead}
+                    className={`p-2 rounded-xl transition-colors ${speech.autoRead ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-500 hover:text-white'}`}
+                  >
+                    {speech.autoRead ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             {/* Messages Area */}
-            <div 
+            <div
               ref={scrollRef}
               className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide"
             >
@@ -148,12 +206,21 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
                     <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center ${m.role === 'user' ? 'bg-white/5' : 'bg-yellow-400/20'}`}>
                       {m.role === 'user' ? <User size={14} className="text-gray-400" /> : <Sparkles size={14} className="text-yellow-400" />}
                     </div>
-                    <div className={`p-4 rounded-2xl text-sm leading-relaxed ${
-                      m.role === 'user' 
-                        ? 'bg-yellow-400 text-black font-bold rounded-tr-none shadow-lg shadow-yellow-400/10' 
+                    <div className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                      m.role === 'user'
+                        ? 'bg-yellow-400 text-black font-bold rounded-tr-none shadow-lg shadow-yellow-400/10'
                         : 'bg-white/5 text-gray-200 rounded-tl-none border border-white/5'
                     }`}>
                       {m.content}
+                      {m.role === 'assistant' && speech.supported && (
+                        <button
+                          type="button"
+                          onClick={() => speech.speakingId === `msg-${idx}` ? speech.stop() : speech.speak(`msg-${idx}`, m.content)}
+                          className="mt-3 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-yellow-400/80 hover:text-yellow-400 transition-colors"
+                        >
+                          {speech.speakingId === `msg-${idx}` ? <><Square size={10} /> Arrêter</> : <><Volume2 size={12} /> Écouter</>}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -174,6 +241,17 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
 
             {/* Suggestions & Input */}
             <div className="p-6 space-y-4 bg-white/[0.02] border-t border-white/5">
+              {speech.supported && (
+                <button
+                  type="button"
+                  onClick={() => speech.speakingId === 'guide' ? speech.stop() : speech.speak('guide', CALCULATION_GUIDE)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-yellow-400/10 border border-yellow-400/20 text-[10px] font-black uppercase tracking-widest text-yellow-400 hover:bg-yellow-400/20 transition-all"
+                >
+                  {speech.speakingId === 'guide'
+                    ? <><Square size={12} /> Arrêter le guide audio</>
+                    : <><Headphones size={14} /> Guide audio : comment calculer ma puissance</>}
+                </button>
+              )}
               {suggestions.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {suggestions.map((s, idx) => (
@@ -206,7 +284,7 @@ const Chatbot = ({ vendorId, vendorName, productId }: ChatbotProps) => {
                   <Send size={18} />
                 </button>
               </div>
-              <p className="text-[8px] text-center text-gray-700 uppercase font-black tracking-widest">IA Krantos v1.2 — Propulsé par Gemini</p>
+              <p className="text-[8px] text-center text-gray-700 uppercase font-black tracking-widest">Assistante Krantos - réponses de {displayName}</p>
             </div>
           </motion.div>
         )}

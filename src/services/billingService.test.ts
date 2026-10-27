@@ -16,7 +16,7 @@ vi.mock('../lib/supabase', () => ({
   },
 }));
 
-describe('BillingService — Tests unitaires & de propriété', () => {
+describe('BillingService - Tests unitaires & de propriété', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -66,7 +66,7 @@ describe('BillingService — Tests unitaires & de propriété', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Property-Based Test (Task 7.2 — Propriété C3)
+  // Property-Based Test (Task 7.2 - Propriété C3)
   // ---------------------------------------------------------------------------
 
   it('Propriété C3 : Cohérence du total de facturation', async () => {

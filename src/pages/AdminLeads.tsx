@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/leads (Premium Dark Overhaul)
+// Krantos Platform - /admin/leads (Premium Dark Overhaul)
 // Requirements: 13.4
 // ============================================================
 
@@ -179,7 +179,7 @@ const AdminLeads = () => {
         amount: commissionAmount,
         status: 'confirmed',
         type: 'conversion',
-        notes: `Commission auto (${newStatus}) — ${productName} (${productPrice.toLocaleString()} FCFA)`,
+        notes: `Commission auto (${newStatus}) - ${productName} (${productPrice.toLocaleString()} FCFA)`,
       });
 
       if (insError) throw insError;

@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Vendors Directory Page (/vendors) (Offline-First)
+// Krantos Platform - Vendors Directory Page (/vendors) (Offline-First)
 // Requirements: 9.1, 9.3
 // ============================================================
 

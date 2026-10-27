@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — ChatbotEngine Tests
+// Krantos Platform - ChatbotEngine Tests
 // **Validates: Requirements 8.2, 8.3, 8.4, 8.5**
 // ============================================================
 
@@ -63,10 +63,10 @@ function mockSupabaseProduct(product: Product | null, error: { message: string }
 }
 
 // ---------------------------------------------------------------------------
-// extractKeywords — Unit tests
+// extractKeywords - Unit tests
 // ---------------------------------------------------------------------------
 
-describe('ChatbotEngine — extractKeywords', () => {
+describe('ChatbotEngine - extractKeywords', () => {
   it('détecte le mot-clé "prix"', () => {
     expect(extractKeywords('Quel est le prix ?')).toContain('prix');
   });
@@ -130,10 +130,10 @@ describe('ChatbotEngine — extractKeywords', () => {
 });
 
 // ---------------------------------------------------------------------------
-// processMessage — Unit tests (Requirement 8.3, 8.4, 8.5)
+// processMessage - Unit tests (Requirement 8.3, 8.4, 8.5)
 // ---------------------------------------------------------------------------
 
-describe('ChatbotEngine — processMessage', () => {
+describe('ChatbotEngine - processMessage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -297,11 +297,11 @@ describe('ChatbotEngine — processMessage', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 9 — Réponse du chatbot aux mots-clés connus
+// Propriété 9 - Réponse du chatbot aux mots-clés connus
 // **Validates: Requirements 8.2, 8.3**
 // ---------------------------------------------------------------------------
 
-describe('ChatbotEngine — Propriété 9 : Réponse non vide pour tout message avec mot-clé connu', () => {
+describe('ChatbotEngine - Propriété 9 : Réponse non vide pour tout message avec mot-clé connu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -313,7 +313,7 @@ describe('ChatbotEngine — Propriété 9 : Réponse non vide pour tout message 
    *
    * **Validates: Requirements 8.2, 8.3**
    */
-  it('Propriété 9 — Tout message avec un mot-clé connu produit une réponse non vide', async () => {
+  it('Propriété 9 - Tout message avec un mot-clé connu produit une réponse non vide', async () => {
     const knownKeywords = [
       'prix', 'coût', 'tarif',
       'caractéristiques', 'specs', 'puissance',
@@ -368,11 +368,11 @@ describe('ChatbotEngine — Propriété 9 : Réponse non vide pour tout message 
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 10 — Réponse générique pour les mots-clés inconnus
+// Propriété 10 - Réponse générique pour les mots-clés inconnus
 // **Validates: Requirements 8.4**
 // ---------------------------------------------------------------------------
 
-describe('ChatbotEngine — Propriété 10 : Réponse générique pour les mots-clés inconnus', () => {
+describe('ChatbotEngine - Propriété 10 : Réponse générique pour les mots-clés inconnus', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -383,7 +383,7 @@ describe('ChatbotEngine — Propriété 10 : Réponse générique pour les mots-
    *
    * **Validates: Requirements 8.4**
    */
-  it('Propriété 10 — Tout message sans mot-clé connu produit la réponse générique non vide', async () => {
+  it('Propriété 10 - Tout message sans mot-clé connu produit la réponse générique non vide', async () => {
     // Generate messages that do NOT contain any known keyword
     // We use a simple approach: generate strings that avoid all known keywords
     const knownKeywords = [

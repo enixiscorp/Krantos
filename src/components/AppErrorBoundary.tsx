@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Error boundary
+// Krantos Platform - Error boundary
 // ============================================================
 // Without it, any error during rendering unmounts the whole app and leaves a
 // blank page. Also handles the "new version deployed" case: the old page

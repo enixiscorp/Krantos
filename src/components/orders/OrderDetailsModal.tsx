@@ -43,7 +43,7 @@ export function OrderDetailsModal(props: {
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Commande</p>
                 <h3 className="text-xl font-black text-white tracking-tight">{order.id}</h3>
                 <p className="text-sm text-gray-400 mt-1">
-                  {order.client_name} · {order.client_phone ?? '—'} · {order.client_location ?? '—'}
+                  {order.client_name} · {order.client_phone ?? '-'} · {order.client_location ?? '-'}
                 </p>
               </div>
               <button
@@ -96,7 +96,7 @@ export function OrderDetailsModal(props: {
                               {new Date(h.changed_at).toLocaleString('fr-FR')}
                             </span>
                           </div>
-                          <span className="text-[10px] text-gray-600 font-mono">{h.changed_by?.slice(0, 8) ?? '—'}…</span>
+                          <span className="text-[10px] text-gray-600 font-mono">{h.changed_by?.slice(0, 8) ?? '-'}…</span>
                         </div>
                       );
                     })

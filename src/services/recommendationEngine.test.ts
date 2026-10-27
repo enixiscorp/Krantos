@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — RecommendationEngine Property-Based Tests
+// Krantos Platform - RecommendationEngine Property-Based Tests
 // **Validates: Requirements 4.1, 4.2, 4.3**
 // ============================================================
 
@@ -121,11 +121,11 @@ function simulateDbFilter(
 }
 
 // ---------------------------------------------------------------------------
-// Propriété 3 — Filtrage des produits par capacité
+// Propriété 3 - Filtrage des produits par capacité
 // **Validates: Requirements 4.1**
 // ---------------------------------------------------------------------------
 
-describe('RecommendationEngine — Propriété 3 : Filtrage des produits par capacité', () => {
+describe('RecommendationEngine - Propriété 3 : Filtrage des produits par capacité', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -137,7 +137,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
    *
    * **Validates: Requirements 4.1**
    */
-  it('Propriété 3 — Tout produit recommandé a power_rating >= totalKVA', async () => {
+  it('Propriété 3 - Tout produit recommandé a power_rating >= totalKVA', async () => {
     // Generate positive totalKVA values (0.1 to 500 kVA) and random product catalogs
     // Using integer-mapped values to avoid 32-bit float constraints in fast-check
     const totalKVAArbitrary = fc.integer({ min: 1, max: 5000 }).map((n) => n / 10);
@@ -191,7 +191,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
    * Edge case: when the catalog is empty, the engine returns null for both
    * product and vendor (Requirement 4.4).
    */
-  it('Cas limite — Catalogue vide : retourne null pour produit et vendeur', async () => {
+  it('Cas limite - Catalogue vide : retourne null pour produit et vendeur', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
     const mockChain = {
       select: vi.fn().mockReturnThis(),
@@ -213,7 +213,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
    * Edge case: when no product in the catalog meets the power_rating threshold,
    * the engine returns null (Requirement 4.4).
    */
-  it('Cas limite — Aucun produit ne satisfait power_rating >= totalKVA : retourne null', async () => {
+  it('Cas limite - Aucun produit ne satisfait power_rating >= totalKVA : retourne null', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
     const mockChain = {
       select: vi.fn().mockReturnThis(),
@@ -226,7 +226,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
       mockChain as unknown as ReturnType<typeof supabase.from>
     );
 
-    // Very high totalKVA — no product in a typical catalog would match
+    // Very high totalKVA - no product in a typical catalog would match
     const result = await getRecommendation(99999);
     expect(result.product).toBeNull();
     expect(result.vendor).toBeNull();
@@ -236,7 +236,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
    * Deterministic example: given a catalog with one product that exactly meets
    * the threshold, it should be returned.
    */
-  it('Exemple déterministe — Produit avec power_rating == totalKVA est retourné', async () => {
+  it('Exemple déterministe - Produit avec power_rating == totalKVA est retourné', async () => {
     const vendor: Vendor = {
       id: 'vendor-1',
       name: 'Énergie Togo',
@@ -286,7 +286,7 @@ describe('RecommendationEngine — Propriété 3 : Filtrage des produits par cap
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 4 — Ordre de priorité des recommandations
+// Propriété 4 - Ordre de priorité des recommandations
 // **Validates: Requirements 4.2, 4.3**
 // ---------------------------------------------------------------------------
 
@@ -312,7 +312,7 @@ function simulateEngineSort(
   });
 }
 
-describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recommandations', () => {
+describe('RecommendationEngine - Propriété 4 : Ordre de priorité des recommandations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -326,7 +326,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
    *
    * **Validates: Requirements 4.2, 4.3**
    */
-  it('Propriété 4 — Les produits premium apparaissent avant basic/free ; à priorité égale, tri par prix croissant', async () => {
+  it('Propriété 4 - Les produits premium apparaissent avant basic/free ; à priorité égale, tri par prix croissant', async () => {
     // Arbitrary: generate a non-empty list of products with varying subscription types
     const rowsArbitrary = fc
       .array(vendorArbitrary, { minLength: 1, maxLength: 10 })
@@ -403,7 +403,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
    *
    * **Validates: Requirements 4.2, 4.3**
    */
-  it('Exemple déterministe — Le produit premium le moins cher est toujours recommandé', async () => {
+  it('Exemple déterministe - Le produit premium le moins cher est toujours recommandé', async () => {
     const makeVendor = (id: string, sub: 'premium' | 'basic' | 'free'): Vendor => ({
       id,
       name: `Vendeur ${id}`,
@@ -442,7 +442,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
     // premium products: prices 300 000 and 200 000 → cheapest premium wins
     const p1 = makeProduct('p-premium-expensive', 'v-premium', 300_000, premiumVendor);
     const p2 = makeProduct('p-premium-cheap', 'v-premium', 200_000, premiumVendor);
-    // basic and free products with lower prices — must NOT win
+    // basic and free products with lower prices - must NOT win
     const p3 = makeProduct('p-basic', 'v-basic', 50_000, basicVendor);
     const p4 = makeProduct('p-free', 'v-free', 10_000, freeVendor);
 
@@ -477,7 +477,7 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
    *
    * **Validates: Requirements 4.2, 4.3**
    */
-  it('Exemple déterministe — À priorité égale, le produit le moins cher est recommandé', async () => {
+  it('Exemple déterministe - À priorité égale, le produit le moins cher est recommandé', async () => {
     const makeVendor = (id: string): Vendor => ({
       id,
       name: `Vendeur ${id}`,
@@ -541,11 +541,11 @@ describe('RecommendationEngine — Propriété 4 : Ordre de priorité des recomm
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 5 — Borne maximale des résultats de recommandation
+// Propriété 5 - Borne maximale des résultats de recommandation
 // **Validates: Requirements 4.5**
 // ---------------------------------------------------------------------------
 
-describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats', () => {
+describe('RecommendationEngine - Propriété 5 : Borne maximale des résultats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -561,7 +561,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
    *
    * **Validates: Requirements 4.5**
    */
-  it('Propriété 5 — .limit(10) est toujours appelé ; le moteur retourne au plus 1 recommandation', async () => {
+  it('Propriété 5 - .limit(10) est toujours appelé ; le moteur retourne au plus 1 recommandation', async () => {
     const totalKVAArbitrary = fc.integer({ min: 1, max: 5000 }).map((n) => n / 10);
 
     await fc.assert(
@@ -586,7 +586,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
         // .limit() must always be called with 10 (MAX_RESULTS)
         expect(mockLimit).toHaveBeenCalledWith(10);
 
-        // The engine returns a single { product, vendor } pair — never an array
+        // The engine returns a single { product, vendor } pair - never an array
         // When rows are available, exactly 1 product is returned
         if (filteredRows.length > 0) {
           expect(result.product).not.toBeNull();
@@ -611,7 +611,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
    *
    * **Validates: Requirements 4.5**
    */
-  it('Exemple déterministe — Catalogue de 15 produits : seuls les 10 premiers (LIMIT) sont considérés', async () => {
+  it('Exemple déterministe - Catalogue de 15 produits : seuls les 10 premiers (LIMIT) sont considérés', async () => {
     const totalKVA = 5;
 
     const makeVendor = (id: string, sub: 'premium' | 'basic' | 'free'): Vendor => ({
@@ -704,12 +704,12 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
   });
 
   /**
-   * Cas limite — Quand le mock retourne exactement 10 lignes (le maximum),
+   * Cas limite - Quand le mock retourne exactement 10 lignes (le maximum),
    * le moteur retourne exactement 1 recommandation (pas un tableau de 10).
    *
    * **Validates: Requirements 4.5**
    */
-  it('Cas limite — 10 lignes retournées par le mock : le moteur retourne exactement 1 recommandation', async () => {
+  it('Cas limite - 10 lignes retournées par le mock : le moteur retourne exactement 1 recommandation', async () => {
     const makeVendor = (id: string): Vendor => ({
       id,
       name: `Vendeur ${id}`,
@@ -740,7 +740,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
       vendors: vendor,
     });
 
-    // Exactly 10 rows — the maximum allowed by MAX_RESULTS
+    // Exactly 10 rows - the maximum allowed by MAX_RESULTS
     const rows: Array<Product & { vendors: Vendor }> = Array.from({ length: 10 }, (_, i) => {
       const vendor = makeVendor(`v-${i}`);
       return makeProduct(`p-${i}`, (i + 1) * 10_000, vendor);
@@ -763,7 +763,7 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
     // .limit must be called with 10
     expect(mockLimit).toHaveBeenCalledWith(10);
 
-    // The result is a single { product, vendor } pair — NOT an array of 10
+    // The result is a single { product, vendor } pair - NOT an array of 10
     expect(result.product).not.toBeNull();
     expect(result.vendor).not.toBeNull();
 
@@ -779,11 +779,11 @@ describe('RecommendationEngine — Propriété 5 : Borne maximale des résultats
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 14 — Exclusion des produits inactifs et des vendeurs suspendus
+// Propriété 14 - Exclusion des produits inactifs et des vendeurs suspendus
 // **Validates: Requirements 12.3, 13.3**
 // ---------------------------------------------------------------------------
 
-describe('RecommendationEngine — Propriété 14 : Exclusion des produits inactifs et des vendeurs suspendus', () => {
+describe('RecommendationEngine - Propriété 14 : Exclusion des produits inactifs et des vendeurs suspendus', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -846,7 +846,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
    * - power_rating >= totalKVA
    * - ORDER BY price ASC, LIMIT 10
    *
-   * This is what the mock returns — the engine must never see inactive/suspended rows.
+   * This is what the mock returns - the engine must never see inactive/suspended rows.
    */
   function simulateStrictDbFilter(
     catalog: Array<Product & { vendors: Vendor }>,
@@ -875,11 +875,11 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
    *
    * Le mock simule le comportement de Supabase qui applique les filtres
    * `is_active = true` et `vendors.status = 'active'` côté DB (via RLS + query filters).
-   * Le moteur ne doit donc jamais recevoir — ni retourner — de tels produits.
+   * Le moteur ne doit donc jamais recevoir - ni retourner - de tels produits.
    *
    * **Validates: Requirements 12.3, 13.3**
    */
-  it('Propriété 14 — Aucun produit inactif ou vendeur suspendu/pending n\'est retourné', async () => {
+  it('Propriété 14 - Aucun produit inactif ou vendeur suspendu/pending n\'est retourné', async () => {
     const totalKVAArbitrary = fc.integer({ min: 1, max: 5000 }).map((n) => n / 10);
 
     await fc.assert(
@@ -943,7 +943,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
    *
    * **Validates: Requirements 12.3**
    */
-  it('Exemple déterministe — Catalogue avec uniquement des produits inactifs : retourne null', async () => {
+  it('Exemple déterministe - Catalogue avec uniquement des produits inactifs : retourne null', async () => {
     const vendor: Vendor = {
       id: 'v-active',
       name: 'Vendeur Actif',
@@ -956,7 +956,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
       created_at: new Date().toISOString(),
     };
 
-    // All products are inactive — Supabase filters them out, mock returns empty array
+    // All products are inactive - Supabase filters them out, mock returns empty array
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
     const mockChain = {
       select: vi.fn().mockReturnThis(),
@@ -984,7 +984,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
    *
    * **Validates: Requirements 13.3**
    */
-  it('Exemple déterministe — Catalogue avec uniquement des vendeurs suspendus : retourne null', async () => {
+  it('Exemple déterministe - Catalogue avec uniquement des vendeurs suspendus : retourne null', async () => {
     // Supabase filters out suspended vendors, mock returns empty array
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
     const mockChain = {
@@ -1008,13 +1008,13 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
   });
 
   /**
-   * Exemple déterministe 3 : Catalogue mixte — produits actifs et inactifs,
+   * Exemple déterministe 3 : Catalogue mixte - produits actifs et inactifs,
    * vendeurs actifs et suspendus. Seul le produit actif d'un vendeur actif
    * doit être retourné.
    *
    * **Validates: Requirements 12.3, 13.3**
    */
-  it('Exemple déterministe — Catalogue mixte : seul le produit actif d\'un vendeur actif est retourné', async () => {
+  it('Exemple déterministe - Catalogue mixte : seul le produit actif d\'un vendeur actif est retourné', async () => {
     const activeVendor: Vendor = {
       id: 'v-active',
       name: 'Vendeur Actif',
@@ -1104,7 +1104,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
    *
    * **Validates: Requirements 12.3, 13.3**
    */
-  it('Exemple déterministe — Les filtres is_active et vendors.status sont appliqués dans la requête Supabase', async () => {
+  it('Exemple déterministe - Les filtres is_active et vendors.status sont appliqués dans la requête Supabase', async () => {
     const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
     const mockChain = {
       select: vi.fn().mockReturnThis(),
@@ -1128,7 +1128,7 @@ describe('RecommendationEngine — Propriété 14 : Exclusion des produits inact
 });
 
 // ============================================================
-// Tests unitaires — RecommendationEngine
+// Tests unitaires - RecommendationEngine
 // Tâche 5.6 : Tests unitaires ciblés
 // Exigences : 4.1, 4.2, 4.3, 4.4, 4.5
 // ============================================================
@@ -1192,10 +1192,10 @@ function mockSupabaseWith(rows: Array<Product & { vendors: Vendor }>) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests unitaires 5.6.1 — Filtrage par power_rating (Exigence 4.1)
+// Tests unitaires 5.6.1 - Filtrage par power_rating (Exigence 4.1)
 // ---------------------------------------------------------------------------
 
-describe('Tests unitaires — Filtrage par power_rating (Exigence 4.1)', () => {
+describe('Tests unitaires - Filtrage par power_rating (Exigence 4.1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -1260,10 +1260,10 @@ describe('Tests unitaires — Filtrage par power_rating (Exigence 4.1)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests unitaires 5.6.2 — Tri par priorité vendeur puis prix (Exigences 4.2, 4.3)
+// Tests unitaires 5.6.2 - Tri par priorité vendeur puis prix (Exigences 4.2, 4.3)
 // ---------------------------------------------------------------------------
 
-describe('Tests unitaires — Tri par priorité vendeur puis prix (Exigences 4.2, 4.3)', () => {
+describe('Tests unitaires - Tri par priorité vendeur puis prix (Exigences 4.2, 4.3)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -1347,7 +1347,7 @@ describe('Tests unitaires — Tri par priorité vendeur puis prix (Exigences 4.2
     expect(result.product!.price).toBe(80_000);
   });
 
-  it('Ordre complet : premium < basic < free — le meilleur premium le moins cher gagne', async () => {
+  it('Ordre complet : premium < basic < free - le meilleur premium le moins cher gagne', async () => {
     const premiumVendor = makeVendorUnit('v-premium', 'premium');
     const basicVendor = makeVendorUnit('v-basic', 'basic');
     const freeVendor = makeVendorUnit('v-free', 'free');
@@ -1370,10 +1370,10 @@ describe('Tests unitaires — Tri par priorité vendeur puis prix (Exigences 4.2
 });
 
 // ---------------------------------------------------------------------------
-// Tests unitaires 5.6.3 — Cas "aucun produit disponible" (Exigence 4.4)
+// Tests unitaires 5.6.3 - Cas "aucun produit disponible" (Exigence 4.4)
 // ---------------------------------------------------------------------------
 
-describe('Tests unitaires — Aucun produit disponible (Exigence 4.4)', () => {
+describe('Tests unitaires - Aucun produit disponible (Exigence 4.4)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -1427,10 +1427,10 @@ describe('Tests unitaires — Aucun produit disponible (Exigence 4.4)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests unitaires 5.6.4 — Limite à 10 résultats (Exigence 4.5)
+// Tests unitaires 5.6.4 - Limite à 10 résultats (Exigence 4.5)
 // ---------------------------------------------------------------------------
 
-describe('Tests unitaires — Limite à 10 résultats (Exigence 4.5)', () => {
+describe('Tests unitaires - Limite à 10 résultats (Exigence 4.5)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

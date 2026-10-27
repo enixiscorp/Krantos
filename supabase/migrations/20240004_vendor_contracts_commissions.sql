@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: Vendor Contracts & Commissions — Schema Extensions
+-- Migration: Vendor Contracts & Commissions - Schema Extensions
 -- Requirements: C9.1, C9.2
 -- =============================================================================
 -- Extends the vendors table with contract and commission fields, and adds
@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_vendors_contract_end_date ON vendors(contract_end
 CREATE INDEX IF NOT EXISTS idx_vendors_status             ON vendors(status);
 
 -- =============================================================================
--- Task 1.2 — commission_records table
+-- Task 1.2 - commission_records table
 -- Requirements: C2.1, C2.2
 -- =============================================================================
 
@@ -98,7 +98,7 @@ CREATE INDEX IF NOT EXISTS idx_commission_records_vendor_date
     ON commission_records(vendor_id, created_at);
 
 -- =============================================================================
--- Task 1.3 — admin_users table
+-- Task 1.3 - admin_users table
 -- Requirements: C8.1, C8.2
 -- =============================================================================
 

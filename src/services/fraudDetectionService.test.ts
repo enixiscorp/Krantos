@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — FraudDetectionService Tests
+// Krantos Platform - FraudDetectionService Tests
 // Unit tests (4.4) + Property-based tests (4.2, 4.3)
 // **Validates: Requirements C4.1, C4.2, C4.3, C4.4**
 // ============================================================
@@ -47,11 +47,11 @@ function makeChain(resolveValue: unknown) {
 }
 
 // ---------------------------------------------------------------------------
-// 4.4 — Unit tests: reportFraud
+// 4.4 - Unit tests: reportFraud
 // **Validates: Requirements C4.1, C4.2**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — reportFraud (tests unitaires)', () => {
+describe('FraudDetectionService - reportFraud (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -198,11 +198,11 @@ describe('FraudDetectionService — reportFraud (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4.4 — Unit tests: terminateVendor
+// 4.4 - Unit tests: terminateVendor
 // **Validates: Requirements C4.2, C4.4**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — terminateVendor (tests unitaires)', () => {
+describe('FraudDetectionService - terminateVendor (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -305,11 +305,11 @@ describe('FraudDetectionService — terminateVendor (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4.4 — Unit tests: isTerminated
+// 4.4 - Unit tests: isTerminated
 // **Validates: Requirements C4.2, C4.5**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — isTerminated (tests unitaires)', () => {
+describe('FraudDetectionService - isTerminated (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -371,11 +371,11 @@ describe('FraudDetectionService — isTerminated (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4.4 — Unit tests: getFraudCount
+// 4.4 - Unit tests: getFraudCount
 // **Validates: Requirements C4.1**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — getFraudCount (tests unitaires)', () => {
+describe('FraudDetectionService - getFraudCount (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -410,11 +410,11 @@ describe('FraudDetectionService — getFraudCount (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4.2 — Property C4: Fraud termination rule
+// 4.2 - Property C4: Fraud termination rule
 // **Validates: Requirements C4.1, C4.2**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — Propriété C4 : Règle de résiliation pour fraude', () => {
+describe('FraudDetectionService - Propriété C4 : Règle de résiliation pour fraude', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -428,7 +428,7 @@ describe('FraudDetectionService — Propriété C4 : Règle de résiliation pour
    *
    * **Validates: Requirements C4.1, C4.2**
    */
-  it('C4 — Tout vendeur avec fraud_count >= 3 est terminated avec tous ses produits désactivés', async () => {
+  it('C4 - Tout vendeur avec fraud_count >= 3 est terminated avec tous ses produits désactivés', async () => {
     const { supabase } = await import('../lib/supabase');
     const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
@@ -458,8 +458,8 @@ describe('FraudDetectionService — Propriété C4 : Règle de résiliation pour
                   }),
                 }),
               }),
-              // Write path: update().eq().eq() — fraud_count increment
-              // Also handles: update().eq() — status update in terminateVendor
+              // Write path: update().eq().eq() - fraud_count increment
+              // Also handles: update().eq() - status update in terminateVendor
               update: vi.fn().mockImplementation((data: { fraud_count?: number; status?: string }) => {
                 if (data.fraud_count !== undefined) {
                   currentFraudCount = data.fraud_count;
@@ -517,11 +517,11 @@ describe('FraudDetectionService — Propriété C4 : Règle de résiliation pour
 });
 
 // ---------------------------------------------------------------------------
-// 4.3 — Property C8: Fraud counter monotonicity
+// 4.3 - Property C8: Fraud counter monotonicity
 // **Validates: Requirements C4.1**
 // ---------------------------------------------------------------------------
 
-describe('FraudDetectionService — Propriété C8 : Monotonie du compteur de fraude', () => {
+describe('FraudDetectionService - Propriété C8 : Monotonie du compteur de fraude', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -532,7 +532,7 @@ describe('FraudDetectionService — Propriété C8 : Monotonie du compteur de fr
    *
    * **Validates: Requirements C4.1**
    */
-  it('C8 — Le fraud_count est strictement croissant après chaque reportFraud', async () => {
+  it('C8 - Le fraud_count est strictement croissant après chaque reportFraud', async () => {
     const { supabase } = await import('../lib/supabase');
     const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 

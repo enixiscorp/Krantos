@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: RLS Policies — Commissions, Admin Users & Vendor Status Extensions
+-- Migration: RLS Policies - Commissions, Admin Users & Vendor Status Extensions
 -- Requirements: C3.5, C5.3, C6.3, C8.4, C8.5, C9.3, C9.5
 -- =============================================================================
 -- This migration:
@@ -11,7 +11,7 @@
 
 
 -- =============================================================================
--- TASK 2.1 — RLS on commission_records
+-- TASK 2.1 - RLS on commission_records
 -- Requirements: C3.5, C9.5
 -- =============================================================================
 
@@ -47,7 +47,7 @@ CREATE POLICY "commission_records_admin_full_access"
 
 
 -- =============================================================================
--- TASK 2.2 — RLS on admin_users
+-- TASK 2.2 - RLS on admin_users
 -- Requirements: C8.4, C8.5
 -- =============================================================================
 
@@ -83,7 +83,7 @@ CREATE POLICY "admin_users_service_role_full_access"
 
 
 -- =============================================================================
--- TASK 2.3 — Extend existing RLS policies on vendors and products
+-- TASK 2.3 - Extend existing RLS policies on vendors and products
 -- Requirements: C5.3, C6.3, C9.3
 -- =============================================================================
 
@@ -93,7 +93,7 @@ CREATE POLICY "admin_users_service_role_full_access"
 DROP POLICY IF EXISTS "vendors_public_read_active"  ON vendors;
 DROP POLICY IF EXISTS "products_public_read_active" ON products;
 
--- vendors — public read: only vendors with status 'active' are visible to the
+-- vendors - public read: only vendors with status 'active' are visible to the
 -- public directory and recommendation engine. Vendors with status 'expired',
 -- 'terminated', 'pending', or 'suspended' are excluded.
 -- Requirements C5.3, C9.3
@@ -103,7 +103,7 @@ CREATE POLICY "vendors_public_read_active"
     TO public
     USING (status = 'active');
 
--- products — public read: a product is publicly visible only when it is
+-- products - public read: a product is publicly visible only when it is
 -- active AND its vendor has status 'active'. This explicitly excludes products
 -- belonging to vendors with status 'expired' or 'terminated' (in addition to
 -- the already-excluded 'pending' and 'suspended' statuses).

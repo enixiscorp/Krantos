@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/contracts (Premium Dark Overhaul)
+// Krantos Platform - /admin/contracts (Premium Dark Overhaul)
 // Requirements: C9.1, C9.2 (Contract lifecycle)
 // ============================================================
 

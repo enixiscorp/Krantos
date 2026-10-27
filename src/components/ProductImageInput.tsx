@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Product image field: pick a file OR paste a link
+// Krantos Platform - Product image field: pick a file OR paste a link
 // ============================================================
 // A pasted link is checked visually: the image is really loaded in the
 // browser, and common "page" links (Google Images, Drive, Dropbox) are turned

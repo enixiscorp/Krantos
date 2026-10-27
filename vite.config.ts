@@ -16,7 +16,7 @@ export default defineConfig({
       },
       includeAssets: ['favicon.svg', 'icons.svg', 'sounds/notifications_Krantos.mp3'],
       manifest: {
-        name: 'Krantos — Énergie Renouvelable',
+        name: 'Krantos - Énergie Renouvelable',
         short_name: 'Krantos',
         description: 'Plateforme premium de solutions énergétiques renouvelables. Fonctionne hors-ligne.',
         theme_color: '#FACC15',
@@ -51,12 +51,12 @@ export default defineConfig({
         // Precache all app shell assets (JS, CSS, HTML, icons)
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webp}'],
 
-        // Network-first for navigation (pages) — falls back to cache
+        // Network-first for navigation (pages) - falls back to cache
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/(api|supabase)\//],
 
         runtimeCaching: [
-          // App shell pages — NetworkFirst with offline fallback
+          // App shell pages - NetworkFirst with offline fallback
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/rest\//,
             handler: 'NetworkFirst',
@@ -72,7 +72,7 @@ export default defineConfig({
               },
             },
           },
-          // Supabase Auth — NetworkOnly (security: never cache auth tokens)
+          // Supabase Auth - NetworkOnly (security: never cache auth tokens)
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/auth\//,
             handler: 'NetworkOnly',
@@ -96,7 +96,7 @@ export default defineConfig({
               },
             },
           },
-          // Static assets — CacheFirst
+          // Static assets - CacheFirst
           {
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/,
             handler: 'CacheFirst',
@@ -108,7 +108,7 @@ export default defineConfig({
               },
             },
           },
-          // JS/CSS bundles — StaleWhileRevalidate
+          // JS/CSS bundles - StaleWhileRevalidate
           {
             urlPattern: /\.(?:js|css)$/,
             handler: 'StaleWhileRevalidate',

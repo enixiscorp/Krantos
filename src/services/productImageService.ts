@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Product image upload
+// Krantos Platform - Product image upload
 // ============================================================
 
 import { supabase } from '../lib/supabase';

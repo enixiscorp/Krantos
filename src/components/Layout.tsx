@@ -30,7 +30,7 @@ const Layout: React.FC = () => {
         />
       )}
 
-      {/* Offline status bar — handles sync queue display */}
+      {/* Offline status bar - handles sync queue display */}
       <OfflineStatusBar position="bottom" />
 
       {/* Ambient background glows */}

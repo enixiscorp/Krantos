@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Supabase Client
+// Krantos Platform - Supabase Client
 // Requirements: 14.3
 // ============================================================
 // Security: Only VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
@@ -26,7 +26,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ---------------------------------------------------------------------------
-// Shared TypeScript types — mirror the database schema exactly
+// Shared TypeScript types - mirror the database schema exactly
 // ---------------------------------------------------------------------------
 
 /** Enum types */
@@ -61,7 +61,7 @@ export interface ApplianceBreakdown {
 }
 
 // ---------------------------------------------------------------------------
-// Database row types — match the Supabase schema 1-to-1
+// Database row types - match the Supabase schema 1-to-1
 // ---------------------------------------------------------------------------
 
 /**

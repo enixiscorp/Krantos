@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Product picture with a clean fallback
+// Krantos Platform - Product picture with a clean fallback
 // ============================================================
 // Shows the whole product (object-contain, no cropping) and falls back to a
 // neutral placeholder when there is no image or the link is broken.

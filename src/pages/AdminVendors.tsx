@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/vendors (Premium Dark Overhaul)
+// Krantos Platform - /admin/vendors (Premium Dark Overhaul)
 // Requirements: 13.1, 13.2, 13.3
 // ============================================================
 

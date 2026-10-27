@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/billing (Premium Dark Overhaul)
+// Krantos Platform - /admin/billing (Premium Dark Overhaul)
 // Requirements: 7.2, 7.3, 7.4 (Billing export)
 // ============================================================
 

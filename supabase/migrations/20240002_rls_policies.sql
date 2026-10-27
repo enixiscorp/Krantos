@@ -1,5 +1,5 @@
 -- ============================================================
--- Krantos Platform — Row Level Security (RLS) Policies
+-- Krantos Platform - Row Level Security (RLS) Policies
 -- Requirements: 14.1, 14.2
 -- ============================================================
 
@@ -129,7 +129,7 @@ CREATE POLICY "products_admin_full_access"
 -- ============================================================
 
 -- Public insert: unauthenticated users can create a lead
--- (the calculator flow does not require an account — Requirement 5.1)
+-- (the calculator flow does not require an account - Requirement 5.1)
 CREATE POLICY "leads_public_insert"
     ON leads
     FOR INSERT
@@ -137,7 +137,7 @@ CREATE POLICY "leads_public_insert"
     WITH CHECK (true);
 
 -- Vendor own read: authenticated vendors can read leads assigned to them
--- (Requirement 14.2 — vendor sees only their own leads)
+-- (Requirement 14.2 - vendor sees only their own leads)
 CREATE POLICY "leads_vendor_own_read"
     ON leads
     FOR SELECT
@@ -167,7 +167,7 @@ CREATE POLICY "leads_admin_full_access"
 -- ============================================================
 
 -- Public insert: unauthenticated users can insert appliance records
--- (created as part of the lead creation flow — Requirement 5.2)
+-- (created as part of the lead creation flow - Requirement 5.2)
 CREATE POLICY "appliances_input_public_insert"
     ON appliances_input
     FOR INSERT

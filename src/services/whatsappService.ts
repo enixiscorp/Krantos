@@ -1,9 +1,9 @@
 // ============================================================
-// Krantos Platform — WhatsAppService
+// Krantos Platform - WhatsAppService
 // Requirements: 7.1, 7.2, 7.3, 7.4, 14.5
 // ============================================================
 //
-// IMPORTANT — Security constraint (Requirement 14.5 / Propriété 17):
+// IMPORTANT - Security constraint (Requirement 14.5 / Propriété 17):
 // `sendWhatsAppMessage` enforces vendor status validation internally.
 // Passing a `vendorStatus` other than 'active' will throw an error,
 // preventing any WhatsApp redirect to a pending or suspended vendor.

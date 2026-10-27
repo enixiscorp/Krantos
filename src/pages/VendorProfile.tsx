@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /vendor-profile (Premium Dark)
+// Krantos Platform - /vendor-profile (Premium Dark)
 // ============================================================
 
 import { useState, useEffect } from 'react';

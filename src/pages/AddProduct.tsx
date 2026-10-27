@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /add-product (Premium Dark Overhaul)
+// Krantos Platform - /add-product (Premium Dark Overhaul)
 // Requirements: 12.1, 12.2, 12.4, 14.4
 // ============================================================
 

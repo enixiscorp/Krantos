@@ -1,5 +1,11 @@
 import { adminClient, corsHeaders, jsonResponse } from "../_shared/auth.ts";
 import { z } from "../_shared/security.ts";
+import {
+  CALCULATION_GUIDE,
+  CONTACT_GUIDE,
+  answerFromRules,
+  chatSuggestions,
+} from "../_shared/chatbotBrain.ts";
 
 const bodySchema = z.object({
   message: z.string().min(1).max(1000),
@@ -27,86 +33,67 @@ Deno.serve(async (req) => {
       adminClient.from("chatbot_configs").select("*").eq("vendor_id", vendor_id).single(),
     ]);
 
-    const vendor = vendorRes.data;
     const config = configRes.data;
+    // Unknown id (e.g. the general "Assistant Krantos"): answer as the
+    // platform assistant instead of failing with a 404.
+    const vendor = vendorRes.data ?? { id: vendor_id, name: "Krantos", phone: null, category: null };
+    const contactHint = vendor.phone
+      ? `contacter directement ${vendor.name} au ${vendor.phone}`
+      : "contacter un vendeur depuis la page Vendeurs";
 
-    if (!vendor) return jsonResponse(404, { error: "Vendor not found" });
-
-    // 2. SMART MATCH: Programmed Questions (Priority)
-    const lowerMsg = message.toLowerCase().trim();
-    const suggestions = config?.suggestions?.map((s: any) => s.question).slice(0, 3) || [];
-    
-    // Exact or flexible match in programmed suggestions
-    const staticMatch = config?.suggestions?.find((s: any) => {
-      const q = s.question.toLowerCase().trim();
-      return lowerMsg === q || lowerMsg.includes(q) || q.includes(lowerMsg) && lowerMsg.length > 5;
-    });
-
-    if (staticMatch) {
-      return jsonResponse(200, {
-        response: staticMatch.answer,
-        suggestions: suggestions,
-        source: "static"
-      });
+    // 2. Rules: the company's programmed answers (tolerant matching), the
+    //    platform guide (how to calculate / contact) and company info keywords.
+    const suggestions = chatSuggestions(config?.suggestions);
+    const rule = answerFromRules(message, config ?? {}, vendor.phone);
+    if (rule) {
+      return jsonResponse(200, { response: rule.response, suggestions, source: "static" });
     }
 
-    // 3. KEYWORDS: Specific Contextual Information
-    let keywordResponse = "";
-    
-    // Detailed Product Context (if product_id is provided)
+    // 3. Product context for the AI (price question answered directly)
+    const lowerMsg = message.toLowerCase().trim();
     let productContext = "";
     if (product_id) {
       const { data: p } = await adminClient.from("products").select("*").eq("id", product_id).single();
       if (p) {
-        productContext = `PRODUIT ACTUEL: ${p.name}. PRIX: ${Number(p.price).toLocaleString('fr-FR')} FCFA. PUISSANCE: ${p.power_rating} kVA. UNITÉ: ${p.unit || 'W'}. DESCRIPTION: ${p.description || 'N/A'}.`;
-        
-        const priceKeywords = ["prix", "coûte", "combien", "tarif", "valeur", "montant"];
+        productContext = `PRODUIT ACTUEL: ${p.name}. PRIX: ${Number(p.price).toLocaleString('fr-FR')} FCFA. PUISSANCE: ${p.power_rating} kVA. DESCRIPTION: ${p.description || 'N/A'}.`;
+        const priceKeywords = ["prix", "coûte", "coute", "combien", "tarif", "valeur", "montant"];
         if (priceKeywords.some(k => lowerMsg.includes(k))) {
-          keywordResponse = `Le prix de ${p.name} est de ${Number(p.price).toLocaleString('fr-FR')} FCFA.`;
+          return jsonResponse(200, {
+            response: `Le prix de ${p.name} est de ${Number(p.price).toLocaleString('fr-FR')} FCFA.`,
+            suggestions,
+            source: "static",
+          });
         }
       }
-    }
-
-    if (!keywordResponse) {
-      // Consumption / Energy info
-      if (["consommation", "énergie", "recharge", "batterie", "autonomie"].some(k => lowerMsg.includes(k))) {
-        keywordResponse = config?.consumption_info;
-      } 
-      // Usage / Appliances info
-      else if (["usage", "appareil", "connecter", "alimenter", "brancher", "supporter"].some(k => lowerMsg.includes(k))) {
-        keywordResponse = config?.usage_info;
-      }
-      // Address / Delivery info
-      else if (["boutique", "adresse", "situé", "livraison", "livrer", "où", "trouver"].some(k => lowerMsg.includes(k))) {
-        const addr = config?.address ? `Notre boutique est située ici : ${config.address}.` : "";
-        const deliv = config?.delivery_info ? ` Concernant la livraison : ${config.delivery_info}` : "";
-        
-        keywordResponse = `${addr}${deliv}`.trim();
-        
-        // If still empty but keyword matched, provide a standard fallback
-        if (!keywordResponse) {
-          keywordResponse = `Vous pouvez nous contacter directement au ${vendor.phone} pour connaître notre adresse exacte et nos conditions de livraison.`;
-        }
-      }
-    }
-
-    if (keywordResponse) {
-      return jsonResponse(200, {
-        response: keywordResponse,
-        suggestions: suggestions,
-        source: "static"
-      });
     }
 
     // 4. AI MODE: Gemini (Fallback)
     if (config?.ai_enabled && GEMINI_API_KEY) {
+      const programmed = (config?.suggestions ?? [])
+        .filter((q: any) => q?.question && q?.answer)
+        .map((q: any) => `- Q: ${q.question}\n  R: ${q.answer}`)
+        .join("\n");
+      const companyInfo = [
+        config?.ai_context && `CONTEXTE ENTREPRISE: ${config.ai_context}`,
+        config?.address && `ADRESSE: ${config.address}`,
+        config?.delivery_info && `LIVRAISON: ${config.delivery_info}`,
+        config?.consumption_info && `CONSOMMATION: ${config.consumption_info}`,
+        config?.usage_info && `USAGE: ${config.usage_info}`,
+      ].filter(Boolean).join("\n");
+
       const systemPrompt = `
-        Tu es l'assistant virtuel intelligent de "${vendor.name}". 
+        Tu es l'assistante virtuelle de "${vendor.name}" sur la plateforme Krantos (énergie, Togo).
         ${productContext}
+        ${companyInfo}
+        RÉPONSES OFFICIELLES DE L'ENTREPRISE (à utiliser en priorité, sans les contredire):
+        ${programmed || "Aucune"}
+        GUIDE DE LA PLATEFORME (pour expliquer le calcul de puissance):
+        ${CALCULATION_GUIDE}
+        ${CONTACT_GUIDE}
         RÈGLES:
-        - Réponds de manière experte et concise.
-        - Si tu ne sais pas, invite à appeler au ${vendor.phone}.
-        - Ton nom est "L'assistant de ${vendor.name}".
+        - Réponds en français, de manière claire, chaleureuse et concise (5 phrases maximum).
+        - N'invente jamais de prix, de délai ou de garantie: si l'information manque, invite à ${contactHint}.
+        - N'utilise pas de tiret cadratin.
         - Format JSON STRICT: {"answer": "réponse texte", "next_questions": ["question 1", "question 2"]}
       `;
 
@@ -137,7 +124,7 @@ Deno.serve(async (req) => {
             : suggestions;
 
           return jsonResponse(200, {
-            response: aiContent.answer || keywordResponse || "Comment puis-je vous aider ?",
+            response: aiContent.answer || "Comment puis-je vous aider ?",
             suggestions: aiSuggestions,
             source: "ai"
           });
@@ -153,7 +140,7 @@ Deno.serve(async (req) => {
     
     const finalResponse = isGreeting 
       ? welcome 
-      : `Je n'ai pas d'information précise sur ce point. Je vous invite à contacter directement ${vendor.name} au ${vendor.phone}.`;
+      : `Je n'ai pas encore la réponse à cette question. Vous pouvez choisir une des questions proposées ci-dessous, ou ${contactHint}.`;
 
     return jsonResponse(200, {
       response: finalResponse,

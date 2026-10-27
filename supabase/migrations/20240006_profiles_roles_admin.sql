@@ -1,5 +1,5 @@
 -- ============================================================
--- Krantos Platform — Profiles + Roles + Admin Helpers
+-- Krantos Platform - Profiles + Roles + Admin Helpers
 -- Lot 1: super_admin/admin/vendor/user auth hierarchy
 -- ============================================================
 

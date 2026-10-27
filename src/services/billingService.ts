@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — BillingService
+// Krantos Platform - BillingService
 // Requirements: C7.1, C7.2, C7.3, C7.4, C7.5
 // ============================================================
 

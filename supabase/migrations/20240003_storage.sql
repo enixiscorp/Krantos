@@ -1,5 +1,5 @@
 -- =============================================================================
--- Migration: Supabase Storage — Bucket product-images
+-- Migration: Supabase Storage - Bucket product-images
 -- Requirements: 12.2, 15.3
 -- =============================================================================
 -- Ce fichier configure le bucket de stockage pour les images produits.

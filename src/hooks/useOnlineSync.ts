@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — useOnlineSync Hook
+// Krantos Platform - useOnlineSync Hook
 // Gère l'état de connexion et déclenche la synchronisation
 // automatique au retour en ligne.
 // ============================================================
@@ -53,7 +53,7 @@ export function useOnlineSync(): OnlineSyncState {
         await productsCacheStore.setAll(products as Product[]);
       }
     } catch (err) {
-      // Silent fail — cache refresh is best-effort
+      // Silent fail - cache refresh is best-effort
       console.warn('[OnlineSync] Cache refresh failed:', err);
     }
   }, []);

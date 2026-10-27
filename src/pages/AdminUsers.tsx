@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — /admin/users (Premium Dark Overhaul)
+// Krantos Platform - /admin/users (Premium Dark Overhaul)
 // Requirements: C8.1, C8.2 (Admin user management)
 // ============================================================
 
@@ -132,7 +132,7 @@ const AdminUsers = () => {
 
       const parts = newName.trim().split(/\s+/);
       const first_name = parts[0] ?? newName.trim();
-      const last_name = parts.slice(1).join(' ') || '—';
+      const last_name = parts.slice(1).join(' ') || '-';
 
       const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
         method: 'POST',

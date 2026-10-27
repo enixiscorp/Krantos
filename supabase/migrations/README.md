@@ -1,4 +1,4 @@
-# Supabase Migrations — Krantos Platform
+# Supabase Migrations - Krantos Platform
 
 Ce dossier contient les fichiers de migration SQL pour la base de données Supabase de la plateforme Krantos.
 
@@ -12,7 +12,7 @@ Ce dossier contient les fichiers de migration SQL pour la base de données Supab
 
 ## Appliquer les migrations
 
-### Option 1 — Supabase CLI (recommandé)
+### Option 1 - Supabase CLI (recommandé)
 
 La CLI Supabase permet d'appliquer les migrations de façon reproductible, en local ou sur un projet distant.
 
@@ -47,7 +47,7 @@ supabase db reset
 
 ---
 
-### Option 2 — Éditeur SQL du dashboard Supabase
+### Option 2 - Éditeur SQL du dashboard Supabase
 
 Si vous préférez ne pas utiliser la CLI, vous pouvez exécuter les migrations directement depuis l'interface web.
 

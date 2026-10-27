@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — Offline IndexedDB Layer
+// Krantos Platform - Offline IndexedDB Layer
 // Fournit un accès typé à la base de données locale (IndexedDB)
 // via la librairie `idb` pour le mode hors-ligne.
 // ============================================================

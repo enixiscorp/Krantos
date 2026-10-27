@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — WhatsAppService Tests (Unit + Property-Based)
+// Krantos Platform - WhatsAppService Tests (Unit + Property-Based)
 // **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 // ============================================================
 
@@ -38,39 +38,39 @@ const sampleProduct: Product = {
 };
 
 // ---------------------------------------------------------------------------
-// Tests unitaires — buildWhatsAppMessage
+// Tests unitaires - buildWhatsAppMessage
 // **Validates: Requirements 7.1**
 // ---------------------------------------------------------------------------
 
-describe('buildWhatsAppMessage — Tests unitaires', () => {
-  it('7.1 — Le message contient le nom complet de l\'utilisateur', () => {
+describe('buildWhatsAppMessage - Tests unitaires', () => {
+  it('7.1 - Le message contient le nom complet de l\'utilisateur', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('Kofi Mensah');
   });
 
-  it('7.1 — Le message contient le numéro de téléphone de l\'utilisateur', () => {
+  it('7.1 - Le message contient le numéro de téléphone de l\'utilisateur', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('+22890123456');
   });
 
-  it('7.1 — Le message contient la localisation de l\'utilisateur', () => {
+  it('7.1 - Le message contient la localisation de l\'utilisateur', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('Lomé, Tokoin');
   });
 
-  it('7.1 — Le message contient la puissance totale en W', () => {
+  it('7.1 - Le message contient la puissance totale en W', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('3200');
     expect(message).toContain('W');
   });
 
-  it('7.1 — Le message contient la puissance totale en kVA', () => {
+  it('7.1 - Le message contient la puissance totale en kVA', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('3.2');
     expect(message).toContain('kVA');
   });
 
-  it('7.1 — Le message contient la liste des appareils avec leurs quantités', () => {
+  it('7.1 - Le message contient la liste des appareils avec leurs quantités', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('Climatiseur');
     expect(message).toContain('x2');
@@ -78,19 +78,19 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
     expect(message).toContain('x1');
   });
 
-  it('7.1 — Le message contient le nom du produit recommandé', () => {
+  it('7.1 - Le message contient le nom du produit recommandé', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('Groupe électrogène 5kVA');
   });
 
-  it('7.1 — Le message contient le prix en FCFA', () => {
+  it('7.1 - Le message contient le prix en FCFA', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     expect(message).toContain('FCFA');
     // Le prix 850000 doit apparaître (formaté ou non)
     expect(message).toMatch(/850[\s\u202f]?000/);
   });
 
-  it('7.1 — Le message respecte le format défini dans le design', () => {
+  it('7.1 - Le message respecte le format défini dans le design', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     // Vérifie la structure générale du message
     expect(message).toMatch(/^Bonjour,\n\nJe suis Kofi Mensah\./);
@@ -102,13 +102,13 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
     expect(message).toMatch(/Merci,\nKofi$/);
   });
 
-  it('7.1 — Le message ne contient aucun emoji (cassés par certaines apps WhatsApp)', () => {
+  it('7.1 - Le message ne contient aucun emoji (cassés par certaines apps WhatsApp)', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct, 'Vendeur X');
     expect(message).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u);
     expect(message.startsWith('Bonjour Vendeur X,')).toBe(true);
   });
 
-  it('7.1 — Le message gère correctement un seul appareil', () => {
+  it('7.1 - Le message gère correctement un seul appareil', () => {
     const singleAppliance: ApplianceInput[] = [
       { name: 'Ventilateur', quantity: 3, power: 75, unit: 'W' },
     ];
@@ -116,14 +116,14 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
     expect(message).toContain('Ventilateur x3');
   });
 
-  it('7.1 — Le message liste chaque appareil sur sa propre ligne', () => {
+  it('7.1 - Le message liste chaque appareil sur sa propre ligne', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     // Un appareil par ligne, avec sa puissance unitaire
     expect(message).toContain('• Climatiseur x2 : 1500 W par unité\n• Réfrigérateur x1 : 200 W par unité');
   });
 });
 
-describe('buildVendorToClientMessage — Tests unitaires', () => {
+describe('buildVendorToClientMessage - Tests unitaires', () => {
   it('Message structuré, sans emoji, avec consommation et modèle', () => {
     const message = buildVendorToClientMessage({
       clientName: 'Rebfbf Doe',
@@ -149,11 +149,11 @@ describe('buildVendorToClientMessage — Tests unitaires', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests unitaires — sendWhatsAppMessage : encodage URL et format wa.me
+// Tests unitaires - sendWhatsAppMessage : encodage URL et format wa.me
 // **Validates: Requirements 7.2**
 // ---------------------------------------------------------------------------
 
-describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me', () => {
+describe('sendWhatsAppMessage - Tests unitaires : encodage URL et format wa.me', () => {
   beforeEach(() => {
     vi.stubGlobal('open', vi.fn());
   });
@@ -162,19 +162,19 @@ describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me
     vi.unstubAllGlobals();
   });
 
-  it('7.2 — L\'URL générée commence par https://wa.me/', () => {
+  it('7.2 - L\'URL générée commence par https://wa.me/', () => {
     sendWhatsAppMessage('22890123456', 'Bonjour test');
     const calledUrl = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(calledUrl).toMatch(/^https:\/\/wa\.me\//);
   });
 
-  it('7.2 — L\'URL contient le numéro de téléphone du vendeur', () => {
+  it('7.2 - L\'URL contient le numéro de téléphone du vendeur', () => {
     sendWhatsAppMessage('22890123456', 'Bonjour test');
     const calledUrl = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(calledUrl).toContain('22890123456');
   });
 
-  it('7.2 — L\'URL contient le message encodé avec encodeURIComponent', () => {
+  it('7.2 - L\'URL contient le message encodé avec encodeURIComponent', () => {
     const message = 'Bonjour, je suis Kofi Mensah (📞 +229, 📍 Lomé).';
     sendWhatsAppMessage('22890123456', message);
     const calledUrl = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
@@ -182,7 +182,7 @@ describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me
     expect(calledUrl).toContain(`?text=${expectedEncoded}`);
   });
 
-  it('7.2 — Le format exact de l\'URL est https://wa.me/{phone}?text={encodedMessage}', () => {
+  it('7.2 - Le format exact de l\'URL est https://wa.me/{phone}?text={encodedMessage}', () => {
     const phone = '22890123456';
     const message = 'Message de test';
     sendWhatsAppMessage(phone, message);
@@ -190,12 +190,12 @@ describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me
     expect(window.open).toHaveBeenCalledWith(expectedUrl, '_blank');
   });
 
-  it('7.2 — window.open est appelé avec "_blank" comme second argument', () => {
+  it('7.2 - window.open est appelé avec "_blank" comme second argument', () => {
     sendWhatsAppMessage('22890123456', 'Test');
     expect(window.open).toHaveBeenCalledWith(expect.any(String), '_blank');
   });
 
-  it('7.2 — Les caractères spéciaux du message sont correctement encodés', () => {
+  it('7.2 - Les caractères spéciaux du message sont correctement encodés', () => {
     const message = 'Bonjour & test = 100% / "ok"';
     sendWhatsAppMessage('22890123456', message);
     const calledUrl = (window.open as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
@@ -204,7 +204,7 @@ describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me
     expect(calledUrl).toContain(encodeURIComponent(message));
   });
 
-  it('7.2 — Un message complet buildWhatsAppMessage est correctement encodé dans l\'URL', () => {
+  it('7.2 - Un message complet buildWhatsAppMessage est correctement encodé dans l\'URL', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
     const phone = '22890123456';
     sendWhatsAppMessage(phone, message);
@@ -214,11 +214,11 @@ describe('sendWhatsAppMessage — Tests unitaires : encodage URL et format wa.me
 });
 
 // ---------------------------------------------------------------------------
-// Tests unitaires — sendWhatsAppMessage : numéro de téléphone null/vide
+// Tests unitaires - sendWhatsAppMessage : numéro de téléphone null/vide
 // **Validates: Requirements 7.4**
 // ---------------------------------------------------------------------------
 
-describe('sendWhatsAppMessage — Tests unitaires : numéro de téléphone null/vide', () => {
+describe('sendWhatsAppMessage - Tests unitaires : numéro de téléphone null/vide', () => {
   beforeEach(() => {
     vi.stubGlobal('open', vi.fn());
   });
@@ -227,33 +227,33 @@ describe('sendWhatsAppMessage — Tests unitaires : numéro de téléphone null/
     vi.unstubAllGlobals();
   });
 
-  it('7.4 — Lève une erreur si vendorPhone est null', () => {
+  it('7.4 - Lève une erreur si vendorPhone est null', () => {
     expect(() => sendWhatsAppMessage(null, 'Message test')).toThrow();
   });
 
-  it('7.4 — Lève une erreur si vendorPhone est undefined', () => {
+  it('7.4 - Lève une erreur si vendorPhone est undefined', () => {
     expect(() => sendWhatsAppMessage(undefined, 'Message test')).toThrow();
   });
 
-  it('7.4 — Lève une erreur si vendorPhone est une chaîne vide', () => {
+  it('7.4 - Lève une erreur si vendorPhone est une chaîne vide', () => {
     expect(() => sendWhatsAppMessage('', 'Message test')).toThrow();
   });
 
-  it('7.4 — Lève une erreur si vendorPhone est composé uniquement d\'espaces', () => {
+  it('7.4 - Lève une erreur si vendorPhone est composé uniquement d\'espaces', () => {
     expect(() => sendWhatsAppMessage('   ', 'Message test')).toThrow();
   });
 
-  it('7.4 — window.open n\'est PAS appelé si vendorPhone est null', () => {
+  it('7.4 - window.open n\'est PAS appelé si vendorPhone est null', () => {
     try { sendWhatsAppMessage(null, 'Message test'); } catch { /* attendu */ }
     expect(window.open).not.toHaveBeenCalled();
   });
 
-  it('7.4 — window.open n\'est PAS appelé si vendorPhone est vide', () => {
+  it('7.4 - window.open n\'est PAS appelé si vendorPhone est vide', () => {
     try { sendWhatsAppMessage('', 'Message test'); } catch { /* attendu */ }
     expect(window.open).not.toHaveBeenCalled();
   });
 
-  it('7.4 — Un numéro de téléphone valide ne lève pas d\'erreur', () => {
+  it('7.4 - Un numéro de téléphone valide ne lève pas d\'erreur', () => {
     expect(() => sendWhatsAppMessage('22890123456', 'Message test')).not.toThrow();
     expect(window.open).toHaveBeenCalledOnce();
   });
@@ -305,11 +305,11 @@ const productArb: fc.Arbitrary<Product> = fc.record({
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 7 — Contenu du message WhatsApp
+// Propriété 7 - Contenu du message WhatsApp
 // **Validates: Requirements 7.1**
 // ---------------------------------------------------------------------------
 
-describe('WhatsAppService — Propriété 7 : Contenu du message WhatsApp', () => {
+describe('WhatsAppService - Propriété 7 : Contenu du message WhatsApp', () => {
   /**
    * Propriété 7 : Pour tout utilisateur et produit valides, le message généré par
    * `buildWhatsAppMessage` doit contenir :
@@ -325,7 +325,7 @@ describe('WhatsAppService — Propriété 7 : Contenu du message WhatsApp', () =
    *
    * **Validates: Requirements 7.1**
    */
-  it('Propriété 7 — Le message contient toutes les informations requises', () => {
+  it('Propriété 7 - Le message contient toutes les informations requises', () => {
     fc.assert(
       fc.property(
         whatsAppUserArb,
@@ -368,11 +368,11 @@ describe('WhatsAppService — Propriété 7 : Contenu du message WhatsApp', () =
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 8 — Format de l'URL WhatsApp
+// Propriété 8 - Format de l'URL WhatsApp
 // **Validates: Requirements 7.2**
 // ---------------------------------------------------------------------------
 
-describe("WhatsAppService — Propriété 8 : Format de l'URL WhatsApp", () => {
+describe("WhatsAppService - Propriété 8 : Format de l'URL WhatsApp", () => {
   /** Stub window.open before each test so we can capture the URL without opening a browser tab. */
   beforeEach(() => {
     vi.stubGlobal('open', vi.fn());
@@ -391,7 +391,7 @@ describe("WhatsAppService — Propriété 8 : Format de l'URL WhatsApp", () => {
    *
    * **Validates: Requirements 7.2**
    */
-  it("Propriété 8 — L'URL produite est de la forme https://wa.me/{vendor_phone}?text={encodeURIComponent(message)}", () => {
+  it("Propriété 8 - L'URL produite est de la forme https://wa.me/{vendor_phone}?text={encodeURIComponent(message)}", () => {
     /** Arbitrary: a non-empty string of digits (8–15 digits) simulating a phone number. */
     const vendorPhoneArb = fc.stringMatching(/^[0-9]{8,15}$/);
 
@@ -417,13 +417,13 @@ describe("WhatsAppService — Propriété 8 : Format de l'URL WhatsApp", () => {
   });
 
   /**
-   * Propriété 8 — Cas d'erreur : `sendWhatsAppMessage` doit lever une erreur
+   * Propriété 8 - Cas d'erreur : `sendWhatsAppMessage` doit lever une erreur
    * (et ne jamais appeler `window.open`) lorsque `vendorPhone` est null,
    * undefined ou une chaîne vide / composée uniquement d'espaces.
    *
    * **Validates: Requirements 7.2, 7.4**
    */
-  it('Propriété 8 — sendWhatsAppMessage lève une erreur si vendorPhone est null, undefined ou vide', () => {
+  it('Propriété 8 - sendWhatsAppMessage lève une erreur si vendorPhone est null, undefined ou vide', () => {
     /** Arbitrary: null, undefined, empty string, or whitespace-only string. */
     const invalidPhoneArb = fc.oneof(
       fc.constant(null),
@@ -455,11 +455,11 @@ describe("WhatsAppService — Propriété 8 : Format de l'URL WhatsApp", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Propriété 17 — Restriction des redirections WhatsApp aux vendeurs validés
+// Propriété 17 - Restriction des redirections WhatsApp aux vendeurs validés
 // **Validates: Requirements 14.5**
 // ---------------------------------------------------------------------------
 
-describe('WhatsAppService — Propriété 17 : Restriction aux vendeurs validés', () => {
+describe('WhatsAppService - Propriété 17 : Restriction aux vendeurs validés', () => {
   /** Stub window.open before each test so we can capture the URL without opening a browser tab. */
   beforeEach(() => {
     vi.stubGlobal('open', vi.fn());
@@ -471,13 +471,13 @@ describe('WhatsAppService — Propriété 17 : Restriction aux vendeurs validés
   });
 
   /**
-   * Propriété 17 — Pour tout vendeur avec le statut `pending` ou `suspended`,
+   * Propriété 17 - Pour tout vendeur avec le statut `pending` ou `suspended`,
    * `sendWhatsAppMessage` doit lever une erreur et ne jamais appeler `window.open`.
    * Aucune redirection vers un vendeur non validé ne doit être possible.
    *
    * **Validates: Requirements 14.5**
    */
-  it('Propriété 17 — sendWhatsAppMessage lève une erreur pour tout vendeur pending ou suspended', () => {
+  it('Propriété 17 - sendWhatsAppMessage lève une erreur pour tout vendeur pending ou suspended', () => {
     /** Arbitrary: a non-empty string of digits (8–15 digits) simulating a phone number. */
     const vendorPhoneArb = fc.stringMatching(/^[0-9]{8,15}$/);
 
@@ -504,13 +504,13 @@ describe('WhatsAppService — Propriété 17 : Restriction aux vendeurs validés
   });
 
   /**
-   * Propriété 17 — Pour tout vendeur avec le statut `active`,
+   * Propriété 17 - Pour tout vendeur avec le statut `active`,
    * `sendWhatsAppMessage` doit générer le lien `wa.me` et appeler `window.open`.
    * Les vendeurs validés par l'administrateur peuvent recevoir des redirections.
    *
    * **Validates: Requirements 14.5**
    */
-  it('Propriété 17 — sendWhatsAppMessage génère le lien wa.me pour tout vendeur active', () => {
+  it('Propriété 17 - sendWhatsAppMessage génère le lien wa.me pour tout vendeur active', () => {
     /** Arbitrary: a non-empty string of digits (8–15 digits) simulating a phone number. */
     const vendorPhoneArb = fc.stringMatching(/^[0-9]{8,15}$/);
 
@@ -536,13 +536,13 @@ describe('WhatsAppService — Propriété 17 : Restriction aux vendeurs validés
   });
 
   /**
-   * Propriété 17 — Cas limite : lorsque `vendorStatus` est omis (undefined),
+   * Propriété 17 - Cas limite : lorsque `vendorStatus` est omis (undefined),
    * `sendWhatsAppMessage` ne doit PAS lever d'erreur liée au statut
-   * (rétrocompatibilité — la vérification du statut est optionnelle).
+   * (rétrocompatibilité - la vérification du statut est optionnelle).
    *
    * **Validates: Requirements 14.5**
    */
-  it('Propriété 17 — sendWhatsAppMessage ne lève pas d\'erreur de statut si vendorStatus est omis', () => {
+  it('Propriété 17 - sendWhatsAppMessage ne lève pas d\'erreur de statut si vendorStatus est omis', () => {
     /** Arbitrary: a non-empty string of digits (8–15 digits) simulating a phone number. */
     const vendorPhoneArb = fc.stringMatching(/^[0-9]{8,15}$/);
 

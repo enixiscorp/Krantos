@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — AdminLogin (super_admin + admin staff)
+// Krantos Platform - AdminLogin (super_admin + admin staff)
 // Supporte la connexion hors-ligne via session mise en cache.
 // ============================================================
 

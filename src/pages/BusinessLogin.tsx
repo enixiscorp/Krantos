@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — BusinessLogin Page (Premium Dark Overhaul)
+// Krantos Platform - BusinessLogin Page (Premium Dark Overhaul)
 // Requirements: 9.1, 9.2, 9.3, 9.4
 // ============================================================
 
@@ -475,7 +475,7 @@ const BusinessLogin = () => {
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center px-4">
             <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest">
-              Krantos Professionnel — Validation sous 24/48h.
+              Krantos Professionnel - Validation sous 24/48h.
             </p>
           </div>
         </div>

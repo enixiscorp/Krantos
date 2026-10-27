@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — PowerCalculator
+// Krantos Platform - PowerCalculator
 // Requirements: 3.1, 3.2, 3.3, 3.4, 3.5
 // ============================================================
 
@@ -8,9 +8,9 @@ import type { ApplianceInput, ApplianceBreakdown } from '../lib/supabase';
 /**
  * The result returned by `calculateTotalPower`.
  *
- * - `totalWatts`  — sum of all per-appliance totals, multiplied by the 1.3 safety margin
- * - `totalKVA`    — `totalWatts / 1000`
- * - `breakdown`   — per-appliance detail (before the safety margin)
+ * - `totalWatts`  - sum of all per-appliance totals, multiplied by the 1.3 safety margin
+ * - `totalKVA`    - `totalWatts / 1000`
+ * - `breakdown`   - per-appliance detail (before the safety margin)
  */
 export interface PowerCalculationResult {
   totalWatts: number;
@@ -63,21 +63,21 @@ function normaliseToPowerInWatts(power: number, unit: ApplianceInput['unit']): n
  * @returns A `PowerCalculationResult` with the total power and per-appliance breakdown.
  */
 export function calculateTotalPower(appliances: ApplianceInput[]): PowerCalculationResult {
-  // Step 1 & 2 — build the breakdown (pre-margin per-appliance totals)
+  // Step 1 & 2 - build the breakdown (pre-margin per-appliance totals)
   const breakdown: ApplianceBreakdown[] = appliances.map((appliance) => {
     const powerInWatts = normaliseToPowerInWatts(appliance.power, appliance.unit);
     const totalWatts = powerInWatts * appliance.quantity;
     return { name: appliance.name, powerInWatts, totalWatts };
   });
 
-  // Step 3 — sum all per-appliance totals and apply the safety margin
+  // Step 3 - sum all per-appliance totals and apply the safety margin
   const rawSum = breakdown.reduce((acc, item) => acc + item.totalWatts, 0);
   const totalWatts = rawSum * SAFETY_MARGIN;
 
-  // Step 4 — convert to kVA
+  // Step 4 - convert to kVA
   const totalKVA = totalWatts / 1000;
 
-  // Step 5 — return the result
+  // Step 5 - return the result
   return { totalWatts, totalKVA, breakdown };
 }
 

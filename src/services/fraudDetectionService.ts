@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — FraudDetectionService
+// Krantos Platform - FraudDetectionService
 // Requirements: C4.1, C4.2, C4.3, C4.4, C4.5
 // ============================================================
 

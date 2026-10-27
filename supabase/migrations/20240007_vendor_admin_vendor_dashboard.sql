@@ -1,5 +1,5 @@
 -- ============================================================
--- Krantos Platform — Lot 2 (Vendors + Admin Vendor Ops)
+-- Krantos Platform - Lot 2 (Vendors + Admin Vendor Ops)
 -- ============================================================
 
 -- 1) Align vendors table with auth/profile identity for vendor accounts

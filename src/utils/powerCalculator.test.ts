@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — PowerCalculator Property-Based Tests
+// Krantos Platform - PowerCalculator Property-Based Tests
 // **Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5**
 // ============================================================
 
@@ -49,15 +49,15 @@ const applianceV: fc.Arbitrary<ApplianceInput> = fc.record({
 const anyAppliance: fc.Arbitrary<ApplianceInput> = fc.oneof(applianceW, applianceA, applianceV);
 
 // ---------------------------------------------------------------------------
-// Property 1 — Unit Normalisation (Requirements 3.1, 3.2)
+// Property 1 - Unit Normalisation (Requirements 3.1, 3.2)
 // ---------------------------------------------------------------------------
 
-describe('PowerCalculator — Property 1: Unit Normalisation', () => {
+describe('PowerCalculator - Property 1: Unit Normalisation', () => {
   /**
    * Property 1a: For unit 'W', power_in_watts equals the raw power value directly.
    * Validates: Requirements 3.1
    */
-  it('Property 1a — W unit: power_in_watts === power (direct value)', () => {
+  it('Property 1a - W unit: power_in_watts === power (direct value)', () => {
     fc.assert(
       fc.property(applianceW, (appliance) => {
         const result = calculateTotalPower([appliance]);
@@ -77,7 +77,7 @@ describe('PowerCalculator — Property 1: Unit Normalisation', () => {
    * Property 1b: For unit 'A', power_in_watts equals power × 220.
    * Validates: Requirements 3.1
    */
-  it('Property 1b — A unit: power_in_watts === power × 220', () => {
+  it('Property 1b - A unit: power_in_watts === power × 220', () => {
     fc.assert(
       fc.property(applianceA, (appliance) => {
         const result = calculateTotalPower([appliance]);
@@ -97,7 +97,7 @@ describe('PowerCalculator — Property 1: Unit Normalisation', () => {
    * Property 1c: For unit 'V', power_in_watts equals the raw power value directly.
    * Validates: Requirements 3.1
    */
-  it('Property 1c — V unit: power_in_watts === power (direct value)', () => {
+  it('Property 1c - V unit: power_in_watts === power (direct value)', () => {
     fc.assert(
       fc.property(applianceV, (appliance) => {
         const result = calculateTotalPower([appliance]);
@@ -117,7 +117,7 @@ describe('PowerCalculator — Property 1: Unit Normalisation', () => {
    * Property 1d: For any valid appliance (W, A, V), power_in_watts is strictly positive.
    * Validates: Requirements 3.1
    */
-  it('Property 1d — Any valid unit: power_in_watts is strictly positive', () => {
+  it('Property 1d - Any valid unit: power_in_watts is strictly positive', () => {
     fc.assert(
       fc.property(anyAppliance, (appliance) => {
         const result = calculateTotalPower([appliance]);
@@ -131,17 +131,17 @@ describe('PowerCalculator — Property 1: Unit Normalisation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Property 2 — Safety Margin Invariant and kVA Conversion (Requirements 3.3, 3.4, 3.5)
+// Property 2 - Safety Margin Invariant and kVA Conversion (Requirements 3.3, 3.4, 3.5)
 // ---------------------------------------------------------------------------
 
-describe('PowerCalculator — Property 2: Safety Margin Invariant and kVA Conversion', () => {
+describe('PowerCalculator - Property 2: Safety Margin Invariant and kVA Conversion', () => {
   /**
    * Property 2: For any non-empty array of valid appliances, totalWatts equals
    * Σ(normalised_power × quantity) × 1.3, and totalKVA equals totalWatts / 1000.
    *
    * **Validates: Requirements 3.3, 3.4, 3.5**
    */
-  it('Property 2 — totalWatts = Σ(powerInWatts × quantity) × 1.3 and totalKVA = totalWatts / 1000', () => {
+  it('Property 2 - totalWatts = Σ(powerInWatts × quantity) × 1.3 and totalKVA = totalWatts / 1000', () => {
     const applianceArbitrary: fc.Arbitrary<ApplianceInput> = fc.record({
       name: fc.string({ minLength: 1, maxLength: 50 }),
       quantity: fc.integer({ min: 1, max: 100 }),
@@ -178,23 +178,23 @@ describe('PowerCalculator — Property 2: Safety Margin Invariant and kVA Conver
 });
 
 // ---------------------------------------------------------------------------
-// PowerCalculator — Unit Tests (Requirements 3.1, 3.2, 3.3, 3.4, 3.5)
+// PowerCalculator - Unit Tests (Requirements 3.1, 3.2, 3.3, 3.4, 3.5)
 // ---------------------------------------------------------------------------
 
-describe('PowerCalculator — Unit Tests', () => {
-  // 1. W unit conversion — value passed through directly
+describe('PowerCalculator - Unit Tests', () => {
+  // 1. W unit conversion - value passed through directly
   it('W conversion: powerInWatts equals the raw power value', () => {
     const result = calculateTotalPower([{ name: 'Lamp', quantity: 1, power: 100, unit: 'W' }]);
     expect(result.breakdown[0].powerInWatts).toBe(100);
   });
 
-  // 2. A unit conversion — value × 220
+  // 2. A unit conversion - value × 220
   it('A conversion: powerInWatts equals power × 220', () => {
     const result = calculateTotalPower([{ name: 'Motor', quantity: 1, power: 5, unit: 'A' }]);
     expect(result.breakdown[0].powerInWatts).toBe(1100); // 5 × 220
   });
 
-  // 3. V unit conversion — value passed through directly
+  // 3. V unit conversion - value passed through directly
   it('V conversion: powerInWatts equals the raw power value', () => {
     const result = calculateTotalPower([{ name: 'Device', quantity: 1, power: 200, unit: 'V' }]);
     expect(result.breakdown[0].powerInWatts).toBe(200);
@@ -206,7 +206,7 @@ describe('PowerCalculator — Unit Tests', () => {
     expect(result.totalWatts).toBe(1300); // 1000 × 1.3
   });
 
-  // 5. kVA conversion — totalWatts / 1000
+  // 5. kVA conversion - totalWatts / 1000
   it('kVA conversion: totalKVA equals totalWatts / 1000', () => {
     const result = calculateTotalPower([{ name: 'Fan', quantity: 1, power: 1000, unit: 'W' }]);
     expect(result.totalKVA).toBe(1.3); // 1300 / 1000

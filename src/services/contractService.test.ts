@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — ContractService Tests
+// Krantos Platform - ContractService Tests
 // Unit tests (6.4) + Property-based tests (6.2, 6.3)
 // **Validates: Requirements C5.1, C5.2, C5.3, C5.5, C6.2, C6.3, C6.4**
 // ============================================================
@@ -55,11 +55,11 @@ function makeChain(resolveValue: unknown) {
 }
 
 // ---------------------------------------------------------------------------
-// 6.4 — Unit tests: checkExpiredContracts
+// 6.4 - Unit tests: checkExpiredContracts
 // **Validates: Requirements C5.1, C5.5**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — checkExpiredContracts (tests unitaires)', () => {
+describe('ContractService - checkExpiredContracts (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -191,11 +191,11 @@ describe('ContractService — checkExpiredContracts (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6.4 — Unit tests: renewContract
+// 6.4 - Unit tests: renewContract
 // **Validates: Requirements C6.2, C6.3**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — renewContract (tests unitaires)', () => {
+describe('ContractService - renewContract (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -353,11 +353,11 @@ describe('ContractService — renewContract (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6.4 — Unit tests: getExpiringContracts
+// 6.4 - Unit tests: getExpiringContracts
 // **Validates: Requirements C5.5, C6.2**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — getExpiringContracts (tests unitaires)', () => {
+describe('ContractService - getExpiringContracts (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -465,11 +465,11 @@ describe('ContractService — getExpiringContracts (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6.4 — Unit tests: terminateContract
+// 6.4 - Unit tests: terminateContract
 // **Validates: Requirements C5.2, C5.4**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — terminateContract (tests unitaires)', () => {
+describe('ContractService - terminateContract (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -492,11 +492,11 @@ describe('ContractService — terminateContract (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6.2 — Property C6: Expired vendors exclusion
+// 6.2 - Property C6: Expired vendors exclusion
 // **Validates: Requirements C5.1, C5.3**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — Propriété C6 : Exclusion des vendeurs expirés', () => {
+describe('ContractService - Propriété C6 : Exclusion des vendeurs expirés', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -510,7 +510,7 @@ describe('ContractService — Propriété C6 : Exclusion des vendeurs expirés',
    *
    * **Validates: Requirements C5.1, C5.3**
    */
-  it('C6 — Aucun produit actif pour un vendeur expired ou terminated', async () => {
+  it('C6 - Aucun produit actif pour un vendeur expired ou terminated', async () => {
     const { supabase } = await import('../lib/supabase');
     const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
@@ -576,11 +576,11 @@ describe('ContractService — Propriété C6 : Exclusion des vendeurs expirés',
 });
 
 // ---------------------------------------------------------------------------
-// 6.3 — Property C9: Vendor status and product visibility consistency
+// 6.3 - Property C9: Vendor status and product visibility consistency
 // **Validates: Requirements C5.1, C5.3, C4.2**
 // ---------------------------------------------------------------------------
 
-describe('ContractService — Propriété C9 : Cohérence statut vendeur et visibilité produits', () => {
+describe('ContractService - Propriété C9 : Cohérence statut vendeur et visibilité produits', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -596,7 +596,7 @@ describe('ContractService — Propriété C9 : Cohérence statut vendeur et visi
    *
    * **Validates: Requirements C5.1, C5.3, C4.2**
    */
-  it('C9 — Aucun produit actif pour un vendeur non-active (expired ou terminated)', async () => {
+  it('C9 - Aucun produit actif pour un vendeur non-active (expired ou terminated)', async () => {
     const { supabase } = await import('../lib/supabase');
     const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
@@ -676,7 +676,7 @@ describe('ContractService — Propriété C9 : Cohérence statut vendeur et visi
     );
   });
 
-  it('C9 — Après renouvellement, les produits sont réactivés uniquement pour les vendeurs active', async () => {
+  it('C9 - Après renouvellement, les produits sont réactivés uniquement pour les vendeurs active', async () => {
     const { supabase } = await import('../lib/supabase');
     const mockFrom = supabase.from as ReturnType<typeof vi.fn>;
 
@@ -713,7 +713,7 @@ describe('ContractService — Propriété C9 : Cohérence statut vendeur et visi
           return makeChain({ data: null, error: null });
         });
 
-        // Renew contract — vendor becomes active
+        // Renew contract - vendor becomes active
         await renewContract('vendor-1', new Date('2026-12-31'), 'admin-1');
 
         // Property C9: after renewal (vendor is now active), products must be reactivated

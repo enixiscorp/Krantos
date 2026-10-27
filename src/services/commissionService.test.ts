@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — CommissionService Property-Based Tests
+// Krantos Platform - CommissionService Property-Based Tests
 // **Validates: Requirements C1.1, C1.2**
 // ============================================================
 
@@ -57,11 +57,11 @@ function isValidRate(r: number): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Propriété C1 — Validité du taux de commission
+// Propriété C1 - Validité du taux de commission
 // **Validates: Requirements C1.1, C1.2**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — Propriété C1 : Validité du taux de commission', () => {
+describe('CommissionService - Propriété C1 : Validité du taux de commission', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -72,7 +72,7 @@ describe('CommissionService — Propriété C1 : Validité du taux de commission
    *
    * **Validates: Requirements C1.1, C1.2**
    */
-  it('C1a — Tout taux valide (multiple de 5, entre 5 et 100) est accepté', async () => {
+  it('C1a - Tout taux valide (multiple de 5, entre 5 et 100) est accepté', async () => {
     // Generate valid rates: multiples of 5 from 5 to 100 (i.e. 5, 10, 15, ..., 100)
     const validRateArbitrary = fc.integer({ min: 1, max: 20 }).map((n) => n * 5);
 
@@ -93,7 +93,7 @@ describe('CommissionService — Propriété C1 : Validité du taux de commission
    *
    * **Validates: Requirements C1.1, C1.2**
    */
-  it('C1b — Tout taux invalide est rejeté avec une erreur', async () => {
+  it('C1b - Tout taux invalide est rejeté avec une erreur', async () => {
     // Generate arbitrary integers and filter to keep only invalid ones
     const invalidRateArbitrary = fc
       .integer({ min: -1000, max: 1000 })
@@ -111,12 +111,12 @@ describe('CommissionService — Propriété C1 : Validité du taux de commission
   });
 
   /**
-   * Propriété C1c : La frontière exacte — seuls les multiples de 5 dans [5, 100] sont acceptés.
+   * Propriété C1c : La frontière exacte - seuls les multiples de 5 dans [5, 100] sont acceptés.
    * Pour tout entier `r`, setCommissionRate accepte r si et seulement si isValidRate(r) est vrai.
    *
    * **Validates: Requirements C1.1, C1.2**
    */
-  it('C1c — setCommissionRate accepte r ⟺ r est un multiple de 5 dans [5, 100]', async () => {
+  it('C1c - setCommissionRate accepte r ⟺ r est un multiple de 5 dans [5, 100]', async () => {
     // Generate a wide range of integers including boundary values
     const anyIntegerArbitrary = fc.integer({ min: -200, max: 200 });
 
@@ -140,11 +140,11 @@ describe('CommissionService — Propriété C1 : Validité du taux de commission
 });
 
 // ---------------------------------------------------------------------------
-// Propriété C2 — Calcul du montant de commission
+// Propriété C2 - Calcul du montant de commission
 // **Validates: Requirements C2.1, C2.2**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — Propriété C2 : Calcul du montant de commission', () => {
+describe('CommissionService - Propriété C2 : Calcul du montant de commission', () => {
   /**
    * Propriété C2 : Pour tout montant de vente v >= 0 et tout taux valide r,
    * le montant calculé vérifie :
@@ -157,7 +157,7 @@ describe('CommissionService — Propriété C2 : Calcul du montant de commission
    *
    * **Validates: Requirements C2.1, C2.2**
    */
-  it('C2 — amount = saleAmount × rate / 100, avec 0 <= amount <= saleAmount', async () => {
+  it('C2 - amount = saleAmount × rate / 100, avec 0 <= amount <= saleAmount', async () => {
     const { supabase } = await import('../lib/supabase');
 
     const saleAmountArb = fc.integer({ min: 0, max: 1_000_000 });
@@ -239,7 +239,7 @@ describe('CommissionService — Propriété C2 : Calcul du montant de commission
 
 
 // ============================================================
-// CommissionService — Tests Unitaires
+// CommissionService - Tests Unitaires
 // **Validates: Requirements C1.1, C1.2, C2.1, C2.2, C2.3**
 // ============================================================
 
@@ -282,11 +282,11 @@ function makeRecord(overrides: Partial<{
 }
 
 // ---------------------------------------------------------------------------
-// setCommissionRate — Tests unitaires
+// setCommissionRate - Tests unitaires
 // **Validates: Requirements C1.1, C1.2**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — setCommissionRate (tests unitaires)', () => {
+describe('CommissionService - setCommissionRate (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -352,11 +352,11 @@ describe('CommissionService — setCommissionRate (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// recordConversion — Tests unitaires
+// recordConversion - Tests unitaires
 // **Validates: Requirements C2.1, C2.2**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — recordConversion (tests unitaires)', () => {
+describe('CommissionService - recordConversion (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -468,11 +468,11 @@ describe('CommissionService — recordConversion (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getCommissionSummary — Tests unitaires
+// getCommissionSummary - Tests unitaires
 // **Validates: Requirements C3.3**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — getCommissionSummary (tests unitaires)', () => {
+describe('CommissionService - getCommissionSummary (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -563,11 +563,11 @@ describe('CommissionService — getCommissionSummary (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// confirmCommission — Tests unitaires
+// confirmCommission - Tests unitaires
 // **Validates: Requirements C2.3**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — confirmCommission (tests unitaires)', () => {
+describe('CommissionService - confirmCommission (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -606,11 +606,11 @@ describe('CommissionService — confirmCommission (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// rejectCommission — Tests unitaires
+// rejectCommission - Tests unitaires
 // **Validates: Requirements C2.3**
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — rejectCommission (tests unitaires)', () => {
+describe('CommissionService - rejectCommission (tests unitaires)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -627,7 +627,7 @@ describe('CommissionService — rejectCommission (tests unitaires)', () => {
       eq: eqMock,
     }));
 
-    const notes = 'Paiement non reçu — fraude suspectée';
+    const notes = 'Paiement non reçu - fraude suspectée';
     await expect(rejectCommission('record-1', notes)).resolves.toBeUndefined();
 
     expect(updateMock).toHaveBeenCalledWith({ status: 'rejected', notes });
@@ -650,10 +650,10 @@ describe('CommissionService — rejectCommission (tests unitaires)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getDateRangeForPeriod — Tests unitaires (helper)
+// getDateRangeForPeriod - Tests unitaires (helper)
 // ---------------------------------------------------------------------------
 
-describe('CommissionService — getDateRangeForPeriod (tests unitaires)', () => {
+describe('CommissionService - getDateRangeForPeriod (tests unitaires)', () => {
   it('daily : startDate est aujourd\'hui à 00:00:00', () => {
     const { startDate, endDate } = getDateRangeForPeriod('daily');
     const now = new Date();

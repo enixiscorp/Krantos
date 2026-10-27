@@ -1,5 +1,5 @@
 // ============================================================
-// Krantos Platform — ChatbotEngine
+// Krantos Platform - ChatbotEngine
 // Requirements: 8.2, 8.3, 8.4, 8.5
 // ============================================================
 //
@@ -173,15 +173,15 @@ export async function processMessage(
   message: string,
   productId: string
 ): Promise<string> {
-  // Step 1 — Extract keywords (Requirement 8.2)
+  // Step 1 - Extract keywords (Requirement 8.2)
   const keywords = extractKeywords(message);
 
-  // Step 2 — Fallback early if no keyword recognised (Requirement 8.4)
+  // Step 2 - Fallback early if no keyword recognised (Requirement 8.4)
   if (keywords.length === 0) {
     return buildFallbackResponse();
   }
 
-  // Step 3 — Fetch product from Supabase
+  // Step 3 - Fetch product from Supabase
   const { data, error } = await supabase
     .from('products')
     .select('*')
@@ -201,7 +201,7 @@ export async function processMessage(
     );
   }
 
-  // Step 4 — Build and return the French response (Requirement 8.3, 8.5)
+  // Step 4 - Build and return the French response (Requirement 8.3, 8.5)
   return buildResponse(data as Product, keywords);
 }
 

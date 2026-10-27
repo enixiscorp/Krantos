@@ -38,8 +38,10 @@ export function ProductImageInput(props: {
   value: ProductImageValue;
   onChange: (value: ProductImageValue) => void;
   accent?: 'yellow' | 'cyan';
+  /** Smaller preview, for dialogs */
+  compact?: boolean;
 }) {
-  const { value, onChange, accent = 'yellow' } = props;
+  const { value, onChange, accent = 'yellow', compact = false } = props;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState('');
 
@@ -98,7 +100,7 @@ export function ProductImageInput(props: {
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); pickFile(e.dataTransfer.files?.[0]); }}
-        className={`relative aspect-square max-h-72 w-full rounded-3xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-white/[0.02] ${preview ? 'border-transparent' : `border-white/10 ${hover}`}`}
+        className={`relative ${compact ? 'h-44' : 'aspect-square max-h-72'} w-full rounded-3xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all overflow-hidden bg-white/[0.02] ${preview ? 'border-transparent' : `border-white/10 ${hover}`}`}
       >
         {preview ? (
           <>

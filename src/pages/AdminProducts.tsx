@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { 
-  ArrowLeft, 
-  Package, 
-  Search, 
+import {
+  ArrowLeft,
+  Package,
+  Search,
   Plus,
   Edit2,
   X,
@@ -50,7 +50,7 @@ const AdminProducts = () => {
     setEditProduct(p);
     setEditImage({ file: null, url: p.image_url || '' });
   };
-  
+
   const [newProduct, setNewProduct] = useState({
     name: '',
     vendor_id: '',
@@ -61,7 +61,7 @@ const AdminProducts = () => {
     is_active: true,
     image_url: ''
   });
-  
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -133,33 +133,33 @@ const AdminProducts = () => {
         setUploading(true);
         const ext = imageFile.name.split('.').pop();
         const path = `${data.vendor_id}/${data.id}.${ext}`;
-        
-        await supabase.storage.from('product-images').upload(path, imageFile, { 
+
+        await supabase.storage.from('product-images').upload(path, imageFile, {
           upsert: true,
           cacheControl: '3600'
         });
-        
+
         const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(path);
         // Add timestamp as cache-buster
         const finalUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-        
+
         await supabase.from('products').update({ image_url: finalUrl }).eq('id', data.id);
       }
 
       console.log('Succès enregistrement:', data);
       setShowSuccessModal(true);
       setShowAddModal(false);
-      setNewProduct({ 
-        name: '', 
-        vendor_id: '', 
-        category: 'Panneaux Solaires', 
-        price: 0, 
-        power_rating: 0, 
-        unit: 'W', 
+      setNewProduct({
+        name: '',
+        vendor_id: '',
+        category: 'Panneaux Solaires',
+        price: 0,
+        power_rating: 0,
+        unit: 'W',
         is_active: true,
         image_url: ''
       });
-      
+
       await load();
     } catch (err: any) {
       console.error('Erreur complète:', err);
@@ -231,7 +231,7 @@ const AdminProducts = () => {
   };
 
   const filteredProducts = rows.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           (p.vendors?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -286,15 +286,15 @@ const AdminProducts = () => {
             className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm text-white focus:outline-none focus:ring-1 focus:ring-cyan-400/50 transition-all font-medium"
           />
         </div>
-        
+
         <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
               className={`flex-shrink-0 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                categoryFilter === cat 
-                  ? 'bg-cyan-400 text-black border-cyan-400 shadow-lg shadow-cyan-400/20' 
+                categoryFilter === cat
+                  ? 'bg-cyan-400 text-black border-cyan-400 shadow-lg shadow-cyan-400/20'
                   : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
               }`}
             >
@@ -376,16 +376,20 @@ const AdminProducts = () => {
       {/* Add Product Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0A0A0A] border border-white/10 rounded-[3rem] p-10 shadow-2xl overflow-hidden"
+            <motion.div
+              initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+              className="relative w-full max-w-lg max-h-[100dvh] sm:max-h-[90vh] flex flex-col bg-[#0A0A0A] border border-white/10 rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
             >
-              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-400/5 blur-[100px] -mr-32 -mt-32" />
-              <h2 className="text-2xl font-black text-white mb-8 uppercase tracking-tight">Ajouter un Équipement</h2>
-              
-              <form onSubmit={handleCreateProduct} className="space-y-6 relative z-10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-400/5 blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+              <div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-10 pt-8 pb-5 relative z-10">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight">Ajouter un Équipement</h2>
+                <button type="button" onClick={() => setShowAddModal(false)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
+              </div>
+
+              <form onSubmit={handleCreateProduct} className="flex flex-col flex-1 min-h-0 relative z-10">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-10 pb-6 space-y-5 modal-scroll">
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Boutique / Vendeur</label>
                   <select
@@ -463,7 +467,7 @@ const AdminProducts = () => {
 
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Visuel du Produit (Optionnel)</label>
-                  <div 
+                  <div
                     onClick={() => document.getElementById('new-product-img')?.click()}
                     className="w-full aspect-video bg-white/5 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-all overflow-hidden"
                   >
@@ -475,11 +479,11 @@ const AdminProducts = () => {
                         <span className="text-[10px] font-bold text-gray-600 uppercase">Cliquer pour uploader</span>
                       </>
                     )}
-                    <input 
-                      id="new-product-img" 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*" 
+                    <input
+                      id="new-product-img"
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -504,7 +508,8 @@ const AdminProducts = () => {
                   />
                 </div>
 
-                <div className="flex gap-4 pt-6">
+                </div>
+                <div className="flex-shrink-0 flex gap-4 px-6 sm:px-10 py-5 border-t border-white/5 bg-[#0A0A0A]">
                   <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
                   <button type="submit" className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-400/20 text-xs uppercase tracking-widest">Enregistrer le produit</button>
                 </div>
@@ -518,7 +523,7 @@ const AdminProducts = () => {
         {showSuccessModal && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSuccessModal(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-md bg-[#0A0A0A] border border-cyan-400/30 rounded-[3rem] p-12 text-center shadow-2xl overflow-hidden"
             >
@@ -538,18 +543,19 @@ const AdminProducts = () => {
       {/* Edit Product Modal */}
       <AnimatePresence>
         {editProduct && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditProduct(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0A0A0A] border border-cyan-400/20 rounded-[3rem] p-10 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide"
+              initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+              className="relative w-full max-w-lg max-h-[100dvh] sm:max-h-[90vh] flex flex-col bg-[#0A0A0A] border border-cyan-400/20 rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-yellow-400" />
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex-shrink-0 flex items-center justify-between px-6 sm:px-10 pt-8 pb-5">
                 <h2 className="text-2xl font-black text-white uppercase tracking-tight">Modifier le Produit</h2>
-                <button onClick={() => setEditProduct(null)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
+                <button type="button" onClick={() => setEditProduct(null)} className="p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
               </div>
-              <form onSubmit={handleSaveEdit} className="space-y-5">
+              <form onSubmit={handleSaveEdit} className="flex flex-col flex-1 min-h-0">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 sm:px-10 pb-6 space-y-5 modal-scroll">
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Nom du Produit</label>
                   <input value={editProduct.name} onChange={e => setEditProduct({...editProduct, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm focus:border-cyan-400/50 outline-none" required />
@@ -581,9 +587,10 @@ const AdminProducts = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 ml-1">Image du produit</label>
-                  <ProductImageInput value={editImage} onChange={setEditImage} accent="cyan" />
+                  <ProductImageInput value={editImage} onChange={setEditImage} accent="cyan" compact />
                 </div>
-                <div className="flex gap-4 pt-4">
+                </div>
+                <div className="flex-shrink-0 flex gap-4 px-6 sm:px-10 py-5 border-t border-white/5 bg-[#0A0A0A]">
                   <button type="button" onClick={() => setEditProduct(null)} className="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all text-xs uppercase tracking-widest">Annuler</button>
                   <button type="submit" disabled={editSaving} className="flex-[2] py-4 rounded-xl bg-cyan-400 text-black font-black hover:bg-cyan-500 transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50">
                     {editSaving ? <span className="animate-spin h-4 w-4 border-2 border-black/20 border-t-black rounded-full" /> : <><Save size={16} /> Enregistrer</>}

@@ -71,11 +71,12 @@ export async function requireAdminStaff(authorizationHeader: string | null) {
   // Allow staff admins via admin_users
   const { data: adminUser, error: adminError } = await adminClient
     .from("admin_users")
-    .select("role")
+    .select("*")
     .eq("auth_user_id", userId)
     .single();
 
-  if (adminError || !adminUser) {
+  // Archived members (removed by the main admin) lose access
+  if (adminError || !adminUser || adminUser.archived_at) {
     throw new Error("Forbidden: admin required");
   }
 

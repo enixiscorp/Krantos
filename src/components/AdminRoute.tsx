@@ -51,14 +51,15 @@ const AdminRoute = ({ children }: Props) => {
         }
 
         // 2) Fallback : vérifier dans admin_users
+        // select('*') works before and after the archived_at column exists
         const { data: adminUser } = await supabase
           .from('admin_users')
-          .select('id, role')
+          .select('*')
           .eq('auth_user_id', uid)
           .maybeSingle();
 
         if (mounted) {
-          if (adminUser) {
+          if (adminUser && !adminUser.archived_at) {
             setAllowed(true);
             setReady(true);
           } else {

@@ -26,16 +26,9 @@ import {
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
 import WhatsAppIcon from '../components/WhatsAppIcon';
-import { buildVendorToClientMessage, buildAdminToVendorMessage, buildWhatsAppUrl } from '../services/whatsappService';
-
-const clientWhatsAppUrl = (lead: LeadWithVendor) =>
-  buildWhatsAppUrl(lead.user_phone, buildVendorToClientMessage({
-    clientName: lead.user_name,
-    totalKVA: lead.total_power_needed,
-    productName: lead.product_name,
-    productPowerRating: lead.product_power_rating ?? null,
-    vendorName: lead.vendor_name,
-  }));
+import { buildAdminToVendorMessage, buildWhatsAppUrl } from '../services/whatsappService';
+import { buildKrantosLeadMessage, KRANTOS_MESSAGE_LABELS } from '../services/krantosLeadMessages';
+import { useStaffIdentity } from '../hooks/useStaffIdentity';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,6 +61,19 @@ const STATUS_CONFIG: Record<
 // ---------------------------------------------------------------------------
 
 const AdminLeads = () => {
+  // Messages to clients are sent on behalf of Krantos, signed by the
+  // connected team member, with a template matching the lead status.
+  const { identity } = useStaffIdentity();
+  const krantosMessage = (lead: LeadWithVendor, status: LeadStatus = lead.status as LeadStatus) =>
+    buildKrantosLeadMessage({
+      status,
+      clientName: lead.user_name,
+      agentFirstName: identity?.firstName ?? 'Krantos',
+      vendorName: lead.vendor_name,
+      productName: lead.product_name,
+    });
+  const clientWhatsAppUrl = (lead: LeadWithVendor, status?: LeadStatus) =>
+    buildWhatsAppUrl(lead.user_phone, krantosMessage(lead, status));
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -144,7 +150,7 @@ const AdminLeads = () => {
         .select('id')
         .eq('lead_id', lead.id)
         .maybeSingle();
-      
+
       if (existing) {
         console.log('createAutoCommission: Commission already exists for lead', lead.id);
         return;
@@ -155,7 +161,7 @@ const AdminLeads = () => {
         supabase.from('vendors').select('commission_rate, name').eq('id', lead.vendor_id).single(),
         supabase.from('products').select('price, name').eq('id', lead.recommended_product_id).single()
       ]);
-      
+
       const vendorRate = vendorRes.data?.commission_rate || 0;
       const productPrice = productRes.data?.price || 0;
       const productName = productRes.data?.name || 'Produit inconnu';
@@ -171,7 +177,7 @@ const AdminLeads = () => {
       }
 
       const commissionAmount = (productPrice * vendorRate) / 100;
-      
+
       const { error: insError } = await supabase.from('commission_records').insert({
         vendor_id: lead.vendor_id,
         lead_id: lead.id,
@@ -183,7 +189,7 @@ const AdminLeads = () => {
       });
 
       if (insError) throw insError;
-      
+
       toast.success(`Commission de ${commissionAmount.toLocaleString()} FCFA enregistrée.`);
     } catch (err) {
       console.error('Error creating auto commission:', err);
@@ -202,9 +208,21 @@ const AdminLeads = () => {
         .eq('id', leadId);
 
       if (error) throw error;
-      
+
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status } : l));
-      toast.success(`Statut du lead mis à jour.`);
+      if (lead?.user_phone) {
+        // Offer to send the message matching the new status right away
+        toast.success(`Statut : ${STATUS_CONFIG[status].label}.`, {
+          description: `Message Krantos prêt : ${KRANTOS_MESSAGE_LABELS[status]}.`,
+          duration: 10000,
+          action: {
+            label: 'Envoyer sur WhatsApp',
+            onClick: () => window.open(clientWhatsAppUrl({ ...lead, status }, status), '_blank', 'noopener'),
+          },
+        });
+      } else {
+        toast.success(`Statut du lead mis à jour.`);
+      }
 
       if (lead && (status === 'contacted' || status === 'converted')) {
         await createAutoCommission(lead, status);
@@ -226,7 +244,7 @@ const AdminLeads = () => {
         .eq('id', leadId);
 
       if (error) throw error;
-      
+
       const vendorName = vendors.find(v => v.id === vendorId)?.name || null;
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, vendor_id: vendorId || null, vendor_name: vendorName } : l));
       toast.success(vendorId ? `Lead assigné à ${vendorName}.` : 'Assignation retirée.');
@@ -240,7 +258,7 @@ const AdminLeads = () => {
 
   const filteredLeads = leads.filter(l => {
     const matchesStatus = filterStatus === 'all' || l.status === filterStatus;
-    const matchesSearch = l.user_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch = l.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           l.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           l.vendor_name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
@@ -296,8 +314,8 @@ const AdminLeads = () => {
                 key={s}
                 onClick={() => setFilterStatus(s)}
                 className={`flex-shrink-0 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
-                  filterStatus === s 
-                    ? 'bg-yellow-400 text-gray-900 border-yellow-400 shadow-lg shadow-yellow-400/20' 
+                  filterStatus === s
+                    ? 'bg-yellow-400 text-gray-900 border-yellow-400 shadow-lg shadow-yellow-400/20'
                     : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
                 }`}
               >
@@ -382,7 +400,7 @@ const AdminLeads = () => {
                            </div>
                          </div>
                          <div className="flex items-center gap-3">
-                           <button 
+                           <button
                              onClick={() => setSelectedLead(lead)}
                              className="p-3 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-all group-hover:bg-white/10"
                              title="Voir Détails"
@@ -392,12 +410,12 @@ const AdminLeads = () => {
                            <a href={`tel:${lead.user_phone}`} className="p-3 rounded-xl bg-yellow-400/10 text-yellow-400 hover:bg-yellow-400 hover:text-gray-900 transition-all shadow-lg shadow-yellow-400/5" title="Appeler">
                               <Phone className="w-4 h-4" />
                            </a>
-                           <a 
-                             href={clientWhatsAppUrl(lead)} 
-                             target="_blank" 
+                           <a
+                             href={clientWhatsAppUrl(lead)}
+                             target="_blank"
                              rel="noopener noreferrer"
-                             className="p-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5" 
-                             title="WhatsApp"
+                             className="p-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5"
+                             title={`WhatsApp au nom de Krantos : ${KRANTOS_MESSAGE_LABELS[lead.status as LeadStatus] ?? ''}`}
                            >
                               <WhatsAppIcon size={16} />
                            </a>
@@ -430,7 +448,7 @@ const AdminLeads = () => {
           >
             {/* Modal Header */}
             <div className="relative p-8 border-b border-white/5">
-              <button 
+              <button
                 onClick={() => setSelectedLead(null)}
                 className="absolute right-6 top-6 p-2 rounded-xl bg-white/5 text-gray-500 hover:text-white transition-colors"
               >
@@ -514,6 +532,16 @@ const AdminLeads = () => {
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-3">
+                    Message Krantos · {KRANTOS_MESSAGE_LABELS[selectedLead.status as LeadStatus]}
+                  </label>
+                  <div className="bg-green-500/[0.04] border border-green-500/15 p-4 rounded-2xl text-xs text-gray-300 leading-relaxed whitespace-pre-line max-h-56 overflow-y-auto">
+                    {krantosMessage(selectedLead)}
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-2">Envoyé au nom de Krantos, signé {identity?.firstName ?? '…'}. Le message change avec le statut.</p>
+                </div>
               </div>
 
               {/* Right column */}
@@ -568,21 +596,21 @@ const AdminLeads = () => {
                 target="_blank" rel="noopener noreferrer"
                 className="flex-1 min-w-[140px] bg-[#00D95F] text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-[#00c456] transition-all text-center flex items-center justify-center gap-2"
               >
-                <WhatsAppIcon size={18} /> WhatsApp Client
+                <WhatsAppIcon size={18} /> Contacter au nom de Krantos
               </a>
-              <button 
+              <button
                 onClick={() => { handleUpdateStatus(selectedLead.id, 'converted'); setSelectedLead({...selectedLead, status: 'converted'}); }}
                 className="flex-1 min-w-[140px] bg-green-500 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95"
               >
                 Converti ✓
               </button>
-              <button 
+              <button
                 onClick={() => { handleUpdateStatus(selectedLead.id, 'lost'); setSelectedLead({...selectedLead, status: 'lost'}); }}
                 className="flex-1 min-w-[100px] bg-red-500/20 text-red-400 font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-red-500/30 transition-all active:scale-95 border border-red-500/20"
               >
                 Perdu ✗
               </button>
-              <button 
+              <button
                 onClick={() => setSelectedLead(null)}
                 className="px-6 bg-white/5 text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-white/10 transition-all border border-white/10"
               >

@@ -1,11 +1,10 @@
-// Protection route /admin/* : super_admin uniquement
+// Protection route /admin/users : équipe Krantos active (rôle vérifié par action)
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import type { AppRole } from '../lib/supabase';
+import { loadStaffIdentity } from '../lib/adminAccess';
 
 interface Props {
   children: ReactNode;
@@ -20,59 +19,26 @@ const SuperAdminRoute = ({ children }: Props) => {
     let mounted = true;
 
     const run = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        navigate('/admin-login', { replace: true });
-        return;
-      }
-
       try {
-        const userEmail = sessionData.session.user.email;
-        
-        // Force access for the main admin
-        if (userEmail === 'contacteccorp@gmail.com') {
-          setAllowed(true);
-          setReady(true);
-          return;
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', sessionData.session.user.id)
-          .maybeSingle();
-
+        const identity = await loadStaffIdentity();
         if (!mounted) return;
-
-        if (profile?.role === 'super_admin') {
+        if (!identity) {
+          navigate('/admin-login', { replace: true });
+          return;
+        }
+        // Active Krantos team only (main admin, principal, collaborator).
+        // What each one may do on the page depends on the role.
+        if (identity.role) {
           setAllowed(true);
           setReady(true);
           return;
         }
-
-        // Fallback: Si super_admin via admin_users (admin_principal)
-        const { data: adminUser } = await supabase
-          .from('admin_users')
-          .select('role')
-          .eq('auth_user_id', sessionData.session.user.id)
-          .maybeSingle();
-
-        if (mounted) {
-          if (adminUser?.role === 'admin_principal') {
-            setAllowed(true);
-            setReady(true);
-          } else {
-            toast.error('Accès réservé au super administrateur.');
-            navigate('/admin-login', { replace: true });
-          }
-        }
+        toast.error('Accès réservé à l’équipe Krantos.');
+        navigate('/admin-login', { replace: true });
       } catch (err) {
         console.error('SuperAdminRoute Error:', err);
         if (mounted) navigate('/admin-login', { replace: true });
       }
-
-      setAllowed(true);
-      setReady(true);
     };
 
     void run();

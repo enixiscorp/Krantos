@@ -98,8 +98,9 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
     expect(message).toContain('📍');
     expect(message).toContain("J'ai calculé mes besoins");
     expect(message).toContain('Appareils :');
-    expect(message).toContain('Produit recommandé :');
+    expect(message).toContain('Générateur choisi :');
     expect(message).toContain('Je souhaite obtenir plus d\'informations');
+    expect(message).toContain('Merci, Kofi.');
   });
 
   it('7.1 — Le message gère correctement un seul appareil', () => {
@@ -110,10 +111,10 @@ describe('buildWhatsAppMessage — Tests unitaires', () => {
     expect(message).toContain('Ventilateur x3');
   });
 
-  it('7.1 — Le message gère correctement plusieurs appareils séparés par des virgules', () => {
+  it('7.1 — Le message liste chaque appareil sur sa propre ligne', () => {
     const message = buildWhatsAppMessage(sampleUser, sampleAppliances, 3200, 3.2, sampleProduct);
-    // Les appareils doivent être séparés par ", "
-    expect(message).toContain('Climatiseur x2, Réfrigérateur x1');
+    // Un appareil par ligne, avec sa puissance unitaire
+    expect(message).toContain('• Climatiseur x2 — 1500 W/unité\n• Réfrigérateur x1 — 200 W/unité');
   });
 });
 

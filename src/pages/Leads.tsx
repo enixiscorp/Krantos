@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
+import WhatsAppIcon from '../components/WhatsAppIcon';
+import { buildVendorToClientMessage, buildWhatsAppUrl } from '../services/whatsappService';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -101,7 +103,7 @@ const Leads = () => {
       // 2. Fetch leads
       const { data, error } = await supabase
         .from('leads')
-        .select('*')
+        .select('*, products:recommended_product_id ( name, power_rating ), vendors:vendor_id ( name )')
         .eq('vendor_id', vendorData.id)
         .order('created_at', { ascending: false });
 
@@ -366,13 +368,19 @@ const Leads = () => {
                        <Phone className="w-3.5 h-3.5" />
                      </a>
                      <a
-                       href={`https://wa.me/${l.user_phone.replace(/\D/g, '').length === 8 ? '228' + l.user_phone.replace(/\D/g, '') : l.user_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Bonjour ${l.user_name}, je suis le vendeur de Krantos concernant votre simulation de puissance.`)}`}
+                       href={buildWhatsAppUrl(l.user_phone, buildVendorToClientMessage({
+                         clientName: l.user_name,
+                         totalKVA: l.total_power_needed,
+                         productName: (l as any).products?.name ?? null,
+                         productPowerRating: (l as any).products?.power_rating ?? null,
+                         vendorName: (l as any).vendors?.name ?? null,
+                       }))}
                        target="_blank"
                        rel="noopener noreferrer"
                        className="flex items-center justify-center py-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all border border-green-500/20"
                        title="WhatsApp"
                      >
-                        <ZapIcon className="w-3.5 h-3.5" />
+                        <WhatsAppIcon size={16} />
                      </a>
                    </div>
                    <div className="flex items-center justify-center px-4 py-3 rounded-xl bg-white/[0.02] text-[10px] font-black text-gray-600 uppercase tracking-widest">

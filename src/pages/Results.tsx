@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import {
-  MessageCircle,
   Phone,
   FileDown,
   Send,
@@ -28,9 +27,11 @@ import { supabase } from '../lib/supabase';
 import {
   buildWhatsAppMessage,
   sendWhatsAppMessage,
+  normalizeWhatsAppPhone,
   updateLeadStatus,
 } from '../services/whatsappService';
 import { sendChatbotMessage } from '../services/chatbotApi';
+import WhatsAppIcon from '../components/WhatsAppIcon';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,7 +71,6 @@ const Results = () => {
   const navigate = useNavigate();
   const { state } = useLocation() as { state: ResultsState | null };
   const [showChatbot, setShowChatbot] = useState(false);
-  const [isContactingWhatsApp, setIsContactingWhatsApp] = useState(false);
   const KRANTOS_ADMIN_ID = "6fcb8ba0-d391-40bf-9408-82c7279c4521";
   
   const [activeBot, setActiveBot] = useState<'vendor' | 'krantos'>('vendor');
@@ -313,41 +313,42 @@ const Results = () => {
      toast.success('Rapport PDF exporté.');
   };
 
-  const handleWhatsApp = async () => {
+  const handleWhatsApp = () => {
     if (!vendor) return;
-    
-    setIsContactingWhatsApp(true);
+
+    // 1. Open WhatsApp synchronously (keeps the click gesture → no popup blocking)
     try {
       const message = buildWhatsAppMessage(
         { fullName: userName, phone: userPhone, location },
-        appliances, totalWatts, totalKVA, product
+        appliances, totalWatts, totalKVA, product, vendor.name
       );
-      const cleanPhone = vendor.phone.replace(/\D/g, '');
-
-      // If lead was not saved to DB (offline fallback), insert it now with status 'contacted'
-      if (leadId.startsWith('offline-')) {
-        const { error: insertErr } = await supabase
-          .from('leads')
-          .insert({
-            user_name: userName,
-            user_phone: userPhone,
-            location,
-            total_power_needed: totalKVA,
-            recommended_product_id: product?.id ?? null,
-            vendor_id: vendor.id,
-            status: 'contacted',
-          });
-        if (insertErr) console.warn('[Lead] Could not save offline lead:', insertErr.message);
-      } else {
-        // Update existing lead status to 'contacted'
-        await updateLeadStatus(leadId, 'contacted');
-      }
-
-      sendWhatsAppMessage(cleanPhone, message, vendor.status);
+      sendWhatsAppMessage(vendor.phone ? normalizeWhatsAppPhone(vendor.phone) : null, message, vendor.status);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de WhatsApp.");
-    } finally {
-      setIsContactingWhatsApp(false);
+      if (vendor.email) toast.info(`Contact alternatif : ${vendor.email}`);
+      return;
+    }
+
+    // 2. Mark the lead as contacted in the background
+    if (leadId.startsWith('offline-') || leadId.startsWith('error-')) {
+      supabase
+        .from('leads')
+        .insert({
+          user_name: userName,
+          user_phone: userPhone,
+          location,
+          total_power_needed: totalKVA,
+          recommended_product_id: product?.id ?? null,
+          vendor_id: vendor.id,
+          status: 'contacted',
+        })
+        .then(({ error }) => {
+          if (error) console.warn('[Lead] Could not save offline lead:', error.message);
+        });
+    } else {
+      updateLeadStatus(leadId, 'contacted').catch((err) =>
+        console.warn('[Lead] Could not update lead status:', err)
+      );
     }
   };
 
@@ -476,7 +477,7 @@ const Results = () => {
               transition={{ duration: 1.5, repeat: Infinity }}
               className="flex-[2] flex items-center justify-center gap-3 py-5 rounded-2xl bg-[#00D95F] text-white font-black text-sm uppercase tracking-widest hover:bg-[#00c456] transition-all shadow-xl shadow-green-500/10"
             >
-              <MessageCircle className="w-5 h-5 fill-current" />
+              <WhatsAppIcon size={22} />
               Contacter sur WhatsApp
             </motion.button>
             <button

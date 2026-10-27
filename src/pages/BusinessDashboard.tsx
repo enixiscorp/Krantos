@@ -38,6 +38,8 @@ import { generateReport, exportToPDF } from '../services/billingService';
 import { notificationService } from '../services/notificationService';
 import { vendorSessionStore, productsCacheStore } from '../lib/offlineDB';
 import { useConnection } from '../context/ConnectionContext';
+import WhatsAppIcon from '../components/WhatsAppIcon';
+import { buildVendorToClientMessage, buildWhatsAppUrl } from '../services/whatsappService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -860,12 +862,18 @@ const BusinessDashboard = () => {
                                 <>
                                   {lead.user_phone && (
                                     <a
-                                      href={`https://wa.me/${lead.user_phone.replace(/\D/g,'').length === 8 ? '228' + lead.user_phone.replace(/\D/g,'') : lead.user_phone.replace(/\D/g,'')}?text=${encodeURIComponent(`Bonjour ${lead.user_name}, suite à votre simulation sur Krantos, je suis disponible pour vous accompagner.`)}`}
+                                      href={buildWhatsAppUrl(lead.user_phone, buildVendorToClientMessage({
+                                        clientName: lead.user_name,
+                                        totalKVA: lead.total_power_needed,
+                                        productName: products.find((p) => p.id === lead.recommended_product_id)?.name ?? null,
+                                        productPowerRating: products.find((p) => p.id === lead.recommended_product_id)?.power_rating ?? null,
+                                        vendorName: vendor?.name ?? null,
+                                      }))}
                                       target="_blank" rel="noopener noreferrer"
                                       className="p-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all"
                                       title="WhatsApp"
                                     >
-                                      <Phone size={13} />
+                                      <WhatsAppIcon size={13} />
                                     </a>
                                   )}
                                   {lead.status !== 'converted' && (

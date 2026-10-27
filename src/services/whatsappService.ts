@@ -32,20 +32,16 @@ export interface WhatsAppUser {
 /**
  * Builds the structured WhatsApp message to be sent to the vendor.
  *
- * Format (Requirement 7.1 / Propriété 7):
- * ```
- * Bonjour, je suis [Prénom Nom] (📞 [téléphone], 📍 [localisation]).
- * J'ai calculé mes besoins : [totalWatts] W / [totalKVA] kVA.
- * Appareils : [liste appareils].
- * Produit recommandé : [nom produit] — [prix] FCFA.
- * Je souhaite obtenir plus d'informations.
- * ```
+ * Multi-line message: client identity, calculated power, one line per
+ * appliance, the chosen generator (name, power, price), signed with the
+ * client's first name.
  *
  * @param user        - User info (first_name, last_name, phone, location)
  * @param appliances  - List of appliances entered by the user
  * @param totalWatts  - Total power in Watts (with safety margin)
  * @param totalKVA    - Total power in kVA (with safety margin)
- * @param product     - Recommended product (optional)
+ * @param product     - Chosen product (optional)
+ * @param vendorName  - Vendor name used in the greeting (optional)
  * @returns The formatted message string
  */
 export function buildWhatsAppMessage(
@@ -53,28 +49,84 @@ export function buildWhatsAppMessage(
   appliances: ApplianceInput[],
   totalWatts: number,
   totalKVA: number,
-  product?: Product | null
+  product?: Product | null,
+  vendorName?: string | null
 ): string {
+  const firstName = firstNameFromFullName(user.fullName);
 
-  // Build appliance list: "Climatiseur x2, Réfrigérateur x1, ..."
-  const applianceList = appliances
-    .map((a) => `${a.name} x${a.quantity}`)
-    .join(', ');
+  // One line per appliance: "• Climatiseur x2 — 1500 W/unité"
+  const applianceLines = appliances
+    .map((a) => {
+      const detail = a.unit === 'A' ? `${a.power} A (≈ ${Math.round(a.power * 220)} W)` : `${a.power} W`;
+      return `• ${a.name} x${a.quantity} — ${detail}/unité`;
+    })
+    .join('\n');
 
-  let message =
-    `Bonjour, je suis ${user.fullName} (📞 ${user.phone}, 📍 ${user.location}).\n` +
-    `J'ai calculé mes besoins : ${totalWatts} W / ${totalKVA} kVA.\n` +
-    `Appareils : ${applianceList}.\n`;
+  const lines: string[] = [
+    `Bonjour${vendorName ? ' ' + vendorName : ''}, je suis ${user.fullName} 👋`,
+    `📞 ${user.phone} | 📍 ${user.location}`,
+    `Je vous contacte via Krantos suite à mon calcul énergétique.`,
+    '',
+    `⚡ J'ai calculé mes besoins : ${totalWatts} W / ${totalKVA} kVA`,
+    '',
+    `🔌 Appareils :`,
+    applianceLines,
+  ];
 
   if (product) {
-    // Format price with thousands separator (FCFA convention)
-    const formattedPrice = Number(product.price).toLocaleString('fr-FR');
-    message += `Produit recommandé : ${product.name} — ${formattedPrice} FCFA.\n`;
+    lines.push('', `🛒 Générateur choisi : ${product.name}`);
+    if (product.power_rating != null) lines.push(`• Puissance : ${product.power_rating} kVA`);
+    lines.push(`• Prix : ${Number(product.price).toLocaleString('fr-FR')} FCFA`);
   }
 
-  message += `Je souhaite obtenir plus d'informations.`;
+  lines.push(
+    '',
+    `Je souhaite obtenir plus d'informations (disponibilité, livraison, installation).`,
+    `Merci, ${firstName}.`
+  );
 
-  return message;
+  return lines.join('\n');
+}
+
+export function firstNameFromFullName(fullName: string): string {
+  const trimmed = fullName.trim();
+  return trimmed.split(/\s+/)[0] || trimmed;
+}
+
+/** Normalise un numéro Togo (8 chiffres) vers le format international WhatsApp. */
+export function normalizeWhatsAppPhone(phone: string): string {
+  let num = phone.replace(/\D/g, '');
+  if (num.length === 8) num = `228${num}`;
+  return num;
+}
+
+/** Message du vendeur / gestionnaire vers le client : modèle choisi + consommation. */
+export function buildVendorToClientMessage(opts: {
+  clientName: string;
+  totalKVA?: number | null;
+  productName?: string | null;
+  productPowerRating?: number | null;
+  vendorName?: string | null;
+}): string {
+  const firstName = firstNameFromFullName(opts.clientName);
+  const lines = [
+    `Bonjour ${firstName} 👋`,
+    `${opts.vendorName ? opts.vendorName : 'Votre vendeur'} vous contacte suite à votre simulation sur Krantos.`,
+  ];
+  if (opts.totalKVA != null && Number.isFinite(Number(opts.totalKVA))) {
+    const kva = Number(opts.totalKVA);
+    lines.push(`⚡ Consommation estimée : ${kva.toFixed(2)} kVA (≈ ${Math.round(kva * 1000)} W)`);
+  }
+  if (opts.productName) {
+    const rating = opts.productPowerRating != null ? ` (${opts.productPowerRating} kVA)` : '';
+    lines.push(`🛒 Modèle choisi : ${opts.productName}${rating}`);
+  }
+  lines.push('Je suis disponible pour vous accompagner (disponibilité, livraison, installation).');
+  return lines.join('\n');
+}
+
+export function buildWhatsAppUrl(phone: string, message: string): string {
+  return `https://wa.me/${normalizeWhatsAppPhone(phone)}?text=${encodeURIComponent(message)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,10 +177,14 @@ export function sendWhatsAppMessage(
     );
   }
 
-  const encodedMessage = encodeURIComponent(message);
-  const url = `https://wa.me/${vendorPhone}?text=${encodedMessage}`;
+  const url = `https://wa.me/${vendorPhone}?text=${encodeURIComponent(message)}`;
 
-  window.open(url, '_blank');
+  // Must run synchronously inside the click handler, otherwise mobile
+  // browsers block the popup. Fall back to same-tab navigation if blocked.
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    window.location.href = url;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -176,4 +232,7 @@ export const WhatsAppService = {
   buildWhatsAppMessage,
   sendWhatsAppMessage,
   updateLeadStatus,
+  normalizeWhatsAppPhone,
+  buildVendorToClientMessage,
+  buildWhatsAppUrl,
 };

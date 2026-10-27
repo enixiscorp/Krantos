@@ -16,6 +16,17 @@ import { getRecommendation } from '../services/recommendationEngine';
 import { APPLIANCE_CATALOG, APPLIANCE_CATEGORIES, findAppliancePreset } from '../constants/applianceCatalog';
 import { enqueueAction } from '../lib/offlineQueue';
 
+/** UUID v4 generated client-side so the lead id is known before saving. */
+function newUuid(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Local types
 // ---------------------------------------------------------------------------
@@ -169,8 +180,7 @@ const CalculatePower = () => {
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
 
   // ── Submission state ─────────────────────────────────────────────────────
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitFailed, setSubmitFailed] = useState(false);
+  const [isLoadingReco, setIsLoadingReco] = useState(false);
   const [step, setStep] = useState<'input' | 'suggestions'>('input');
   const [recommendations, setRecommendations] = useState<{
     product: any;
@@ -247,139 +257,75 @@ const CalculatePower = () => {
   };
 
   // ── Core submit / record lead ────────────────────────────────────────────
-  const recordLead = async (
+  // Navigates to the results page instantly; the lead is saved in the background.
+  const recordLead = (
     totalWatts: number,
     totalKVA: number,
     product: any | null,
     vendor: any | null
   ) => {
-    setIsSubmitting(true);
-    setSubmitFailed(false);
+    const userName = `${userForm.firstName.trim()} ${userForm.lastName.trim()}`;
+    const leadPayload = {
+      user_name: userName,
+      user_phone: userForm.phone.trim(),
+      location: userForm.location.trim(),
+      total_power_needed: totalKVA,
+      recommended_product_id: product?.id ?? null,
+      vendor_id: vendor?.id ?? null,
+      status: 'new' as const,
+    };
+    const appliancesPayload = appliances.map((a) => ({
+      appliance_name: a.name,
+      quantity: a.quantity,
+      power: a.power,
+      unit: a.unit,
+      power_in_watts: a.unit === 'A' ? a.power * 220 : a.power,
+    }));
 
-    if (!isOnline) {
-      // Enqueue lead in IndexedDB offline queue (more reliable than localStorage)
-      await enqueueAction({
+    const online = isOnline && navigator.onLine;
+    const leadId = online ? newUuid() : 'offline-' + Date.now();
+
+    navigate('/results', {
+      state: {
+        totalWatts,
+        totalKVA,
+        product,
+        vendor,
+        leadId,
+        userName,
+        userPhone: userForm.phone.trim(),
+        location: userForm.location.trim(),
+        appliances,
+      },
+    });
+
+    const queueLead = (lead: object) =>
+      enqueueAction({
         type: 'INSERT',
         table: 'leads_with_appliances',
-        label: `Calcul de ${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-        payload: {
-          lead: {
-            user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-            user_phone: userForm.phone.trim(),
-            location: userForm.location.trim(),
-            total_power_needed: totalKVA,
-            recommended_product_id: product?.id ?? null,
-            vendor_id: vendor?.id ?? null,
-            status: 'new',
-          },
-          appliances: appliances.map(a => ({
-            appliance_name: a.name,
-            quantity: a.quantity,
-            power: a.power,
-            unit: a.unit,
-            power_in_watts: a.unit === 'A' ? a.power * 220 : a.power,
-          })),
-        },
-      });
+        label: `Calcul de ${userName}`,
+        payload: { lead, appliances: appliancesPayload },
+      }).catch((err) => console.error('Offline queue failed:', err));
 
+    if (!online) {
       toast.info("📵 Mode Hors-ligne : Votre demande sera envoyée dès votre retour en ligne.");
-
-      navigate('/results', {
-        state: {
-          totalWatts,
-          totalKVA,
-          product,
-          vendor,
-          leadId: 'offline-' + Date.now(),
-          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-          userPhone: userForm.phone.trim(),
-          location: userForm.location.trim(),
-          appliances,
-        },
-      });
-      setIsSubmitting(false);
+      queueLead(leadPayload);
       return;
     }
 
-    try {
-      const { data: leadData, error: leadError } = await supabase
-        .from('leads')
-        .insert({
-          user_name: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-          user_phone: userForm.phone.trim(),
-          location: userForm.location.trim(),
-          total_power_needed: totalKVA,
-          recommended_product_id: product?.id ?? null,
-          vendor_id: vendor?.id ?? null,
-          status: 'new',
-        })
-        .select('id')
-        .single();
-
-      if (leadError || !leadData) {
-        throw new Error(leadError?.message ?? 'Erreur lors de la création du lead.');
+    (async () => {
+      const { error: leadError } = await supabase.from('leads').insert({ id: leadId, ...leadPayload });
+      if (leadError) {
+        console.error('Lead recording failed, queued for retry:', leadError.message);
+        queueLead({ id: leadId, ...leadPayload });
+        return;
       }
-
-      const leadId = leadData.id as string;
-
-      const appliancesPayload = appliances.map((a) => {
-        let powerInWatts: number;
-        if (a.unit === 'A') {
-          powerInWatts = a.power * 220;
-        } else {
-          powerInWatts = a.power;
-        }
-        return {
-          lead_id: leadId,
-          appliance_name: a.name,
-          quantity: a.quantity,
-          power: a.power,
-          unit: a.unit,
-          power_in_watts: powerInWatts,
-        };
-      });
-
-      const { error: appliancesError } = await supabase
-        .from('appliances_input')
-        .insert(appliancesPayload);
-
-      if (appliancesError) throw new Error(appliancesError.message);
-
-      navigate('/results', {
-        state: {
-          totalWatts,
-          totalKVA,
-          product,
-          vendor,
-          leadId,
-          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-          userPhone: userForm.phone.trim(),
-          location: userForm.location.trim(),
-          appliances,
-        },
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur inconnue.';
-      console.error('Lead recording failed:', message);
-      
-      toast.warning("Une erreur est survenue lors de l'enregistrement. Veuillez contacter le vendeur directement.");
-      
-      navigate('/results', {
-        state: {
-          totalWatts,
-          totalKVA,
-          product,
-          vendor,
-          leadId: 'error-' + Date.now(),
-          userName: `${userForm.firstName.trim()} ${userForm.lastName.trim()}`,
-          userPhone: userForm.phone.trim(),
-          location: userForm.location.trim(),
-          appliances,
-        },
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+      const rows = appliancesPayload.map((a) => ({ ...a, lead_id: leadId }));
+      const { error: appliancesError } = await supabase.from('appliances_input').insert(rows);
+      if (appliancesError) {
+        console.error('Appliances recording failed:', appliancesError.message);
+      }
+    })();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -392,9 +338,14 @@ const CalculatePower = () => {
     }
     if (!userValid || appliances.length === 0) return;
 
-    setIsSubmitting(true);
     const { totalWatts, totalKVA } = calculateTotalPower(appliances);
     setCalculatedPower({ watts: totalWatts, kva: totalKVA });
+
+    // Show the result instantly; products load in the background.
+    setRecommendations(null);
+    setIsLoadingReco(true);
+    setStep('suggestions');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
       const result = await getRecommendation(totalKVA);
@@ -402,17 +353,16 @@ const CalculatePower = () => {
       if (result.fromCache) {
         toast.info('📦 Résultats affichés depuis le cache local (mode hors-ligne).');
       }
-      setStep('suggestions');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       toast.error("Erreur lors de la recherche de produits.");
+      setRecommendations({ product: null, vendor: null, alternatives: [] });
     } finally {
-      setIsSubmitting(false);
+      setIsLoadingReco(false);
     }
   };
 
-  const handleSelectProduct = async (product: any, vendor: any) => {
-    await recordLead(calculatedPower.watts, calculatedPower.kva, product, vendor);
+  const handleSelectProduct = (product: any, vendor: any) => {
+    recordLead(calculatedPower.watts, calculatedPower.kva, product, vendor);
   };
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -560,16 +510,11 @@ const CalculatePower = () => {
                 <div className="pt-4">
                   <button
                     type="submit"
-                    disabled={isSubmitting}
                     className="w-full flex items-center justify-center gap-3 py-5 rounded-[2rem] bg-yellow-400 text-gray-900 font-black text-xl hover:bg-yellow-500 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-yellow-400/20 disabled:opacity-50 accent-glow"
                   >
-                    {isSubmitting ? <span className="animate-spin h-6 w-6 border-4 border-black/20 border-t-black rounded-full" /> : (
-                      <>
-                        <Zap className="w-6 h-6 fill-current" />
-                        Calculer ma puissance
-                        <ChevronRight className="w-6 h-6" />
-                      </>
-                    )}
+                    <Zap className="w-6 h-6 fill-current" />
+                    Calculer ma puissance
+                    <ChevronRight className="w-6 h-6" />
                   </button>
                 </div>
               </form>
@@ -627,10 +572,9 @@ const CalculatePower = () => {
                         </div>
                         <button
                           onClick={() => handleSelectProduct(recommendations.product, recommendations.vendor)}
-                          disabled={isSubmitting}
                           className="px-6 py-3 rounded-xl bg-yellow-400 text-black font-black text-xs uppercase tracking-widest hover:bg-yellow-500 transition-all flex items-center gap-2"
                         >
-                          {isSubmitting ? <span className="animate-spin h-4 w-4 border-2 border-black/20 border-t-black rounded-full" /> : 'Choisir'}
+                          Choisir
                         </button>
                       </div>
                     </div>
@@ -665,7 +609,6 @@ const CalculatePower = () => {
                         </div>
                         <button
                           onClick={() => handleSelectProduct(alt.product, alt.vendor)}
-                          disabled={isSubmitting}
                           className="px-6 py-3 rounded-xl bg-white/10 text-white font-black text-xs uppercase tracking-widest hover:bg-white/20 transition-all"
                         >
                           Choisir
@@ -676,7 +619,13 @@ const CalculatePower = () => {
                 ))}
 
                 {/* Fallback if no products found (common when offline with empty cache) */}
-                {!recommendations?.product && (recommendations?.alternatives?.length ?? 0) === 0 && (
+                {isLoadingReco && (
+                  <div className="col-span-full glass-card p-12 rounded-[2.5rem] border-white/5 text-center flex flex-col items-center gap-4">
+                    <span className="animate-spin h-8 w-8 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full" />
+                    <p className="text-gray-400 text-sm">Recherche des générateurs adaptés à {calculatedPower.kva.toFixed(2)} kVA…</p>
+                  </div>
+                )}
+                {!isLoadingReco && !recommendations?.product && (recommendations?.alternatives?.length ?? 0) === 0 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -694,7 +643,6 @@ const CalculatePower = () => {
                     </div>
                     <button
                       onClick={() => handleSelectProduct(null, null)}
-                      disabled={isSubmitting}
                       className="px-10 py-4 rounded-2xl bg-yellow-400 text-black font-black text-sm uppercase tracking-widest hover:bg-yellow-500 transition-all shadow-xl shadow-yellow-400/20"
                     >
                       Continuer sans sélection

@@ -25,12 +25,17 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Lead, LeadStatus } from '../lib/supabase';
+import WhatsAppIcon from '../components/WhatsAppIcon';
+import { buildVendorToClientMessage, buildWhatsAppUrl } from '../services/whatsappService';
 
-const formatWhatsApp = (phone: string) => {
-  let num = phone.replace(/\D/g, '');
-  if (num.length === 8) num = '228' + num;
-  return num;
-};
+const clientWhatsAppUrl = (lead: LeadWithVendor) =>
+  buildWhatsAppUrl(lead.user_phone, buildVendorToClientMessage({
+    clientName: lead.user_name,
+    totalKVA: lead.total_power_needed,
+    productName: lead.product_name,
+    productPowerRating: lead.product_power_rating ?? null,
+    vendorName: lead.vendor_name,
+  }));
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +46,7 @@ interface LeadWithVendor extends Lead {
   vendor_phone: string | null;
   product_name: string | null;
   product_price: number | null;
+  product_power_rating?: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -89,7 +95,7 @@ const AdminLeads = () => {
           .select(`
             *,
             vendors:vendor_id ( id, name, phone ),
-            products:recommended_product_id ( id, name, price )
+            products:recommended_product_id ( id, name, price, power_rating )
           `)
           .order('created_at', { ascending: false }),
         supabase.from('vendors').select('id, name').order('name'),
@@ -108,6 +114,7 @@ const AdminLeads = () => {
           vendor_phone: lead.vendors?.phone ?? null,
           product_name: lead.products?.name ?? null,
           product_price: lead.products?.price ?? null,
+          product_power_rating: lead.products?.power_rating ?? null,
         }));
 
         setLeads(enriched);
@@ -386,13 +393,13 @@ const AdminLeads = () => {
                               <Phone className="w-4 h-4" />
                            </a>
                            <a 
-                             href={`https://wa.me/${formatWhatsApp(lead.user_phone)}`} 
+                             href={clientWhatsAppUrl(lead)} 
                              target="_blank" 
                              rel="noopener noreferrer"
                              className="p-3 rounded-xl bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white transition-all shadow-lg shadow-green-500/5" 
                              title="WhatsApp"
                            >
-                              <MessageSquare className="w-4 h-4" />
+                              <WhatsAppIcon size={16} />
                            </a>
                            <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">#{lead.id.slice(0, 8)}</p>
                          </div>
@@ -477,7 +484,7 @@ const AdminLeads = () => {
                       <p className="text-white font-black text-sm">{selectedLead.vendor_name || 'Non assigné'}</p>
                       {selectedLead.vendor_phone && (
                         <a
-                          href={`https://wa.me/${selectedLead.vendor_phone.replace(/\D/g,'')}`}
+                          href={buildWhatsAppUrl(selectedLead.vendor_phone, '')}
                           target="_blank" rel="noopener noreferrer"
                           className="text-[10px] text-green-400 hover:underline font-bold"
                         >
@@ -550,11 +557,11 @@ const AdminLeads = () => {
             {/* Modal Actions */}
             <div className="p-8 bg-white/[0.02] border-t border-white/5 flex gap-3 flex-wrap">
               <a
-                href={`https://wa.me/${formatWhatsApp(selectedLead.user_phone)}`}
+                href={clientWhatsAppUrl(selectedLead)}
                 target="_blank" rel="noopener noreferrer"
                 className="flex-1 min-w-[140px] bg-[#00D95F] text-white font-black uppercase tracking-widest text-xs py-4 rounded-2xl hover:bg-[#00c456] transition-all text-center flex items-center justify-center gap-2"
               >
-                <MessageSquare className="w-4 h-4" /> WhatsApp Client
+                <WhatsAppIcon size={18} /> WhatsApp Client
               </a>
               <button 
                 onClick={() => { handleUpdateStatus(selectedLead.id, 'converted'); setSelectedLead({...selectedLead, status: 'converted'}); }}
